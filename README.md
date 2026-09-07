@@ -16,6 +16,15 @@ Requires Go 1.26 and installed, authenticated `claude`/`codex` CLIs for actual m
 runs. The service itself uses only the Go standard library. macOS and Linux are the
 initial platforms (Unix sockets and process locking).
 
+CI runs race-enabled tests and vet on macOS and Linux, then builds native archives
+for both platforms on AMD64 and ARM64. Each successful build uploads the archives,
+a separate Claude/Codex plugin bundle, and `SHA256SUMS` as a GitHub Actions artifact.
+Archives preserve executable permissions. Checksums detect corruption, not publisher
+authenticity. CI does not publish releases or install anything into target projects.
+There is no npm package; licensing and public release remain pending decisions.
+To produce the same artifacts locally, run `bash scripts/build-binaries.sh`; output
+is written to the ignored `dist/` directory.
+
 ```sh
 make check
 make build
