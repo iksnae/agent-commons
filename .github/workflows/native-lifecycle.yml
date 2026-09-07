@@ -1,0 +1,30 @@
+name: Native supervisor lifecycle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: go build -o bin/agent-commons ./cmd/agent-commons
+      - name: Verify native user-service lifecycle
+        shell: bash
+        env:
+          AGENT_COMMONS_NATIVE_SUPERVISOR: "1"
+        run: |
+          export AGENT_COMMONS_TEST_BINARY="$GITHUB_WORKSPACE/bin/agent-commons"
+          go test -race ./integration -run '^TestNativeSupervisorLifecycle$' -count=1 -v -timeout 8m

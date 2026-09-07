@@ -14,12 +14,17 @@ operational gate.
 - An isolated subprocess test kills the service, restarts it, and verifies that
   the registry survives and the stale default socket is recovered. Active sockets,
   custom paths, regular files and symlinks are not removed by recovery.
+- A native macOS launchd test starts an isolated service, kills it, observes a new
+  PID with the same registry, and stops/unregisters its temporary job. This is
+  session-local supervision evidence, not a login/reboot or production migration test.
 
 ## Still required for the beta
 
 - [ ] Service install/start/stop/uninstall tested on macOS and Linux without
   touching unrelated jobs or deleting state. `service-plan` now renders user-job
   files for review; it does not install them. Native parser tests are not lifecycle tests.
+  macOS transient lifecycle is exercised; Linux lifecycle and a user-facing
+  installer remain open.
 - [ ] Role check-in and wake processes supervised, including offline startup and
   uncertain queue results. A service restart must not silently replay an uncertain wake.
 - [ ] Explicit project/workspace launch integration tested with both Claude and
@@ -68,3 +73,19 @@ macOS user agents run in the logged-in user's session. A Linux user unit also
 depends on user-manager lifecycle; no lingering or boot-time guarantees are set up.
 See [Apple's launchd guide](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
 and [systemd's service reference](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html).
+
+## Exercise a native supervisor
+
+Build the binary, then set `AGENT_COMMONS_NATIVE_SUPERVISOR=1` and
+`AGENT_COMMONS_TEST_BINARY` to its absolute path when running
+`go test -race ./integration -run '^TestNativeSupervisorLifecycle$' -count=1 -v -timeout 8m`.
+This opt-in test really registers and stops a temporary user-service job. It copies
+the binary into a private temporary directory and uses fresh state with one manual
+test identity. It never starts Claude or Codex. Existing jobs and state are untouched.
+
+macOS needs the current user's GUI launchd domain; Linux needs a reachable systemd
+user manager. The Linux job is linked with `--runtime`, not enabled for login.
+The test unregisters its job and removes its temporary files on success. On failure,
+it attempts cleanup but retains its files and reports their path for inspection.
+The manually triggered `Native supervisor lifecycle` workflow runs the same test
+on both platforms. A missing supervisor is a failure, not evidence of a passing gate.

@@ -32,3 +32,9 @@ config files, service-file escaping and native parser validation where available
 An isolated subprocess crash/restart test verifies registry persistence and
 default socket recovery. These tests do not prove installed supervisor lifecycle,
 reboot recovery or a migration of the running pilot.
+
+An opt-in native launchd test has now passed on macOS: isolated service startup,
+SIGKILL recovery to a different PID, durable registry verification, stop and transient
+unregistration. No provider sessions were launched. Linux native lifecycle, login/
+reboot persistence and the user-facing installer remain unverified. The dedicated
+manual CI workflow keeps these host-dependent tests separate from ordinary builds.
