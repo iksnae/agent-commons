@@ -18,7 +18,7 @@ func diagnoseRuntime(ctx context.Context, connection projectConnection, report *
 }
 
 func runtimeDoctorChecks(report *healthReport, available bool, capabilityErr error, readStatus func() (core.RuntimeStatusPage, error)) bool {
-	report.Checks = append(report.Checks, healthCheck{"sessions.capabilities", capabilityErr == nil})
+	report.Checks = append(report.Checks, healthCheckFor("sessions.capabilities", capabilityErr))
 	if capabilityErr != nil {
 		return false
 	}
@@ -26,7 +26,7 @@ func runtimeDoctorChecks(report *healthReport, available bool, capabilityErr err
 		return true
 	}
 	status, err := readStatus()
-	report.Checks = append(report.Checks, healthCheck{"runtime.status", err == nil})
+	report.Checks = append(report.Checks, healthCheckFor("runtime.status", err))
 	if err != nil {
 		return false
 	}

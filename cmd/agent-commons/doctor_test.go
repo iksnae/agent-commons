@@ -75,6 +75,17 @@ func TestDoctorFailsClosed(t *testing.T) {
 	}
 }
 
+func TestDoctorReportsSafeFailureCode(t *testing.T) {
+	var out bytes.Buffer
+	err := run(context.Background(), []string{"doctor", "--config", filepath.Join(t.TempDir(), "missing")}, nil, &out, io.Discard)
+	if err == nil || !bytes.Contains(out.Bytes(), []byte(`"code":"not_found"`)) {
+		t.Fatalf("missing actionable code: %v %s", err, out.String())
+	}
+	if bytes.Contains(out.Bytes(), []byte("missing")) {
+		t.Fatal("diagnostic exposed path details")
+	}
+}
+
 func TestDoctorRejectsFIFOConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fifo")
 	if err := syscall.Mkfifo(path, 0600); err != nil {

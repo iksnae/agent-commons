@@ -3,7 +3,9 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"agentcommons/internal/core"
@@ -33,6 +35,28 @@ func TestDoctorRuntimeNegotiationDoesNotInventAvailability(t *testing.T) {
 			}
 			if test.statusErr != nil && (len(report.Checks) != 2 || report.Checks[1].OK) {
 				t.Fatal("advertised status failure not reported")
+			}
+		})
+	}
+}
+
+func TestHealthErrorCodesStayWithinSafeContract(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"deadline", context.DeadlineExceeded, "deadline"},
+		{"canceled", context.Canceled, "canceled"},
+		{"not-found", os.ErrNotExist, "not_found"},
+		{"permission", os.ErrPermission, "permission"},
+		{"authentication", errors.New("configured credential rejected"), "authentication"},
+		{"busy", errors.New("state already locked"), "busy"},
+		{"unavailable", errors.New("socket closed"), "unavailable"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := healthErrorCode(test.err); got != test.want {
+				t.Fatalf("code = %q, want %q", got, test.want)
 			}
 		})
 	}

@@ -9,6 +9,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"strings"
 	"time"
 
 	"agentcommons/internal/core"
@@ -25,6 +27,38 @@ type healthReport struct {
 type healthCheck struct {
 	Name string `json:"name"`
 	OK   bool   `json:"ok"`
+	Code string `json:"code,omitempty"`
+}
+
+func healthCheckFor(name string, err error) healthCheck {
+	check := healthCheck{Name: name, OK: err == nil}
+	if err != nil {
+		check.Code = healthErrorCode(err)
+	}
+	return check
+}
+
+func healthErrorCode(err error) string {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "deadline"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, os.ErrNotExist):
+		return "not_found"
+	case errors.Is(err, os.ErrPermission):
+		return "permission"
+	}
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{"credential", "authenticated", "token", "authorization"} {
+		if strings.Contains(message, marker) {
+			return "authentication"
+		}
+	}
+	if strings.Contains(message, "locked") || strings.Contains(message, "already in use") {
+		return "busy"
+	}
+	return "unavailable"
 }
 
 func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -53,19 +87,19 @@ func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error 
 func diagnoseConnection(ctx context.Context, path string) healthReport {
 	report := healthReport{Notice: "Read-only connection check. No attachment, acknowledgement, enrollment or model wake. Ready means scoped RPC checks passed, not production readiness or provider availability."}
 	connection, err := openProjectConnection(path)
-	report.Checks = append(report.Checks, healthCheck{"private-connection-and-credential", err == nil})
+	report.Checks = append(report.Checks, healthCheckFor("private-connection-and-credential", err))
 	if err != nil {
 		return report
 	}
 	err = connection.verifyIdentity(ctx)
-	report.Checks = append(report.Checks, healthCheck{"authenticated-project-name-role", err == nil})
+	report.Checks = append(report.Checks, healthCheckFor("authenticated-project-name-role", err))
 	if err != nil {
 		return report
 	}
 	report.Identity = connection.config.Identity
 	for _, method := range []string{"inbox.page", "board.list"} {
 		_, err = rpcCall[json.RawMessage](ctx, connection.client, method, map[string]int{"limit": 1})
-		report.Checks = append(report.Checks, healthCheck{method, err == nil})
+		report.Checks = append(report.Checks, healthCheckFor(method, err))
 		if err != nil {
 			return report
 		}
