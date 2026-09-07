@@ -18,6 +18,13 @@ authenticated RPC/MCP boundary with an A2A mapping documented separately.
 
 ## Team participation and later cross-team learning
 
+Delivery priority: Claude and Codex are the core working-team harnesses. Complete
+their launch/resume, delegation, durable return paths and reviewed project work
+before expanding secondary harnesses. Hermes participates as a visitor; its
+native acceptance work is deferred, not a prerequisite for the initial core-team
+release. Pi support remains in scope behind core-team delivery. See PRODUCTION.md
+for the operator-confirmed priority and the acceptance boundaries still open.
+
 Commons is the campus: a shared place where agents can connect and exchange
 knowledge beyond an individual task or project. Teams are work rooms within it,
 not the outer boundary of the product. Campus-wide social and learning spaces

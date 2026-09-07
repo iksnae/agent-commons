@@ -9,6 +9,28 @@ Native service lifecycle tests pass on macOS and Linux. Wake maintenance and
 operator resolution now have isolated recovery tests; native recovery and the
 other gates below remain open. The production goal remains active.
 
+## Delivery priority
+
+The operator has confirmed that Claude and Codex are the core working-team
+harnesses. Production effort goes first to their complete team workflow:
+
+1. Launch and resume the intended project role with an explicit credential
+   boundary, recover its inbox, and keep its return path available.
+2. Delegate work and durably return results across Claude and Codex, including
+   offline recipients, cancellation and restart without blind replay.
+3. Connect team membership to task/context scope and independently reviewed work,
+   then support explicitly authorized writes in isolated project worktrees.
+
+The matching recovery, observability, installation and release gates below still
+apply. This priority does not turn a read-only adapter or a passing fixture into
+production acceptance.
+
+Hermes is a visitor integration. Its installer, MCP and launch acceptance work is
+deferred behind the core team workflow and does not gate the initial core-team
+release. Pi remains foundational support, also behind Claude/Codex delivery.
+Neither runtime is being removed from the product; their incomplete capabilities
+must remain visible rather than advertised as equivalent to the working teams.
+
 ## Core-state recovery guardrails
 
 Existing state is decoded without fresh-service defaults. Empty, null and
@@ -33,7 +55,8 @@ exercise these checks.
 | Requirement | Current evidence | What still needs proof |
 | --- | --- | --- |
 | Stable project + agent name/role identity | Enrollment, conflict and lease tests; native Claude init-only hook attachment | Codex launch integration, model inbox recovery, and launcher credential isolation |
-| Foundational Claude/Codex/Pi/Hermes harnesses | Shared capability catalog, explicit Pi/Hermes check-in and project-source inventory tests; Pi local package install, startup, seeded-root resume, fork rejection and removal; Hermes 0.21.0 portable loader reads a copied skill/MCP bundle | Pi/Hermes native dispatch, credential isolation, Hermes installer lifecycle, MCP execution, launch, wake and fresh-session recovery acceptance |
+| Core Claude/Codex working-team harnesses | Shared capability catalog, native Claude startup attachment and Codex preparation/resume checks; read-only managed adapters | End-to-end native team participation, launcher credential isolation, reliable continuation and restart acceptance |
+| Secondary Pi/Hermes participation | Explicit check-in and project-source inventory tests; Pi local package install, startup, seeded-root resume, fork rejection and removal; Hermes 0.21.0 portable loader reads a copied skill/MCP bundle | Deferred behind core teams: native dispatch, credential isolation, Hermes installer lifecycle, MCP execution, launch, wake and fresh-session recovery acceptance |
 | Durable communication and return paths | Scoped RPC tests; existing-conversation wake evidence | Full managed cross-runtime acceptance; supervised role watchers and offline recovery |
 | Shared context and learnings | Versioned context and scoped board tests; newest-first check-in for all four harnesses with older-service compatibility | Explicit cross-project publication flow, durable review tracking and native launch-time review |
 | Safe local installation and lifecycle | Native macOS/Linux full service CLI lifecycle CI; bundle boundary tests; recoverable removal and Linux persistent-link checks | Clean-machine upgrades, login/reboot behavior |
