@@ -27,7 +27,8 @@ needs operational testing. `doctor --config FILE` checks a scoped connection;
 `service-plan` renders a supervision configuration without installing it.
 
 Requires Go 1.26 and installed, authenticated `claude`/`codex` CLIs for actual model
-runs. The service itself uses only the Go standard library. macOS and Linux are the
+runs. Coordination logic uses the Go standard library; the terminal console uses
+Charm. macOS and Linux are the
 initial platforms (Unix sockets and process locking).
 
 CI runs race-enabled tests and vet on macOS and Linux, then builds native archives
@@ -232,3 +233,25 @@ bidirectional managed-runtime live gate remains unproven; see [validation status
 
 See [acceptance gates](GATES.md) for measured evidence and outstanding limitations.
 The independent review record is in [REVIEW.md](REVIEW.md).
+
+## Terminal console
+
+```sh
+agent-commons console --config /absolute/private-role-connection.json
+agent-commons console --config /absolute/private-role-connection.json --once
+```
+
+The console shows registered agents and tasks for that connection's project.
+It refreshes every three seconds after the previous request finishes. Use arrow
+keys to scroll and `q` to exit; the service keeps running. Redirected input or
+output automatically selects a single JSON snapshot, as does `--once`.
+
+This first view is read-only. It does not enroll or attach agents, acknowledge
+messages, retry work, or fall back to operator credentials. Connection failures
+mark the last successful snapshot as stale. A current attachment lease is not
+proof an agent is reachable. Task acceptance is not evidence of deployment.
+
+The interactive view displays up to 200 agents and 200 tasks, with bounded text
+fields. It requires at least 40 columns and 12 rows. Messageboard browsing,
+multi-project navigation and detailed provider/watcher health remain open.
+Source bundles include vendored dependencies and their notices for offline rebuilds.

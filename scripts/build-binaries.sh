@@ -13,13 +13,17 @@ git ls-files -z | tar --null -T - -czf "$build_dir/source.tar.gz"
 mkdir "$build_dir/source" "$build_dir/artifacts"
 tar -xzf "$build_dir/source.tar.gz" -C "$build_dir/source"
 bash scripts/go-notices.sh "$build_dir/notices"
+(cd "$build_dir/source"; go mod vendor)
+(cd "$build_dir/source"; bash scripts/module-notices.sh "$build_dir/notices")
+# Ship vendored dependency source and notices; extracted bundles rebuild offline.
+tar -czf "$build_dir/source.tar.gz" -C "$build_dir/source" .
 
 for platform in darwin linux; do
   for arch in amd64 arm64; do
     name="agent-commons-${platform}-${arch}"
     mkdir -p "$build_dir/$name"
     (cd "$build_dir/source"; CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" go build \
-      -trimpath -buildvcs=false -ldflags='-s -w' \
+      -mod=vendor -trimpath -buildvcs=false -ldflags='-s -w' \
       -o "$build_dir/$name/agent-commons" ./cmd/agent-commons)
     cp "$build_dir/source/README.md" "$build_dir/source/LICENSE" \
       "$build_dir/source/LICENSING.md" "$build_dir/source/INSTALL.md" "$build_dir/source/SERVICE.md" "$build_dir/source.tar.gz" "$build_dir/$name/"

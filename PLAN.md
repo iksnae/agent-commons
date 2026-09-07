@@ -18,7 +18,9 @@ authenticated RPC/MCP boundary with an A2A mapping documented separately.
 
 ## Shared interfaces (freeze before parallel work)
 
-Module `agentcommons`; Go 1.26, no third-party packages. Package `internal/core`
+Module `agentcommons`; Go 1.26. The original dependency-free constraint was amended
+by operator approval for Charm in the terminal presentation layer. Coordination
+core and service contracts remain standard-library-only. Package `internal/core`
 owns all persistence and domain transitions. Public API:
 
 ```

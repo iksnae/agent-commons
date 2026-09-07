@@ -31,6 +31,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	if len(args) > 0 && args[0] == "console" {
+		return runConsole(ctx, args[1:], in, out, errOut)
+	}
 	if len(args) > 0 && args[0] == "service" {
 		return runService(ctx, args[1:], out, errOut)
 	}
@@ -50,6 +53,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runOnboarding(ctx, args, out, errOut)
 	}
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		if _, err := io.WriteString(out, "console --config FILE: read-only project agents/tasks terminal view; q detaches\n"); err != nil {
+			return err
+		}
 		if _, err := io.WriteString(out, "service install|enable|start|status|stop|remove: explicit native user-service setup and control\n"); err != nil {
 			return err
 		}

@@ -16,14 +16,17 @@ for platform in darwin linux; do
     test -x "$archive/agent-commons"
     test -s "$archive/third-party-notices/go/LICENSE"
     test -s "$archive/third-party-notices/go/PATENTS"
+    for module in bubbletea bubbles lipgloss; do
+      test -s "$archive/third-party-notices/modules/charm.land/$module/v2/LICENSE"
+    done
     for module in crypto net text; do
       test -s "$archive/third-party-notices/golang.org/x/$module/LICENSE"
     done
     mkdir "$archive/source"
     tar -xzf "$archive/source.tar.gz" -C "$archive/source"
     cmp LICENSE "$archive/source/LICENSE"
-    (cd "$archive/source"; CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" \
-      go build -trimpath -buildvcs=false -ldflags='-s -w' \
+    (cd "$archive/source"; GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" \
+      go build -mod=vendor -trimpath -buildvcs=false -ldflags='-s -w' \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
     if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
