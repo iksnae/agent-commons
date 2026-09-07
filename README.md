@@ -19,6 +19,9 @@ without warranty or a promise of ongoing support.
 
 ## Build and start
 
+For a downloaded native bundle, follow [the installation guide](INSTALL.md).
+Installation is local and explicit; no npm package or install-time download is used.
+
 This is a read-only local pilot. See the [beta checklist](BETA.md) for what still
 needs operational testing. `doctor --config FILE` checks a scoped connection;
 `service-plan` renders a supervision configuration without installing it.

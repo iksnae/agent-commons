@@ -38,6 +38,11 @@ isolated service startup, SIGKILL recovery to a different PID, durable registry
 verification, stop and transient
 unregistration, plus clean stop/start and explicit registration-absence checks.
 No provider sessions were launched. Login/reboot persistence and the user-facing
-installer remain unverified. The dedicated manual CI workflow keeps these
+persistent service installer remain unverified. The dedicated manual CI workflow keeps these
 host-dependent tests separate from ordinary builds.
 Evidence: [native lifecycle run 34147092700](https://github.com/iksnae/agent-commons/actions/runs/34147092700).
+
+Local bundle installation now has boundary tests for exclusive destinations,
+symlink rejection, receipt verification and recoverable removal. The archive check
+installs, verifies, runs help and removes the host-native bundle. This installs
+files only; it does not register a persistent service, migrate state or enroll roles.

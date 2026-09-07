@@ -22,7 +22,7 @@ for platform in darwin linux; do
       -trimpath -buildvcs=false -ldflags='-s -w' \
       -o "$build_dir/$name/agent-commons" ./cmd/agent-commons)
     cp "$build_dir/source/README.md" "$build_dir/source/LICENSE" \
-      "$build_dir/source/LICENSING.md" "$build_dir/source.tar.gz" "$build_dir/$name/"
+      "$build_dir/source/LICENSING.md" "$build_dir/source/INSTALL.md" "$build_dir/source.tar.gz" "$build_dir/$name/"
     cp -R "$build_dir/notices" "$build_dir/$name/third-party-notices"
     tar -czf "$build_dir/artifacts/$name.tar.gz" -C "$build_dir" "$name"
   done

@@ -31,6 +31,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	if len(args) > 0 && args[0] == "bundle" {
+		return runBundle(args[1:], out, errOut)
+	}
 	if len(args) > 0 && args[0] == "doctor" {
 		return runDoctor(ctx, args[1:], out, errOut)
 	}
@@ -44,6 +47,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runOnboarding(ctx, args, out, errOut)
 	}
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		if _, err := io.WriteString(out, "bundle install|verify|remove: manage a local extracted bundle; see bundle COMMAND --help\n"); err != nil {
+			return err
+		}
 		if _, err := io.WriteString(out, "doctor --config FILE: read-only scoped connection diagnostics\nservice-plan --binary PATH --state PATH --path PATH: render a user-service plan; never install\nenroll, check-in, connect-mcp: see COMMAND --help for role connection options\n"); err != nil {
 			return err
 		}

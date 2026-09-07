@@ -26,6 +26,9 @@ for platform in darwin linux; do
       go build -trimpath -buildvcs=false -ldflags='-s -w' \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
+    if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
+      bash scripts/check-bundle-install.sh "$archive" "$check_dir"
+    fi
   done
 done
 
