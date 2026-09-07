@@ -80,3 +80,11 @@ installed skill available to the target, and copies every bundled file unchanged
 Uninstall clears installed status and removes the cache. The Claude-only hook is
 absent from Codex's plugin metadata. These checks do not exercise an MCP connection,
 model turn or Codex launch hook. No plugin was installed in the operator's config.
+
+Private configuration reads now reject data beyond their 64 KiB limit, including
+a second JSON object hidden after padding. Wake recovery uses the same strict
+reader with a 16 MiB bound. Regression tests reproduce the former acceptance of
+trailing data and verify refusal without replacing the file or retaining the
+binding lock. A full-ledger test verifies that an overflowing append makes no
+queue call, preserves saved history and leaves the exact-capacity ledger readable
+after restart. This is a capacity guard, not a retention or reconciliation system.

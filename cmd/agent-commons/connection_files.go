@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"syscall"
@@ -22,6 +24,10 @@ type connectionConfig struct {
 }
 
 func privateRead(path string, v any) error {
+	return privateReadLimit(path, v, 64<<10)
+}
+
+func privateReadLimit(path string, v any, limit int64) error {
 	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return err
@@ -34,7 +40,15 @@ func privateRead(path string, v any) error {
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
 		return errors.New("configuration must be a private regular file")
 	}
-	d := json.NewDecoder(io.LimitReader(f, 64<<10))
+	// Read one byte beyond the bound so truncation cannot masquerade as EOF.
+	data, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) > limit {
+		return fmt.Errorf("private JSON exceeds %d bytes", limit)
+	}
+	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	if err = d.Decode(v); err != nil {
 		return err

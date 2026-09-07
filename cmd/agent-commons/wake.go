@@ -53,11 +53,7 @@ func openWake(ctx context.Context, state, thread, binding string, out io.Writer)
 		return nil, errors.New("wake bridge already running for this binding")
 	}
 	w := &wakeWriter{ctx: ctx, thread: thread, path: path, lock: f, records: map[string]wakeRecord{}, out: out, queue: queueCodex}
-	r, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err == nil {
-		defer r.Close()
-		err = json.NewDecoder(io.LimitReader(r, 16<<20)).Decode(&w.records)
-	}
+	err = privateReadLimit(path, &w.records, maxWakeLedger)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		f.Close()
 		return nil, err
@@ -67,34 +63,6 @@ func openWake(ctx context.Context, state, thread, binding string, out io.Writer)
 		return nil, errors.New("invalid wake ledger")
 	}
 	return w, nil
-}
-
-func (w *wakeWriter) save() error {
-	f, err := os.CreateTemp(filepath.Dir(w.path), ".wake-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	err = json.NewEncoder(f).Encode(w.records)
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return err
-	}
-	if err = os.Rename(f.Name(), w.path); err != nil {
-		return err
-	}
-	d, err := os.Open(filepath.Dir(w.path))
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	return d.Sync()
 }
 
 func (w *wakeWriter) Write(data []byte) (int, error) {
