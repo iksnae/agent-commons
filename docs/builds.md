@@ -23,6 +23,7 @@ verified archives as an artifact named for the commit. It does not publish a
 release, change repository visibility, register services or enroll target agents.
 Checksums detect corruption; they do not authenticate the publisher.
 
-Signed release artifacts, compatibility policy and clean-machine acceptance are
-still open in [production readiness](../PRODUCTION.md). There is no Agent Commons
+Signed release artifacts and clean-machine native acceptance are still open in
+[production readiness](../PRODUCTION.md). The [compatibility policy](version-compatibility.md)
+documents the current pre-1.0 behavior. There is no Agent Commons
 npm package. The plugin archive has its own installation and capability limits.

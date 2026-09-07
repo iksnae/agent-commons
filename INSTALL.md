@@ -90,6 +90,10 @@ then schedule a stop and switch to the new binary. Retain the old installation a
 the matching state backup until the migration and rollback have been tested.
 Do not run old and new services against one state directory at the same time.
 
+The [compatibility policy](docs/version-compatibility.md) describes which state
+and connection versions a binary may accept. It does not make native provider
+sessions portable across releases.
+
 `service-plan` renders launchd/systemd configuration without writing it.
 The [service commands](SERVICE.md) install and control that configuration explicitly.
 Role startup hooks, login/reboot validation and upgrade automation remain open
