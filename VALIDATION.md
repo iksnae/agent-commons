@@ -88,3 +88,12 @@ trailing data and verify refusal without replacing the file or retaining the
 binding lock. A full-ledger test verifies that an overflowing append makes no
 queue call, preserves saved history and leaves the exact-capacity ledger readable
 after restart. This is a capacity guard, not a retention or reconciliation system.
+
+Explicit `wake-maintain` now previews or prunes confirmed, acknowledged wake
+records after a complete scoped inbox read. Tests cover preview preservation,
+private durable backups, repeat no-ops, active-watcher refusal, replay-risk
+confirmation, wrong-scope and incomplete pagination evidence, and unchanged inbox
+state. Backup failure prevents pruning; ledger-write failure retains the backup
+and reports uncertainty. Uncertain attempts and unread or missing receipts are
+preserved. No live pilot maintenance was performed. Automatic retention and
+uncertain-attempt reconciliation remain open.

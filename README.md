@@ -124,8 +124,10 @@ watcher processes remain the pilot deployment; no global launch service is insta
 Wake ledgers are limited to 16 MiB. Invalid or oversized files stop startup; an
 append that would exceed the limit stops before queuing and preserves the saved
 history. Keep the ledger when investigating an error. Deleting it discards
-duplicate-suppression history and can repeat notifications. Safe retention and
-operator reconciliation tooling are not implemented yet.
+duplicate-suppression history and can repeat notifications. Use
+[wake maintenance](WAKE-MAINTENANCE.md) to preview and explicitly prune confirmed,
+acknowledged records with a backup. Automatic retention and reconciliation of
+uncertain attempts remain unimplemented.
 
 ## Shared knowledge board
 
