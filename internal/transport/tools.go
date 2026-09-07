@@ -22,8 +22,8 @@ func schema(required []string, fields map[string]string) map[string]any {
 	return map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
 }
 func toolDefinitions() []tool {
-	return []tool{
-		{"sessions.attach", "Attach this manual project identity to one native Claude/Codex session for 120 seconds. Active conflicting attachments are refused; does not grant external authority.", schema([]string{"nativeId", "runtime", "target"}, map[string]string{"nativeId": "string", "runtime": "string", "target": "string"})},
+	return append(teamTools(), []tool{
+		{"sessions.attach", "Attach this manual project identity to one supported native runtime session for 120 seconds. Active conflicting attachments are refused; does not grant external authority.", schema([]string{"nativeId", "runtime", "target"}, map[string]string{"nativeId": "string", "runtime": "string", "target": "string"})},
 		{"sessions.renew", "Renew your current matching attachment lease; expired/stale leases cannot renew.", schema([]string{"nativeId", "leaseId"}, map[string]string{"nativeId": "string", "leaseId": "string"})},
 		{"sessions.detach", "Release your current matching attachment, preserving the role identity and inbox.", schema([]string{"nativeId", "leaseId"}, map[string]string{"nativeId": "string", "leaseId": "string"})},
 		{"board.post", "Publish immutable, attributed project knowledge, never authority. Corrections are replies, not silent edits. Evidence is peer-supplied, not verified.", schema([]string{"topic", "title", "text", "idempotencyKey"}, map[string]string{"topic": "string", "title": "string", "text": "string", "evidence": "string", "replyTo": "string", "idempotencyKey": "string"})},
@@ -45,7 +45,7 @@ func toolDefinitions() []tool {
 		{"tasks.submit", "As assigned author, submit nonempty result output against expectedRevision (zero initially). A new immutable result revision clears prior approvals and requires fresh independent review.", schema([]string{"id", "output", "expectedRevision"}, map[string]string{"id": "string", "output": "string", "expectedRevision": "integer"})},
 		{"tasks.review", "As the designated reviewer or red-team, submit approved or rejected with nonempty independent evidence and expectedRevision from tasks.get. A stale revision is rejected; self-review is forbidden.", schema([]string{"id", "verdict", "evidence", "expectedRevision"}, map[string]string{"id": "string", "verdict": "string", "evidence": "string", "expectedRevision": "integer"})},
 		{"tasks.accept", "As assigning lead, accept a submitted task after all required independent approvals. Acceptance never means merged or deployed.", schema([]string{"id"}, map[string]string{"id": "string"})},
-	}
+	}...)
 }
 func isTool(name string) bool {
 	for _, t := range toolDefinitions() {

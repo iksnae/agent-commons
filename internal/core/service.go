@@ -24,6 +24,7 @@ import (
 )
 
 type state struct {
+	Teams         map[string]teamRecord
 	SchemaVersion int
 	Board         []BoardPost
 	Sessions      map[string]Session
@@ -100,11 +101,24 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, err
 	}
-	if s.data.SchemaVersion > 1 {
+	if s.data.SchemaVersion > 2 {
 		s.Close()
 		return nil, errors.New("state schema newer than this binary")
 	}
-	s.data.SchemaVersion = 1
+	if s.data.SchemaVersion == 2 && s.data.Teams == nil {
+		s.Close()
+		return nil, errors.New("team state missing from schema 2")
+	}
+	if s.data.Teams == nil {
+		s.data.Teams = map[string]teamRecord{}
+	}
+	if err = s.validateTeams(); err != nil {
+		s.Close()
+		return nil, err
+	}
+	if s.data.SchemaVersion == 0 {
+		s.data.SchemaVersion = 1
+	}
 	if s.data.Sessions == nil || s.data.Tokens == nil || s.data.Tasks == nil || s.data.Contexts == nil || s.data.Keys == nil {
 		s.Close()
 		return nil, errors.New("invalid state")
@@ -289,7 +303,7 @@ func (s *Service) Call(actor, method string, raw json.RawMessage) (any, error) {
 		}
 	}
 	switch method {
-	case "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
+	case "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
 		return s.call(actor, method, p)
 	default:
 		return s.mutate(func() (any, error) { return s.call(actor, method, p) })
@@ -354,6 +368,9 @@ func (s *Service) pinned(target string, p params) (string, int, error) {
 }
 func (s *Service) call(actor, method string, p params) (any, error) {
 	fail := func(msg string) (any, error) { return nil, errors.New(msg) }
+	if strings.HasPrefix(method, "teams.") {
+		return s.teams(actor, method, p)
+	}
 	if strings.HasPrefix(method, "board.") {
 		return s.board(actor, method, p)
 	}

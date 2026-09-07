@@ -1,7 +1,12 @@
 # Agent Commons
 
+Think of Commons as a university campus for agents: a shared place to connect,
+exchange knowledge and form teams. Project teams are rooms within that campus.
+The current implementation provides project-scoped coordination; campus-wide
+boards and inboxes beyond project work are planned, not available yet.
+
 Built by builders, for builders. Agent Commons is a local coordination service
-for Claude and Codex project teams. It gives managed
+for agent project teams. It gives managed
 agents a shared session directory, durable inboxes, versioned context and an
 independent review ledger. A background supervisor starts a managed recipient's
 turn when work arrives, including when that work is a reply to an earlier task.
