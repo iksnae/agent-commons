@@ -39,6 +39,7 @@ func (s *Service) attach(actor, method string, p params) (any, error) {
 	}
 	now := time.Now().Unix()
 	a := v.Attachment
+	acquired := false
 	switch method {
 	case "sessions.attach":
 		target, err := canonicalTarget(p.Target)
@@ -53,8 +54,10 @@ func (s *Service) attach(actor, method string, p params) (any, error) {
 		}
 		if a.ExpiresAt <= now || a.NativeID != p.NativeID {
 			a = Attachment{NativeID: p.NativeID, Runtime: p.Runtime, LeaseID: randomID()}
+			acquired = true
 		}
 		a.ExpiresAt = now + 120
+		a.Epoch++
 	case "sessions.renew", "sessions.detach":
 		if a.NativeID != p.NativeID || a.LeaseID != p.LeaseID || a.ExpiresAt <= now {
 			return nil, errors.New("active matching lease required")
@@ -63,9 +66,20 @@ func (s *Service) attach(actor, method string, p params) (any, error) {
 			a = Attachment{}
 		} else {
 			a.ExpiresAt = now + 120
+			a.Epoch++
 		}
+	case "sessions.abort":
+		if a.NativeID != p.NativeID || a.LeaseID != p.LeaseID || a.Epoch != p.Epoch {
+			return nil, errors.New("matching attachment epoch required")
+		}
+		a = Attachment{}
 	}
 	v.Attachment = a
 	s.data.Sessions[actor] = v
+	if method == "sessions.attach" {
+		result := a
+		result.Acquired = acquired
+		return result, nil
+	}
 	return a, nil
 }

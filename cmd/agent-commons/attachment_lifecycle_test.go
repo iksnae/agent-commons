@@ -55,6 +55,63 @@ func TestCanceledHoldReleasesAttachment(t *testing.T) {
 	}
 }
 
+func TestFailedCheckInCleanupReleasesOnlyNewLease(t *testing.T) {
+	state := onboardingService(t)
+	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	var result struct {
+		Config string `json:"config"`
+	}
+	if err := json.Unmarshal(enrolled, &result); err != nil {
+		t.Fatal(err)
+	}
+	connection, err := openProjectConnection(result.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := onboardingOptions{Runtime: "claude", NativeSession: "failed-check-in"}
+	attachment, err := connection.attach(context.Background(), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connection.releaseIfNew(attachment)
+	options.NativeSession = "replacement"
+	if _, err = connection.attach(context.Background(), options); err != nil {
+		t.Fatalf("new attachment blocked after failed check-in cleanup: %v", err)
+	}
+}
+
+func TestFailedCheckInCleanupPreservesReusedLease(t *testing.T) {
+	state := onboardingService(t)
+	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	var result struct {
+		Config string `json:"config"`
+	}
+	if err := json.Unmarshal(enrolled, &result); err != nil {
+		t.Fatal(err)
+	}
+	connection, err := openProjectConnection(result.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := onboardingOptions{Runtime: "claude", NativeSession: "same-session"}
+	_, err = connection.attach(context.Background(), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reused, err := connection.attach(context.Background(), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reused.Acquired {
+		t.Fatal("same native session was reported as newly acquired")
+	}
+	connection.releaseIfNew(reused)
+	options.NativeSession = "other-session"
+	if _, err = connection.attach(context.Background(), options); err == nil {
+		t.Fatal("reused lease was released by failed check-in cleanup")
+	}
+}
+
 func TestLeaseRenewalReportsConnectionFailure(t *testing.T) {
 	lease := attachmentLease{client: rpcClient{socket: "/nonexistent/commons-test.sock", token: "fixture"}}
 	ticks := make(chan time.Time, 1)

@@ -46,9 +46,11 @@ func checkInAgent(ctx context.Context, options onboardingOptions, streams comman
 	}
 	snapshot, err := connection.snapshot(ctx, attachment)
 	if err != nil {
+		connection.releaseIfNew(attachment)
 		return err
 	}
 	if err = json.NewEncoder(streams.Output).Encode(snapshot); err != nil {
+		connection.releaseIfNew(attachment)
 		return err
 	}
 	if !options.Hold {

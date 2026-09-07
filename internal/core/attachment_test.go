@@ -12,6 +12,18 @@ func TestStableIdentityAttachments(t *testing.T) {
 	identity := Session{ID: "stable", Name: "lead", Role: "lead", Target: target, Runtime: "manual", Mode: "manual"}
 	rpc(t, s, "operator", "sessions.enroll", identity)
 	first := rpc(t, s, "stable", "sessions.attach", map[string]any{"nativeId": "claude-1", "runtime": "claude", "target": target}).(Attachment)
+	if !first.Acquired || first.Epoch == 0 {
+		t.Fatal("initial attachment did not report atomic acquisition")
+	}
+	reused := rpc(t, s, "stable", "sessions.attach", map[string]any{"nativeId": "claude-1", "runtime": "claude", "target": target}).(Attachment)
+	if reused.Acquired || reused.Epoch <= first.Epoch {
+		t.Fatal("same-session attachment did not invalidate prior cleanup epoch")
+	}
+	denied(t, s, "stable", "sessions.abort", map[string]any{"nativeId": first.NativeID, "leaseId": first.LeaseID, "epoch": first.Epoch})
+	rpc(t, s, "stable", "sessions.detach", map[string]any{"nativeId": reused.NativeID, "leaseId": reused.LeaseID})
+	first = rpc(t, s, "stable", "sessions.attach", map[string]any{"nativeId": "claude-1", "runtime": "claude", "target": target}).(Attachment)
+	rpc(t, s, "stable", "sessions.renew", map[string]any{"nativeId": first.NativeID, "leaseId": first.LeaseID})
+	denied(t, s, "stable", "sessions.abort", map[string]any{"nativeId": first.NativeID, "leaseId": first.LeaseID, "epoch": first.Epoch})
 	denied(t, s, "stable", "sessions.attach", map[string]any{"nativeId": "codex-1", "runtime": "codex", "target": target})
 	denied(t, s, "stable", "sessions.renew", map[string]any{"nativeId": "claude-1", "leaseId": "wrong"})
 	s.Close()

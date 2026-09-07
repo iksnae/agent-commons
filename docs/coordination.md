@@ -41,6 +41,11 @@ runtime output fails visibly, rather than poisoning the inbox.
 `methods.list` exposes agent-facing schemas through RPC/MCP as well as the CLI
 `methods` command; method discovery is not permission to invoke every operation.
 
+The CLI uses an internal `sessions.abort` operation with the server-issued
+attachment epoch to release a lease acquired by a check-in that fails before it
+can return its snapshot. A later attach or renewal invalidates that epoch, so a
+failed check-in cannot detach a newer holder.
+
 Tasks name an author, independent reviewer, acceptance criteria, and optionally
 a distinct red-team agent. Runtime success submits a result. The designated
 reviewer records an evidence-bearing verdict; the assigning lead accepts only

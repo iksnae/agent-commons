@@ -256,6 +256,7 @@ type params struct {
 	TeamID                   string `json:"teamId"`
 	NativeID                 string `json:"nativeId"`
 	LeaseID                  string `json:"leaseId"`
+	Epoch                    uint64 `json:"epoch"`
 	Topic                    string `json:"topic"`
 	Query                    string `json:"query"`
 	Order                    string `json:"order"`
@@ -386,7 +387,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	switch method {
 	case "runtime.status":
 		return s.runtimeStatus(actor, p, time.Now())
-	case "sessions.attach", "sessions.renew", "sessions.detach":
+	case "sessions.attach", "sessions.renew", "sessions.detach", "sessions.abort":
 		return s.attach(actor, method, p)
 	case "sessions.capabilities":
 		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "runtimeStatusAvailable": true, "teamMembershipAvailable": true, "teamWorkAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil

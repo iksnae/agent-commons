@@ -14,6 +14,17 @@ type attachmentLease struct {
 	attachment core.Attachment
 }
 
+func (connection projectConnection) releaseIfNew(attachment core.Attachment) {
+	if !attachment.Acquired {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, _ = rpcCall[core.Attachment](ctx, connection.client, "sessions.abort", map[string]any{
+		"nativeId": attachment.NativeID, "leaseId": attachment.LeaseID, "epoch": attachment.Epoch,
+	})
+}
+
 func (connection projectConnection) holdAttachment(ctx context.Context, attachment core.Attachment,
 	options onboardingOptions, streams commandStreams) error {
 	child, cancel := context.WithCancel(ctx)

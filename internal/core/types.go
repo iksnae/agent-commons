@@ -36,6 +36,8 @@ type Attachment struct {
 	NativeID  string `json:"nativeId"`
 	LeaseID   string `json:"leaseId"`
 	ExpiresAt int64  `json:"expiresAt"`
+	Epoch     uint64 `json:"epoch"`
+	Acquired  bool   `json:"acquired,omitempty"`
 }
 type Delivery struct {
 	TeamID           string `json:"teamId,omitempty"`
