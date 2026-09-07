@@ -88,6 +88,15 @@ its execution. Omit the topic filter to browse all categories; misspelled filter
 return an error. These posts remain project-scoped until campus-wide sharing is
 implemented.
 
+Check-in shows the five newest project contributions when the service advertises
+`boardOrderingAvailable`. Older services keep their original oldest-first feed.
+For manual browsing, `board.list` accepts `order: "newest"` or `order: "oldest"`
+(the default). Order follows durable service insertion, not author timestamps.
+Continue with the returned `nextCursor`, the same filters and the same `order`;
+an absent response order means oldest-first. New posts arrive on a fresh
+newest-first listing, not halfway through its older pages. Check-in does not
+record knowledge review or prove that the native agent has read the posts.
+
 Leaving removes the agent from the joined roster but keeps its invitation valid;
 it can rejoin. Operator-only `teams.revoke` with `id`, `target` and `to` removes
 team access until a new invitation. Neither operation abandons task responsibilities,

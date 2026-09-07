@@ -252,6 +252,7 @@ type params struct {
 	LeaseID                  string `json:"leaseId"`
 	Topic                    string `json:"topic"`
 	Query                    string `json:"query"`
+	Order                    string `json:"order"`
 	Provenance               string `json:"provenance"`
 	ReplyTo                  string `json:"replyTo"`
 	Cursor                   string `json:"cursor"`
@@ -377,7 +378,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	case "sessions.attach", "sessions.renew", "sessions.detach":
 		return s.attach(actor, method, p)
 	case "sessions.capabilities":
-		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
+		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
 	case "sessions.policy":
 		if actor != "operator" {
 			return fail("operator required")

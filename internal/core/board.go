@@ -3,7 +3,6 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -57,45 +56,7 @@ func (s *Service) board(actor, method string, p params) (any, error) {
 		}
 		return nil, errors.New("post unavailable")
 	case "board.list":
-		if p.Topic != "" && !validBoardTopic(p.Topic) {
-			return nil, errors.New("unsupported board topic filter")
-		}
-		limit := p.Limit
-		if limit == 0 {
-			limit = 10
-		}
-		if limit < 1 || limit > 20 {
-			return nil, errors.New("board limit must be 1..20")
-		}
-		posts := []BoardPost{}
-		bytesUsed := 0
-		start := p.Cursor == ""
-		next := ""
-		for _, post := range s.data.Board {
-			if post.Target != target {
-				continue
-			}
-			if !start {
-				if post.ID == p.Cursor {
-					start = true
-				}
-				continue
-			}
-			if p.Topic != "" && p.Topic != post.Topic || p.Query != "" && !strings.Contains(strings.ToLower(post.Title+"\n"+post.Text), strings.ToLower(p.Query)) {
-				continue
-			}
-			encoded, _ := json.Marshal(post)
-			if len(posts) > 0 && (len(posts) == limit || bytesUsed+len(encoded) > 512<<10) {
-				next = posts[len(posts)-1].ID
-				break
-			}
-			posts = append(posts, post)
-			bytesUsed += len(encoded)
-		}
-		if !start {
-			return nil, errors.New("cursor unavailable")
-		}
-		return map[string]any{"posts": posts, "nextCursor": next}, nil
+		return s.listBoard(target, p)
 	default:
 		return nil, errors.New("unknown board method")
 	}

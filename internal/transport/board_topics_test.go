@@ -21,6 +21,12 @@ func TestBoardSchemasMatchAcceptedContributionTopics(t *testing.T) {
 		if !reflect.DeepEqual(topic["enum"], core.BoardTopics()) {
 			t.Fatal("schema differs from core topics", tool.Name)
 		}
+		if tool.Name == "board.list" {
+			order := properties["order"].(map[string]any)
+			if !reflect.DeepEqual(order["enum"], []string{"oldest", "newest"}) {
+				t.Fatal("board order choices missing")
+			}
+		}
 	}
 	if count != 2 {
 		t.Fatal("board topic schemas missing")
