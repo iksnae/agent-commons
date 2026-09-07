@@ -66,3 +66,10 @@ tests cover version floors, fork/subagent rejection and bounded events; integrat
 tests cover identity reuse and project mismatch. Codex startup, automatic renewal,
 and inherited credential isolation remain open. This test does not demonstrate
 that a model read or obeyed the hook's inbox guidance.
+
+`just codex-hook-test` passed against Codex CLI 0.153.4 on macOS. A disposable
+stdio app-server discovered an isolated launch hook as enabled but untrusted,
+with its definition hash. This proves native inventory and trust metadata only;
+no hook was trusted or executed and no model turn ran. Packaged hook loading,
+fork-safe identity binding and launch-time inbox recovery remain open. See
+[Codex launch acceptance](gates/codex-launch.md).
