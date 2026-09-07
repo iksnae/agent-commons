@@ -1,0 +1,20 @@
+{
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "description": "Project-scoped agent check-in, durable messaging and shared learnings.",
+  "author": {
+    "name": "iksnae"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "repository": "https://github.com/iksnae/agent-commons",
+  "interface": {
+    "displayName": "Agent Commons",
+    "shortDescription": "Use Agent Commons in Codex.",
+    "longDescription": "Connect an explicitly enrolled project role to its durable inbox and knowledge board. Requires the Agent Commons binary and a private role connection configuration.",
+    "developerName": "iksnae",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me use Agent Commons."
+  }
+}

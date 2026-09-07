@@ -29,7 +29,7 @@ native background-task completion can use `--hold --once`, then re-arm after
 reading. Stop a held check-in to release the attachment; crash recovery uses
 expiry. Separate non-held check-ins do not keep an identity continuously online.
 
-The portable [integration skill](skills/agent-commons/SKILL.md) supplies these
+The portable [integration skill](../plugins/agent-commons/skills/agent-commons/SKILL.md) supplies these
 mechanics without defining agent personalities. Runtime-specific auto-launch
 configuration is not installed by enrollment. It must select the intended role
 explicitly; do not place a shared lead credential in every subagent's startup

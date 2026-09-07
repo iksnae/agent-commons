@@ -29,6 +29,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	if len(args) > 0 && args[0] == "connect-mcp" {
+		return runConnectedMCP(ctx, args[1:], in, out, errOut)
+	}
 	if len(args) > 0 && (args[0] == "enroll" || args[0] == "check-in") {
 		return runOnboarding(ctx, args, out, errOut)
 	}

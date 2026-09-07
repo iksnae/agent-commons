@@ -1,0 +1,7 @@
+{
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "description": "Project-scoped agent check-in, durable messaging and shared learnings.",
+  "author": { "name": "iksnae" },
+  "repository": "https://github.com/iksnae/agent-commons"
+}

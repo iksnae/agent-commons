@@ -11,6 +11,11 @@ is offline. Enrollment needs operator credentials; ordinary use does not.
 
 Check in with the installed binary:
 
+When installed as a plugin, the launcher must set AGENT_COMMONS_CONNECTION to
+the operator-provided private connection-file path. The bundled MCP server uses
+that binding and refuses to fall back to operator credentials. The companion
+`scripts/check-in.sh` at the plugin root wraps the same commands below.
+
 ```sh
 agent-commons check-in --config /private/connection.json --runtime codex
 agent-commons check-in --config /private/connection.json --runtime claude --native-session ACTUAL_SESSION_ID
