@@ -46,7 +46,11 @@ func TestNativeCodexPreparesRecoverableRoot(t *testing.T) {
 		t.Fatal("existing binding was silently replaced")
 	}
 	restarted := codexFixture(t, home, target)
-	resumed := decodeNativeIdentity(t, restarted("thread/resume", map[string]any{"threadId": id}))
+	saved, err := codexlaunch.LoadReady(path, scope)
+	if err != nil || saved != id {
+		t.Fatal("cannot reload matching ready binding", err)
+	}
+	resumed := decodeNativeIdentity(t, restarted("thread/resume", map[string]any{"threadId": saved}))
 	if resumed.ID != id || resumed.CWD != target || resumed.ForkedFromID != nil || resumed.ParentThreadID != nil {
 		t.Fatal("fresh server did not resume prepared root")
 	}

@@ -81,6 +81,19 @@ app-server. It uses disposable state without model calls or hook trust. This
 proves that this prepared history survives process replacement, not that an
 arbitrary interrupted preparation can be recovered.
 
+`internal/codexlaunch.LoadReady` reads the saved identity after restart. It
+requires the caller's independently verified role, target and Codex home to match
+the reservation exactly. Version 1 and matching created/ready thread IDs are
+required. The reader pins the private binding directory while opening bounded,
+private regular checkpoint files. Missing, malformed or conflicting evidence is
+an error; reading never repairs files or releases the reservation.
+
+The native preparation test now uses this reader before resuming through the
+fresh app-server. File-boundary tests reject symlinks, FIFOs, public permissions,
+oversized or trailing data, unsupported versions and changed scopes. Local
+checkpoint validation does not prove native ancestry or grant attachment
+authority. A launcher must still verify native metadata before using the role.
+
 ## Preparation command
 
 ```sh
