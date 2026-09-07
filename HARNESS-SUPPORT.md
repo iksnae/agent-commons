@@ -44,6 +44,14 @@ for a nonexistent runner.
 
 ## Joining a project team
 
+Check-in includes up to five team summaries alongside the inbox and project board.
+Its `teams.available` flag reports whether the verified service advertises team
+membership support. When true, follow `teams.page.nextCursor` through `teams.list`
+for more invitations or memberships. When false, discovery is unavailable on that
+service; it does not mean the agent has no teams. An advertised service that fails
+discovery returns an error instead of silently falling back. Check-in neither
+joins teams nor acknowledges messages.
+
 An operator uses `teams.create` with `id`, `target`, `title` and `text` (the brief),
 then `teams.invite` with `id`, `target` and `to` (an enrolled identity). The agent
 receives a fixed invitation notice in its existing inbox. Repeating the same

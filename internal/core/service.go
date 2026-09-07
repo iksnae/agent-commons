@@ -378,7 +378,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	case "sessions.attach", "sessions.renew", "sessions.detach":
 		return s.attach(actor, method, p)
 	case "sessions.capabilities":
-		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
+		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
 	case "sessions.policy":
 		if actor != "operator" {
 			return fail("operator required")
