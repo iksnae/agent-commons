@@ -46,3 +46,9 @@ Local bundle installation now has boundary tests for exclusive destinations,
 symlink rejection, receipt verification and recoverable removal. The archive check
 installs, verifies, runs help and removes the host-native bundle. This installs
 files only; it does not register a persistent service, migrate state or enroll roles.
+
+The separate `service` CLI now installs configuration and controls explicit user
+jobs. Filesystem tests cover existing-file collisions, incomplete receipts,
+changed-file refusal and recoverable removal. Fake supervisor tests cover command
+failure and state preservation. Native execution of this full command path and
+login/reboot recovery are still unverified; see [service setup](SERVICE.md).

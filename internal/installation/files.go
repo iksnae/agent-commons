@@ -31,6 +31,9 @@ type fileRecord struct {
 }
 
 func payloadPath(path string) bool {
+	if path == "SERVICE.md" {
+		return true
+	}
 	if path == "." || filepath.IsAbs(path) || filepath.Clean(path) != path || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
 		return false
 	}

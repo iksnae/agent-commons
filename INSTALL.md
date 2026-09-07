@@ -53,7 +53,7 @@ then schedule a stop and switch to the new binary. Retain the old installation a
 the matching state backup until the migration and rollback have been tested.
 Do not run old and new services against one state directory at the same time.
 
-`service-plan` renders launchd/systemd configuration for a selected binary and
-state directory. Persistent service installation, role startup hooks and upgrade
-automation remain open in [the beta checklist](BETA.md). Bundle installation does
-not close those gates.
+`service-plan` renders launchd/systemd configuration without writing it.
+The [service commands](SERVICE.md) install and control that configuration explicitly.
+Their full native lifecycle, role startup hooks and upgrade automation remain open
+in [the beta checklist](BETA.md). Bundle installation does not close those gates.

@@ -24,8 +24,9 @@ operational gate.
   touching unrelated jobs or deleting state. `service-plan` now renders user-job
   files for review; it does not install them. Native parser tests are not lifecycle tests.
   Transient lifecycle passes on macOS and Linux. Local bundle installation,
-  receipt verification and recoverable removal are implemented; persistent
-  service installation and login/reboot persistence tests remain open.
+  receipt verification and recoverable removal are implemented. The `service` CLI
+  has filesystem and fake-supervisor tests; its full native lifecycle and
+  login/reboot persistence tests remain open.
 - [ ] Role check-in and wake processes supervised, including offline startup and
   uncertain queue results. A service restart must not silently replay an uncertain wake.
 - [ ] Explicit project/workspace launch integration tested with both Claude and
