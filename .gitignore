@@ -1,0 +1,8 @@
+/bin/
+/.state/
+/coverage.out
+/agent-commons
+/CONNECTION-EVIDENCE.md
+/LIVE-EVIDENCE.md
+/WAKEUP.md
+*.token
