@@ -94,6 +94,19 @@ oversized or trailing data, unsupported versions and changed scopes. Local
 checkpoint validation does not prove native ancestry or grant attachment
 authority. A launcher must still verify native metadata before using the role.
 
+`internal/codexlaunch.Resume` performs that native identity check around resume.
+It inspects the exact saved ID first and rejects changed targets, forks, child
+threads or missing ancestry fields before requesting resume. The resume request
+uses the same ID and target with read-only sandbox and no-approval settings. Its
+response must still identify the same root. RPC failures stop without retry.
+
+The native restart test now exercises this path. A separate native fork check
+confirms rejection after inspection, before any resume request. Tests also cover
+changed response metadata and cancellation between inspection and resume. These
+checks prove identity handling, not full sandbox or credential isolation. The
+caller still owns the scoped native connection; no role attachment or model turn
+is performed by this package.
+
 ## Preparation command
 
 ```sh

@@ -3,10 +3,13 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"agentcommons/internal/codexlaunch"
 )
 
 type nativeThreadIdentity struct {
@@ -51,6 +54,18 @@ func TestNativeCodexDistinguishesResumedAndForkedThreadIdentity(t *testing.T) {
 	stored := decodeNativeIdentity(t, request("thread/read", map[string]any{"threadId": fork.ID, "includeTurns": false}))
 	if stored.ID != fork.ID || stored.ForkedFromID == nil || *stored.ForkedFromID != root.ID {
 		t.Fatal("thread/read lost fork ancestry")
+	}
+	calls := 0
+	inspectOnly := nativeCaller(func(method string, params any) json.RawMessage {
+		calls++
+		if method != "thread/read" {
+			t.Fatal("fork rejection attempted a native mutation", method)
+		}
+		return request(method, params)
+	})
+	scope := codexlaunch.Scope{Identity: "fixture-lead", Target: canonicalTarget, Home: configDir}
+	if err = codexlaunch.Resume(context.Background(), inspectOnly, scope, fork.ID); err == nil || calls != 1 {
+		t.Fatal("native fork was not rejected before resume", err)
 	}
 	t.Log("native start/resume/fork/read distinguish exact thread IDs and fork ancestry; no model turn or role attachment")
 }

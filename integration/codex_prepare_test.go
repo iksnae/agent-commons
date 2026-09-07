@@ -50,9 +50,8 @@ func TestNativeCodexPreparesRecoverableRoot(t *testing.T) {
 	if err != nil || saved != id {
 		t.Fatal("cannot reload matching ready binding", err)
 	}
-	resumed := decodeNativeIdentity(t, restarted("thread/resume", map[string]any{"threadId": saved}))
-	if resumed.ID != id || resumed.CWD != target || resumed.ForkedFromID != nil || resumed.ParentThreadID != nil {
-		t.Fatal("fresh server did not resume prepared root")
+	if err = codexlaunch.Resume(context.Background(), nativeCaller(restarted), scope, saved); err != nil {
+		t.Fatal("fresh server did not resume verified prepared root", err)
 	}
 	var ready struct {
 		ThreadID string `json:"threadId"`
