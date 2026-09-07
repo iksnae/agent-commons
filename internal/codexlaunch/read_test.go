@@ -74,6 +74,7 @@ func readyJournalFixture(t *testing.T) (string, Scope) {
 	path := filepath.Join(parent, "binding")
 	scope := Scope{Identity: "lead", Target: "/project", Home: "/private/codex"}
 	j := NewDirectoryJournal(path)
+	defer j.Close()
 	for _, err := range []error{j.Reserve(scope), j.Created(savedThread), j.Ready(savedThread)} {
 		if err != nil {
 			t.Fatal(err)

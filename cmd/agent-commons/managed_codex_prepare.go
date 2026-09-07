@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,19 +42,27 @@ func prepareManagedCodex(ctx context.Context, state string, session core.Session
 	path := filepath.Join(state, "managed-codex-"+identityDigest(session.ID))
 	bootstrap := &lazyCodexBootstrap{start: start, scope: scope}
 	var id string
+	var binding io.Closer
 	if _, statErr := os.Lstat(path); errors.Is(statErr, os.ErrNotExist) {
-		id, err = codexlaunch.Prepare(ctx, bootstrap, codexlaunch.NewDirectoryJournal(path), scope)
+		journal := codexlaunch.NewDirectoryJournal(path)
+		binding = journal
+		id, err = codexlaunch.Prepare(ctx, bootstrap, journal, scope)
 	} else if statErr != nil {
 		err = statErr
 	} else {
 		// A completed preparation may outlive a failed service checkpoint.
 		// Partial journals are refused before touching the native runtime.
-		id, err = codexlaunch.LoadReady(path, scope)
+		var lease *codexlaunch.BindingLease
+		lease, err = codexlaunch.AcquireReady(path, scope)
 		if err == nil {
+			binding, id = lease, lease.ThreadID
 			err = codexlaunch.Resume(ctx, bootstrap, scope, id)
 		}
 	}
 	err = errors.Join(err, bootstrap.Close())
+	if binding != nil {
+		err = errors.Join(err, binding.Close())
+	}
 	if err != nil {
 		return "", err
 	}

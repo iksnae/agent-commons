@@ -14,13 +14,19 @@ type DirectoryJournal struct {
 	path     string
 	reserved bool
 	created  string
+	lease    *BindingLease
+	closed   bool
 }
 
 // NewDirectoryJournal opens no files. Reserve exclusively creates the directory;
-// existing or interrupted preparations are never overwritten or replayed.
+// existing or interrupted preparations are never overwritten or replayed. Call
+// Close only after the owned native process stops, including on preparation error.
 func NewDirectoryJournal(path string) *DirectoryJournal { return &DirectoryJournal{path: path} }
 
 func (j *DirectoryJournal) Reserve(scope Scope) error {
+	if j.closed || j.reserved {
+		return errors.New("preparation journal is closed or already reserved")
+	}
 	if err := scope.validate(); err != nil {
 		return err
 	}
@@ -35,6 +41,16 @@ func (j *DirectoryJournal) Reserve(scope Scope) error {
 	if err = os.Mkdir(j.path, 0700); err != nil {
 		return err
 	}
+	root, err := openBinding(j.path)
+	if err != nil {
+		return err
+	}
+	f, err := lockBinding(root)
+	_ = root.Close()
+	if err != nil {
+		return err
+	}
+	j.lease = &BindingLease{file: f}
 	if err = syncDirectory(parent); err != nil {
 		return err
 	}
@@ -49,7 +65,7 @@ func (j *DirectoryJournal) Reserve(scope Scope) error {
 }
 
 func (j *DirectoryJournal) Created(id string) error {
-	if !j.reserved || j.created != "" || !threadID.MatchString(id) {
+	if j.closed || !j.reserved || j.created != "" || !threadID.MatchString(id) {
 		return errors.New("created checkpoint requires reserved preparation and exact thread ID")
 	}
 	if err := j.checkpoint("created.json", map[string]string{"threadId": id}); err != nil {
@@ -60,7 +76,7 @@ func (j *DirectoryJournal) Created(id string) error {
 }
 
 func (j *DirectoryJournal) Ready(id string) error {
-	if id == "" || j.created != id {
+	if j.closed || id == "" || j.created != id {
 		return errors.New("ready checkpoint differs from saved thread identity")
 	}
 	return j.checkpoint("ready.json", map[string]string{"threadId": id})

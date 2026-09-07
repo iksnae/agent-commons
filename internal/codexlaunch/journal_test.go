@@ -15,6 +15,7 @@ func TestJournalRetainsReservationAndRefusesRepeatPreparation(t *testing.T) {
 	}
 	path := filepath.Join(parent, "binding")
 	journal := NewDirectoryJournal(path)
+	defer journal.Close()
 	scope := Scope{Identity: "lead", Target: "/project", Home: "/private/codex"}
 	if err := journal.Reserve(scope); err != nil {
 		t.Fatal(err)

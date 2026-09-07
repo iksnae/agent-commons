@@ -34,11 +34,16 @@ func TestNativeCodexPreparesRecoverableRoot(t *testing.T) {
 	path := filepath.Join(parent, "binding")
 	request, stop := codexFixtureWithStop(t, home, target)
 	scope := codexlaunch.Scope{Identity: "disposable-lead", Target: target, Home: home}
-	id, err := codexlaunch.Prepare(context.Background(), nativeCaller(request), codexlaunch.NewDirectoryJournal(path), scope)
+	journal := codexlaunch.NewDirectoryJournal(path)
+	t.Cleanup(func() { stop(); _ = journal.Close() })
+	id, err := codexlaunch.Prepare(context.Background(), nativeCaller(request), journal, scope)
 	if err != nil {
 		t.Fatal(err)
 	}
 	stop()
+	if err = journal.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if _, err = codexlaunch.Prepare(context.Background(), nativeCaller(func(string, any) json.RawMessage {
 		t.Fatal("existing preparation attempted another native call")
 		return nil

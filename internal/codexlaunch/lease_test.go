@@ -46,6 +46,9 @@ func TestBindingLeaseRejectsUnsafeLockFiles(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			path, scope := readyJournalFixture(t)
 			lock := filepath.Join(path, "resume.lock")
+			if err := os.Remove(lock); err != nil {
+				t.Fatal(err)
+			}
 			var err error
 			switch kind {
 			case "public":

@@ -33,8 +33,9 @@ func runCodexPrepareWith(ctx context.Context, args []string, out, errOut io.Writ
 	}
 	scope, path := role.Native, role.Binding
 	bootstrap := &lazyCodexBootstrap{start: start, scope: scope}
-	id, prepareErr := codexlaunch.Prepare(ctx, bootstrap, codexlaunch.NewDirectoryJournal(path), scope)
-	err = errors.Join(prepareErr, bootstrap.Close())
+	journal := codexlaunch.NewDirectoryJournal(path)
+	id, prepareErr := codexlaunch.Prepare(ctx, bootstrap, journal, scope)
+	err = errors.Join(prepareErr, bootstrap.Close(), journal.Close())
 	report := codexPreparationReport{Prepared: err == nil, ThreadID: id, Binding: path}
 	if outputErr := json.NewEncoder(out).Encode(report); outputErr != nil {
 		err = errors.Join(err, outputErr)

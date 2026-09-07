@@ -79,6 +79,12 @@ Role credential isolation, Claude first-run preparation, durable journal
 reconciliation and native model-turn recovery remain open. Do not delete
 incomplete journals to force a fresh start.
 
+Codex preparation and ready-binding reuse now share the resume lock until their
+owned native process closes. Tests cover competing acquisition before and after
+shutdown, including partial preparation. This lock only coordinates cooperating
+binding users; whole-service backup still needs a quiescence protocol that covers
+new journal creation, watchers and core state.
+
 Existing state is decoded without fresh-service defaults. Empty, null and
 missing-map files are rejected without replacing them. A missing operator
 credential in an existing file is also an error; startup does not invent a
