@@ -35,11 +35,12 @@ type state struct {
 	Keys          map[string]string
 }
 type Service struct {
-	mu     sync.Mutex
-	dir    string
-	lock   *os.File
-	data   state
-	closed bool
+	mu         sync.Mutex
+	dir        string
+	lock       *os.File
+	data       state
+	closed     bool
+	supervisor supervisorObservation
 }
 
 var validID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,199}$`)
@@ -308,7 +309,7 @@ func (s *Service) Call(actor, method string, raw json.RawMessage) (any, error) {
 		}
 	}
 	switch method {
-	case "teams.list", "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
+	case "runtime.status", "teams.list", "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
 		return s.call(actor, method, p)
 	default:
 		return s.mutate(func() (any, error) { return s.call(actor, method, p) })
@@ -383,10 +384,12 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		return s.board(actor, method, p)
 	}
 	switch method {
+	case "runtime.status":
+		return s.runtimeStatus(actor, p, time.Now())
 	case "sessions.attach", "sessions.renew", "sessions.detach":
 		return s.attach(actor, method, p)
 	case "sessions.capabilities":
-		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "teamWorkAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
+		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "runtimeStatusAvailable": true, "teamMembershipAvailable": true, "teamWorkAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
 	case "sessions.policy":
 		if actor != "operator" {
 			return fail("operator required")
@@ -661,6 +664,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				}
 				d.Status = "pending"
 				d.Error = ""
+				d.FailureKind = ""
 				return *d, nil
 			}
 			receiver := actor
@@ -883,12 +887,17 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 			}
 			s.data.Sessions[v.ID] = v
 			d.Output = output
+			d.FailureKind = ""
 			if runErr == nil && d.Kind == "task" && strings.TrimSpace(output) == "" {
 				runErr = errors.New("task output required")
 			}
 			if runErr != nil {
 				d.Status = "failed"
 				d.Error = runErr.Error()
+				d.FailureKind = "runtime_error"
+				if errors.Is(runErr, ErrRuntimeCanceled) {
+					d.FailureKind = "canceled"
+				}
 				if d.Kind == "task" && s.data.Tasks[d.TaskID].Status == "working" {
 					t := s.data.Tasks[d.TaskID]
 					t.Status = "failed"

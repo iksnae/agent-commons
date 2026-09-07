@@ -58,6 +58,7 @@ type Delivery struct {
 	Attempts         int    `json:"attempts"`
 	Output           string `json:"output,omitempty"`
 	Error            string `json:"error,omitempty"`
+	FailureKind      string `json:"failureKind,omitempty"`
 	CreatedAt        string `json:"createdAt"`
 }
 type Review struct {

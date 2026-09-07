@@ -30,7 +30,7 @@ func schema(required []string, fields map[string]string) map[string]any {
 	return map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
 }
 func toolDefinitions() []tool {
-	return withTeamWork(append(teamTools(), []tool{
+	return withTeamWork(append(append(teamTools(), runtimeTools()...), []tool{
 		{"sessions.attach", "Attach this manual project identity to one supported native runtime session for 120 seconds. Active conflicting attachments are refused; does not grant external authority.", schema([]string{"nativeId", "runtime", "target"}, map[string]string{"nativeId": "string", "runtime": "string", "target": "string"})},
 		{"sessions.renew", "Renew your current matching attachment lease; expired/stale leases cannot renew.", schema([]string{"nativeId", "leaseId"}, map[string]string{"nativeId": "string", "leaseId": "string"})},
 		{"sessions.detach", "Release your current matching attachment, preserving the role identity and inbox.", schema([]string{"nativeId", "leaseId"}, map[string]string{"nativeId": "string", "leaseId": "string"})},

@@ -36,7 +36,7 @@ func TestDoctorIsReadOnlyAndOmitsPeerData(t *testing.T) {
 	if err = json.Unmarshal(result, &report); err != nil {
 		t.Fatal(err)
 	}
-	if !report.Ready || len(report.Checks) != 4 {
+	if !report.Ready || len(report.Checks) != 6 || report.Runtime == nil || len(report.Runtime.Sessions) != 1 || report.Runtime.Sessions[0].Identity != report.Identity {
 		t.Fatalf("bad health: %s", result)
 	}
 	for _, secret := range []string{connection.client.token, "Welcome to Agent Commons", "Getting started:"} {

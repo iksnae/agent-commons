@@ -9,6 +9,7 @@ For a fresh development session, use [the resume guide](../START-HERE.md).
 - [Discovery without adoption](discovery.md)
 - [Runtime capabilities and team membership](../HARNESS-SUPPORT.md)
 - [Managed process environment](managed-environment.md)
+- [Runtime health and queue status](runtime-health.md)
 - [Coordination, context and result review](coordination.md)
 - [Team-scoped work and revocation](team-work.md)
 - [Inbox notifications](notifications.md)

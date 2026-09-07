@@ -10,13 +10,16 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"agentcommons/internal/core"
 )
 
 type healthReport struct {
-	Ready    bool          `json:"ready"`
-	Identity string        `json:"identity,omitempty"`
-	Checks   []healthCheck `json:"checks"`
-	Notice   string        `json:"notice"`
+	Ready    bool                    `json:"ready"`
+	Identity string                  `json:"identity,omitempty"`
+	Checks   []healthCheck           `json:"checks"`
+	Notice   string                  `json:"notice"`
+	Runtime  *core.RuntimeStatusPage `json:"runtime,omitempty"`
 }
 
 type healthCheck struct {
@@ -67,6 +70,6 @@ func diagnoseConnection(ctx context.Context, path string) healthReport {
 			return report
 		}
 	}
-	report.Ready = true
+	report.Ready = diagnoseRuntime(ctx, connection, &report)
 	return report
 }

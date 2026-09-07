@@ -29,13 +29,18 @@ type supervisor struct {
 func Serve(ctx context.Context, svc *core.Service, runner Runner, interval time.Duration) error {
 	ctx, cancel := context.WithCancel(ctx)
 	s := supervisor{service: svc, runner: runner, active: map[string]activeRun{}, errors: make(chan error, 1)}
-	defer func() { cancel(); s.wg.Wait() }()
 	if interval <= 0 {
 		interval = 250 * time.Millisecond
 	}
+	if err := svc.StartSupervisor(interval); err != nil {
+		cancel()
+		return err
+	}
+	defer func() { cancel(); s.wg.Wait(); svc.StopSupervisor() }()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
+		svc.SupervisorHeartbeat()
 		s.cancelInactive()
 		for _, session := range svc.Sessions() {
 			if err := ctx.Err(); err != nil {
@@ -98,7 +103,7 @@ func (s *supervisor) run(ctx context.Context, cancel context.CancelCauseFunc, se
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if cause := context.Cause(ctx); cause != nil {
-		runErr, output = errors.Join(cause, runErr), ""
+		runErr, output = errors.Join(core.ErrRuntimeCanceled, cause, runErr), ""
 	}
 	if err := s.service.Finish(d.ID, id, output, runErr); err != nil {
 		select {

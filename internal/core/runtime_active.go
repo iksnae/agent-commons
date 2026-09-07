@@ -2,6 +2,10 @@
 
 package core
 
+import "errors"
+
+var ErrRuntimeCanceled = errors.New("managed runtime canceled")
+
 // RuntimeActive is a supervisor check, not an agent-facing authority grant.
 func (s *Service) RuntimeActive(deliveryID string) bool {
 	s.mu.Lock()
