@@ -66,4 +66,4 @@ claude-hook-test: build
 
 # OPT-IN: test Codex hook inventory, plugin lifecycle and thread identity in isolated config.
 codex-hook-test:
-    AGENT_COMMONS_CODEX_HOOK=1 go test -race ./integration -run '^TestNativeCodex(ReportsLaunchHookTrust|InstallsBundledPlugin|DistinguishesResumedAndForkedThreadIdentity)$' -count=1 -v -timeout 90s
+    AGENT_COMMONS_CODEX_HOOK=1 go test -race ./integration -run '^TestNativeCodex(ReportsLaunchHookTrust|InstallsBundledPlugin|DistinguishesResumedAndForkedThreadIdentity|PreparesRecoverableRoot)$' -count=1 -v -timeout 90s

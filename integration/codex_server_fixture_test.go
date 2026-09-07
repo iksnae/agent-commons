@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,11 @@ import (
 
 // Starts an isolated stdio server, never the user's daemon or a model turn.
 func codexFixture(t *testing.T, configDir, target string) func(string, any) json.RawMessage {
+	request, _ := codexFixtureWithStop(t, configDir, target)
+	return request
+}
+
+func codexFixtureWithStop(t *testing.T, configDir, target string) (func(string, any) json.RawMessage, func()) {
 	t.Helper()
 	codex, err := exec.LookPath("codex")
 	if err != nil {
@@ -42,9 +48,10 @@ func codexFixture(t *testing.T, configDir, target string) func(string, any) json
 		_ = out.Close()
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { cancel(); _ = in.Close(); _ = command.Wait() })
 	client := codexrpc.New(codexrpc.Pipes(in, out))
-	t.Cleanup(func() { _ = client.Close() })
+	var once sync.Once
+	stop := func() { once.Do(func() { cancel(); _ = client.Close(); _ = command.Wait() }) }
+	t.Cleanup(stop)
 	request := func(method string, params any) json.RawMessage {
 		t.Helper()
 		result, err := client.Call(ctx, method, params)
@@ -57,5 +64,5 @@ func codexFixture(t *testing.T, configDir, target string) func(string, any) json
 	if err := client.Notify(ctx, "initialized"); err != nil {
 		t.Fatal(err)
 	}
-	return request
+	return request, stop
 }

@@ -55,6 +55,33 @@ as separate enrollment decisions. A hook's first observed ID must not silently
 claim the role. The launcher still needs a verified hook-to-thread handoff,
 credential isolation and crash-recovery tests before automatic attachment is safe.
 
+## Preparation implementation
+
+`internal/codexlaunch.Prepare` now accepts an initialized native RPC connection,
+a verified role scope and a checkpoint journal. The calling launcher must verify
+the role credential and open the intended Codex home; this package cannot infer
+either from an RPC stream.
+
+Preparation saves an exclusive reservation before `thread/start`. It checks the
+returned UUID, exact target and explicit empty fork/parent ancestry, then saves
+the thread ID before adding fixed startup guidance. A matching `thread/read`
+response permits the final ready checkpoint. No model turn or inbox operation
+is sent. Read-only sandbox and no-approval policy are requested for the thread.
+
+The directory journal writes private, exclusive files and syncs each checkpoint
+and its directory. Existing reservations stop another preparation, including after
+restart. Failed writes retain whatever evidence exists. An incomplete reservation
+may correspond to a native thread whose ID was never saved; do not delete the
+reservation and blindly repeat preparation. Inspection and operator recovery are
+still needed for that case. A ready checkpoint is not a live attachment.
+
+`TestNativeCodexPreparesRecoverableRoot` exercises this implementation against
+Codex 0.153.4, stops that app-server, and resumes the saved thread through a fresh
+app-server. It uses disposable state without model calls or hook trust. This
+proves that this prepared history survives process replacement, not that an
+arbitrary interrupted preparation can be recovered. The public launcher command,
+credential verification, hook handoff and attachment renewal remain unimplemented.
+
 An earlier `codex debug prompt-input` probe returned JSON with no hook-review
 diagnostic. Absence of hook text in that output did not establish that trust
 prevented execution, so that probe is not acceptance evidence.

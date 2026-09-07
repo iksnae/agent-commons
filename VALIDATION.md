@@ -88,6 +88,14 @@ An empty root was not resumable before fixture history was added. No model turn,
 hook trust or role attachment was involved. This supplies a native contract for
 the planned launcher binding; it does not prove fork-safe hook enrollment.
 
+The preparation implementation now records private reservation, created-thread
+and ready checkpoints. Tests stop on simulated storage/RPC failures and reject a
+changed readback identity. The native test prepares fixed history, stops the
+app-server, and resumes the same thread through a fresh process. Repeating a
+preparation with the existing journal makes no native call. This is internal
+launcher preparation, not a public launch command or an attached role; incomplete
+reservation recovery and the hook-to-role handoff remain open.
+
 Private configuration reads now reject data beyond their 64 KiB limit, including
 a second JSON object hidden after padding. Wake recovery uses the same strict
 reader with a 16 MiB bound. Regression tests reproduce the former acceptance of
