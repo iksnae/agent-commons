@@ -16,7 +16,7 @@ next missing behavior. The production goal remains active.
 | Stable project + agent name/role identity | Enrollment, conflict and lease tests | Real Claude/Codex project and workspace launch integration without credential sharing |
 | Durable communication and return paths | Scoped RPC tests; existing-conversation wake evidence | Full managed cross-runtime acceptance; supervised role watchers and offline recovery |
 | Shared context and learnings | Versioned context and scoped board tests | Explicit cross-project publication flow and launch-time review |
-| Safe local installation and lifecycle | Native macOS/Linux transient lifecycle CI; bundle boundary tests; service installer filesystem and fake-command tests | Full service CLI native lifecycle, clean-machine upgrades, login/reboot behavior |
+| Safe local installation and lifecycle | Native macOS/Linux full service CLI lifecycle CI; bundle boundary tests; recoverable removal and Linux persistent-link checks | Clean-machine upgrades, login/reboot behavior |
 | Recovery without lost work or duplicate effects | Durable state, task revision and crash-restart tests | Migration/rollback rehearsal, backup/restore tooling, bounded journals and operator reconciliation |
 | Project-shaped development teams | Definition inventory and read-only task/review ledger | Approved write-capable dispatch, project isolation, full planning/review/red-team delivery flow |
 | Observable operation | Scoped doctor checks; bounded RPC logs | Provider/runtime readiness, supervisor/queue health, actionable failure diagnostics |

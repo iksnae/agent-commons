@@ -37,8 +37,8 @@ Opt-in native launchd and systemd tests have passed on hosted macOS and Linux:
 isolated service startup, SIGKILL recovery to a different PID, durable registry
 verification, stop and transient
 unregistration, plus clean stop/start and explicit registration-absence checks.
-No provider sessions were launched. Login/reboot persistence and the user-facing
-persistent service installer remain unverified. The dedicated manual CI workflow keeps these
+No provider sessions were launched. Login/reboot persistence remains unverified.
+The dedicated manual CI workflow keeps these
 host-dependent tests separate from ordinary builds.
 Evidence: [native lifecycle run 34147092700](https://github.com/iksnae/agent-commons/actions/runs/34147092700).
 
@@ -50,5 +50,10 @@ files only; it does not register a persistent service, migrate state or enroll r
 The separate `service` CLI now installs configuration and controls explicit user
 jobs. Filesystem tests cover existing-file collisions, incomplete receipts,
 changed-file refusal and recoverable removal. Fake supervisor tests cover command
-failure and state preservation. Native execution of this full command path and
-login/reboot recovery are still unverified; see [service setup](SERVICE.md).
+failure and state preservation. The full native CLI path passed on both macOS
+(10.73 seconds) and Linux (11.18 seconds) in
+[run 34150065040](https://github.com/iksnae/agent-commons/actions/runs/34150065040),
+with neither test skipped. It verified install, enable, start, status, SIGKILL
+recovery, clean restart, stop, recoverable removal and retained agent state.
+Linux persistent startup links were present after enable and absent after removal.
+Login/reboot recovery remains unverified; see [service setup](SERVICE.md).

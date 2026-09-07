@@ -1,10 +1,11 @@
 # Run as a user service
 
 The `service` commands install and control one named launchd or systemd user job.
-They do not enroll roles or supervise inbox watchers yet. This command path has
-filesystem and fake-supervisor tests; its full native lifecycle and login/reboot
-behavior still need validation. Existing native lifecycle CI exercises the lower
-level service plans, not this installer.
+They do not enroll roles or supervise inbox watchers yet. The full command path
+passed on macOS and Linux in [native CI run 34150065040](https://github.com/iksnae/agent-commons/actions/runs/34150065040):
+installation, startup, crash recovery, restart and recoverable removal. Linux's
+persistent startup links were also checked before and after removal. Login and
+reboot recovery still need validation.
 
 Use an installed binary and a separate private state directory. Stop any existing
 foreground service using that state before starting the supervised one. Back up

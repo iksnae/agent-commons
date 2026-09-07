@@ -55,5 +55,5 @@ Do not run old and new services against one state directory at the same time.
 
 `service-plan` renders launchd/systemd configuration without writing it.
 The [service commands](SERVICE.md) install and control that configuration explicitly.
-Their full native lifecycle, role startup hooks and upgrade automation remain open
+Role startup hooks, login/reboot validation and upgrade automation remain open
 in [the beta checklist](BETA.md). Bundle installation does not close those gates.
