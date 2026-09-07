@@ -7,12 +7,7 @@ default:
 
 # Read-only handoff: reject the wrong checkout and print current repository state.
 resume:
-    @test "$(git rev-parse --show-toplevel)" = "$PWD"
-    @rg -q '^module agentcommons$' go.mod
-    @pwd
-    @git status --short
-    @git log -1 --oneline
-    @cat START-HERE.md
+    @cd {{quote(justfile_directory())}} && test "$(git rev-parse --show-toplevel)" = "$PWD" && rg -q '^module agentcommons$' go.mod && pwd && git status --short && git log -1 --oneline && cat START-HERE.md
 
 # Compile a development binary without replacing the running pilot's binary.
 build:
