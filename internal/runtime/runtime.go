@@ -26,9 +26,11 @@ type Runner interface {
 	Run(context.Context, core.Session, core.Delivery) (string, string, error)
 }
 type CLI struct {
-	Binary   string
-	Socket   string
-	StateDir string
+	Binary       string
+	Socket       string
+	StateDir     string
+	PrepareCodex func(context.Context, core.Session) (string, error)
+	Checkpoint   func(deliveryID, runtimeID string) error
 }
 type credentialKey struct{}
 
@@ -108,6 +110,10 @@ func (c CLI) Run(ctx context.Context, s core.Session, d core.Delivery) (sessionI
 		return "", "", err
 	}
 	project, err := renderProjectPrompt(s.Target, s.Role, s.Runtime, defs)
+	if err != nil {
+		return "", "", err
+	}
+	s, err = c.prepareSession(ctx, s, d)
 	if err != nil {
 		return "", "", err
 	}

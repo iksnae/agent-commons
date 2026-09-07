@@ -99,3 +99,4 @@ claude-hook-test: build
 codex-hook-test:
     AGENT_COMMONS_CODEX_HOOK=1 go test -race ./integration -run '^TestNativeCodex(ReportsLaunchHookTrust|InstallsBundledPlugin|DistinguishesResumedAndForkedThreadIdentity|PreparesRecoverableRoot)$' -count=1 -v -timeout 90s
     AGENT_COMMONS_CODEX_HOOK=1 go test -race ./cmd/agent-commons -run '^TestNativeCodexPreparationCLI$' -count=1 -v -timeout 60s
+    AGENT_COMMONS_CODEX_HOOK=1 go test -race ./cmd/agent-commons -run '^TestNativeManagedCodexPreparationRecoversSameRoot$' -count=1 -v -timeout 45s

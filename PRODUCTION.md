@@ -46,6 +46,23 @@ return delivery and task submission, and the original binding survives restart.
 Claude/Codex adapter fixtures and durable service regression tests exercise this
 boundary. They do not prove native resume or provide an operator rebind workflow.
 
+Preparation/checkpoint components now have isolated tests: a prepared thread can
+be bound to a running delivery before execution, checkpoint failure stops the
+runner, and the binding survives interruption without replay. Ready-journal reuse
+checks native scope; partial journals stop without creating a replacement.
+
+These components are not wired into `serve`. Independent review found that the
+standalone app-server starter loads native user/project configuration, unlike the
+managed execution policy. Codex 0.153.4 rejects app-server `--ignore-user-config`
+and `--ignore-rules`; the native clean-profile preparation test does not prove
+configuration isolation. Automatic first-run preparation remains an open gate.
+The next integration must prove that unwanted MCP/plugin components cannot start
+and preserve the same native home through execution without copying credentials.
+
+Role credential isolation, Claude first-run preparation, durable journal
+reconciliation and native model-turn recovery remain open. Do not delete
+incomplete journals to force a fresh start.
+
 Existing state is decoded without fresh-service defaults. Empty, null and
 missing-map files are rejected without replacing them. A missing operator
 credential in an existing file is also an error; startup does not invent a
