@@ -62,6 +62,9 @@ func (s *Service) attach(actor, method string, p params) (any, error) {
 		if a.NativeID != p.NativeID || a.LeaseID != p.LeaseID || a.ExpiresAt <= now {
 			return nil, errors.New("active matching lease required")
 		}
+		if p.Epoch != 0 && a.Epoch != p.Epoch {
+			return nil, errors.New("matching attachment epoch required")
+		}
 		if method == "sessions.detach" {
 			a = Attachment{}
 		} else {

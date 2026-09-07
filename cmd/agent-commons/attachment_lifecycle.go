@@ -53,19 +53,19 @@ func (connection projectConnection) watchArguments(options onboardingOptions) []
 	return args
 }
 
-func (lease attachmentLease) startRenewal(ctx context.Context, cancel context.CancelFunc) <-chan error {
+func (lease *attachmentLease) startRenewal(ctx context.Context, cancel context.CancelFunc) <-chan error {
 	done := make(chan error, 1)
 	go func() { err := lease.renewUntilCanceled(ctx); done <- err; cancel() }()
 	return done
 }
 
-func (lease attachmentLease) renewUntilCanceled(ctx context.Context) error {
+func (lease *attachmentLease) renewUntilCanceled(ctx context.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	return lease.renewOnTicks(ctx, ticker.C)
 }
 
-func (lease attachmentLease) renewOnTicks(ctx context.Context, ticks <-chan time.Time) error {
+func (lease *attachmentLease) renewOnTicks(ctx context.Context, ticks <-chan time.Time) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -78,13 +78,21 @@ func (lease attachmentLease) renewOnTicks(ctx context.Context, ticks <-chan time
 	}
 }
 
-func (lease attachmentLease) call(ctx context.Context, method string) (core.Attachment, error) {
-	return rpcCall[core.Attachment](ctx, lease.client, method, map[string]string{
+func (lease *attachmentLease) call(ctx context.Context, method string) (core.Attachment, error) {
+	params := map[string]any{
 		"nativeId": lease.attachment.NativeID, "leaseId": lease.attachment.LeaseID,
-	})
+	}
+	if lease.attachment.Epoch != 0 {
+		params["epoch"] = lease.attachment.Epoch
+	}
+	result, err := rpcCall[core.Attachment](ctx, lease.client, method, params)
+	if err == nil && method == "sessions.renew" && result.Epoch != 0 {
+		lease.attachment.Epoch = result.Epoch
+	}
+	return result, err
 }
 
-func (lease attachmentLease) release() {
+func (lease *attachmentLease) release() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, _ = lease.call(ctx, "sessions.detach")

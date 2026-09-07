@@ -120,3 +120,33 @@ func TestLeaseRenewalReportsConnectionFailure(t *testing.T) {
 		t.Fatal("renewal failure hidden")
 	}
 }
+
+func TestRenewalUpdatesEpochBeforeRelease(t *testing.T) {
+	state := onboardingService(t)
+	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	var result struct {
+		Config string `json:"config"`
+	}
+	if err := json.Unmarshal(enrolled, &result); err != nil {
+		t.Fatal(err)
+	}
+	connection, err := openProjectConnection(result.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attachment, err := connection.attach(context.Background(), onboardingOptions{Runtime: "claude", NativeSession: "renewed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease := &attachmentLease{client: connection.client, attachment: attachment}
+	if _, err = lease.call(context.Background(), "sessions.renew"); err != nil {
+		t.Fatal(err)
+	}
+	if lease.attachment.Epoch <= attachment.Epoch {
+		t.Fatal("renewal did not advance the local epoch")
+	}
+	lease.release()
+	if _, err = connection.attach(context.Background(), onboardingOptions{Runtime: "claude", NativeSession: "after-release"}); err != nil {
+		t.Fatalf("renewed lease was not released: %v", err)
+	}
+}

@@ -20,6 +20,7 @@ func TestStableIdentityAttachments(t *testing.T) {
 		t.Fatal("same-session attachment did not invalidate prior cleanup epoch")
 	}
 	denied(t, s, "stable", "sessions.abort", map[string]any{"nativeId": first.NativeID, "leaseId": first.LeaseID, "epoch": first.Epoch})
+	denied(t, s, "stable", "sessions.detach", map[string]any{"nativeId": reused.NativeID, "leaseId": reused.LeaseID, "epoch": first.Epoch})
 	rpc(t, s, "stable", "sessions.detach", map[string]any{"nativeId": reused.NativeID, "leaseId": reused.LeaseID})
 	first = rpc(t, s, "stable", "sessions.attach", map[string]any{"nativeId": "claude-1", "runtime": "claude", "target": target}).(Attachment)
 	rpc(t, s, "stable", "sessions.renew", map[string]any{"nativeId": first.NativeID, "leaseId": first.LeaseID})
