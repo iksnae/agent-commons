@@ -19,8 +19,8 @@ func (s *Service) board(actor, method string, p params) (any, error) {
 		if strings.TrimSpace(p.Title) == "" || strings.TrimSpace(p.Text) == "" || p.IdempotencyKey == "" || len(p.Title) > 512 || len(p.Text) > 8192 || len(p.Evidence) > 8192 {
 			return nil, errors.New("title, text and idempotencyKey required; title max 512B, text/evidence max 8KiB")
 		}
-		if p.Topic != "learning" && p.Topic != "technique" && p.Topic != "pitfall" {
-			return nil, errors.New("topic must be learning, technique or pitfall")
+		if !validBoardTopic(p.Topic) {
+			return nil, errors.New("topic must be one of: " + strings.Join(BoardTopics(), ", "))
 		}
 		key := actor + "\x00board.post\x00" + p.IdempotencyKey
 		if id, ok := s.data.Keys[key]; ok {
@@ -57,6 +57,9 @@ func (s *Service) board(actor, method string, p params) (any, error) {
 		}
 		return nil, errors.New("post unavailable")
 	case "board.list":
+		if p.Topic != "" && !validBoardTopic(p.Topic) {
+			return nil, errors.New("unsupported board topic filter")
+		}
 		limit := p.Limit
 		if limit == 0 {
 			limit = 10

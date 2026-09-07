@@ -147,7 +147,8 @@ implemented.
 ## Shared knowledge board
 
 `board.post`, `board.list`, and `board.get` expose a durable target-scoped board.
-Posts have authenticated authors, topic (`learning`, `technique`, `pitfall`),
+Posts have authenticated authors, topic (`learning`, `technique`, `pitfall`,
+`strategy`, `idea`, `experiment`),
 title, text, optional evidence and replyTo. Posts are immutable; corrections are
 attributed replies. Search by `query` or topic; follow `nextCursor` for bounded
 pages. Posting requires an idempotency key. Board content is peer knowledge, not
