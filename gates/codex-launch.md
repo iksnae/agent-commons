@@ -17,6 +17,8 @@ Checked on 2026-09-07 with local `codex-cli 0.153.4` and the
 - A SessionStart command receives JSON and can return concise additional context.
 - The documented start sources do not distinguish forks. Do not port Claude's
   fork check by merely changing the runtime name.
+- The common hook input documentation says subagent hooks use the parent's
+  `session_id`. A matching hook ID alone does not prove an independent identity.
 
 The installed binary's generated app-server schema exposes `hooks/list` with
 source path, current hash, enabled flag and trust status. The native test
@@ -31,6 +33,27 @@ skill and removal of the installed cache. `plugin/read` returns marketplace
 source paths; the test uses `skills/list` to locate the installed skill instead.
 The current Claude-only hook is excluded from Codex plugin metadata. A Codex
 launch hook has not been added yet.
+
+## Native identity evidence
+
+`TestNativeCodexDistinguishesResumedAndForkedThreadIdentity` passes on Codex
+0.153.4. It starts a root in a disposable Codex home, adds fixed fixture history
+through `thread/inject_items`, resumes it, forks it and reads the fork metadata.
+Resume preserves the exact root thread ID and session ID. Fork returns a different
+thread ID with `forkedFromId` naming the root; `thread/read` retains that ancestry.
+Both are top-level threads with no `parentThreadId`. This does not test a spawned
+subagent or equate `sessionId` with a unique thread ID.
+
+The initial empty root could not be resumed: Codex reported that no rollout
+existed. Adding fixture history made it resumable. A launcher must therefore
+distinguish receiving a thread ID from establishing recoverable session history.
+The test makes no model request, trusts no hook and attaches no Agent Commons role.
+
+Use this evidence to build an explicit launcher binding: record the exact thread
+created for a role, verify that thread's native metadata on resume, and treat forks
+as separate enrollment decisions. A hook's first observed ID must not silently
+claim the role. The launcher still needs a verified hook-to-thread handoff,
+credential isolation and crash-recovery tests before automatic attachment is safe.
 
 An earlier `codex debug prompt-input` probe returned JSON with no hook-review
 diagnostic. Absence of hook text in that output did not establish that trust

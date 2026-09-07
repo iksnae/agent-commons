@@ -64,6 +64,6 @@ live-test:
 claude-hook-test: build
     AGENT_COMMONS_CLAUDE_HOOK=1 AGENT_COMMONS_TEST_BINARY="$PWD/dist/dev/agent-commons" go test -race ./cmd/agent-commons -run '^TestNativeClaudeLaunchHook$' -count=1 -v -timeout 45s
 
-# OPT-IN: test native Codex hook inventory and plugin install/removal in isolated config.
+# OPT-IN: test Codex hook inventory, plugin lifecycle and thread identity in isolated config.
 codex-hook-test:
-    AGENT_COMMONS_CODEX_HOOK=1 go test -race ./integration -run '^TestNativeCodex(ReportsLaunchHookTrust|InstallsBundledPlugin)$' -count=1 -v -timeout 90s
+    AGENT_COMMONS_CODEX_HOOK=1 go test -race ./integration -run '^TestNativeCodex(ReportsLaunchHookTrust|InstallsBundledPlugin|DistinguishesResumedAndForkedThreadIdentity)$' -count=1 -v -timeout 90s

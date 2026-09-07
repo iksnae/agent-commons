@@ -81,6 +81,13 @@ Uninstall clears installed status and removes the cache. The Claude-only hook is
 absent from Codex's plugin metadata. These checks do not exercise an MCP connection,
 model turn or Codex launch hook. No plugin was installed in the operator's config.
 
+The native Codex identity test now starts, materializes fixture history, resumes,
+forks and reads disposable threads through the real app-server. Resume retains
+the root identity; the fork has a distinct thread ID and explicit ancestry.
+An empty root was not resumable before fixture history was added. No model turn,
+hook trust or role attachment was involved. This supplies a native contract for
+the planned launcher binding; it does not prove fork-safe hook enrollment.
+
 Private configuration reads now reject data beyond their 64 KiB limit, including
 a second JSON object hidden after padding. Wake recovery uses the same strict
 reader with a 16 MiB bound. Regression tests reproduce the former acceptance of
