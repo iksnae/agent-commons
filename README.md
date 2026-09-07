@@ -19,6 +19,10 @@ without warranty or a promise of ongoing support.
 
 ## Build and start
 
+This is a read-only local pilot. See the [beta checklist](BETA.md) for what still
+needs operational testing. `doctor --config FILE` checks a scoped connection;
+`service-plan` renders a supervision configuration without installing it.
+
 Requires Go 1.26 and installed, authenticated `claude`/`codex` CLIs for actual model
 runs. The service itself uses only the Go standard library. macOS and Linux are the
 initial platforms (Unix sockets and process locking).

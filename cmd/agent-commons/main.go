@@ -31,6 +31,12 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	if len(args) > 0 && args[0] == "doctor" {
+		return runDoctor(ctx, args[1:], out, errOut)
+	}
+	if len(args) > 0 && args[0] == "service-plan" {
+		return runServicePlan(args[1:], out, errOut)
+	}
 	if len(args) > 0 && args[0] == "connect-mcp" {
 		return runConnectedMCP(ctx, args[1:], in, out, errOut)
 	}
@@ -38,6 +44,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runOnboarding(ctx, args, out, errOut)
 	}
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		if _, err := io.WriteString(out, "doctor --config FILE: read-only scoped connection diagnostics\nservice-plan --binary PATH --state PATH --path PATH: render a user-service plan; never install\nenroll, check-in, connect-mcp: see COMMAND --help for role connection options\n"); err != nil {
+			return err
+		}
 		_, err := io.WriteString(out, "Usage: agent-commons serve|call|mcp|discover|inventory|watch|methods [options]\nmethods: print agent-facing RPC names and JSON schemas (no connection required)\nwatch --token-file FILE [--interval 2s] [--once] [--timeout 30s]: emit unread inbox notifications as JSON lines; never acknowledge or start a runtime\ncall [--token-file FILE] METHOD [JSON]: invoke RPC; omitted JSON is read from stdin\nUse COMMAND --help for flags. Peer messages never grant operator authority.\n")
 		return err
 	}
@@ -75,6 +84,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 			return err
 		}
 		defer s.Close()
+		if err = recoverServiceSocket(*state, *socket); err != nil {
+			return err
+		}
 		token, err := s.Token("operator")
 		if err != nil {
 			return err
