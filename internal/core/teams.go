@@ -89,6 +89,9 @@ func (s *Service) createTeam(actor, key, target string, p params) (any, error) {
 		}
 		return s.teamView(existing, ""), nil
 	}
+	if err := s.backupBeforeTeams(); err != nil {
+		return nil, err
+	}
 	team := teamRecord{ID: p.ID, Target: target, Title: p.Title, Brief: p.Text, Membership: map[string]string{}}
 	s.data.Teams[key] = team
 	s.data.SchemaVersion = 2

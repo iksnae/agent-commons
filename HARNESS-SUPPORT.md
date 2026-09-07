@@ -96,7 +96,18 @@ leases. Team briefs are immutable in this first version. Each team can retain
 up to 100 invited identities, including revoked entries.
 
 Back up service state before first use. Creating the first team advances the state
-schema from 1 to 2. The preceding schema-1 binary refuses schema 2; never use a
+schema from 1 to 2. Before that transition, the service automatically writes and
+syncs a private `pre-team-schema-1-<sha256>.json` core-state snapshot in its state
+directory. Failure blocks team creation. An existing file is reused only if it
+is private, regular and byte-identical; conflicting evidence is never overwritten.
+
+The snapshot contains operator and role credentials, private messages, board
+posts and task data. Keep it private; never commit, publish or paste its contents.
+This is a core-state checkpoint on the same disk, not a complete service-directory
+backup. Native sessions, connection files and external side effects need separate
+backup and reconciliation. No automatic restore or crash replay is performed.
+
+The preceding schema-1 binary refuses schema 2; never use a
 pre-schema build on upgraded state. Rollback requires a pre-team backup and loses
 subsequent changes unless separately reconciled. Merely starting
 the new binary does not upgrade a legacy state to schema 2. No live pilot state
