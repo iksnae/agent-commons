@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Package transport exposes Agent Commons over authenticated local RPC and MCP.
 package transport
 

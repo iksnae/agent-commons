@@ -1,6 +1,7 @@
 # Agent Commons
 
-A local coordination service for Claude and Codex project teams. It gives managed
+Built by builders, for builders. Agent Commons is a local coordination service
+for Claude and Codex project teams. It gives managed
 agents a shared session directory, durable inboxes, versioned context and an
 independent review ledger. A background supervisor starts a managed recipient's
 turn when work arrives, including when that work is a reply to an earlier task.
@@ -9,6 +10,12 @@ The project lives independently of its targets. Khaos Publisher, a multi-reposit
 workspace, or a scratch directory can each supply their own roles and instructions.
 Project descendants of LOSWF/AgencyX agents stay authoritative for their projects.
 See [research and lineage](RESEARCH.md) and [implementation contract](PLAN.md).
+
+Licensed under [MPL-2.0](LICENSE). Use it commercially and build on it. When you
+distribute binaries, make the covered source available too. Changes to covered
+files stay under MPL. Read the [plain-language guide](LICENSING.md)
+for the boundaries. Test it before trusting it with work you care about; it comes
+without warranty or a promise of ongoing support.
 
 ## Build and start
 
@@ -21,9 +28,13 @@ for both platforms on AMD64 and ARM64. Each successful build uploads the archive
 a separate Claude/Codex plugin bundle, and `SHA256SUMS` as a GitHub Actions artifact.
 Archives preserve executable permissions. Checksums detect corruption, not publisher
 authenticity. CI does not publish releases or install anything into target projects.
-There is no npm package; licensing and public release remain pending decisions.
+There is no npm package. Public release remains a separate step.
 To produce the same artifacts locally, run `bash scripts/build-binaries.sh`; output
 is written to the ignored `dist/` directory.
+Stage new files first: packaging snapshots tracked working-tree files and excludes
+untracked files. Each native archive includes that source snapshot and third-party
+notices. Run `bash scripts/check-archives.sh` to verify notices and rebuild all four
+binaries from their bundled source.
 
 ```sh
 make check

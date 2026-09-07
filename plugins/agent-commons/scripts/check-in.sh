@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MPL-2.0
 set -eu
 : "${AGENT_COMMONS_CONNECTION:?Set the private project-role connection file path}"
 runtime=${1:?Supply claude or codex}

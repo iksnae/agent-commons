@@ -6,6 +6,11 @@ Codex teams. Target repositories are inputs, not this project's working tree.
 - Read PLAN.md for ownership/interfaces and RESEARCH.md for lineage.
 - Keep the domain independent of runtime processes and transports.
 - Use Go standard library, explicit errors and narrowly scoped interfaces.
+- Write project docs for builders: direct language, concrete examples, honest limits.
+  Use Humanizer when available. Never rewrite canonical license text or third-party
+  notices for style. Keep plain-language explanations separate from legal terms.
+- New project source files use SPDX-License-Identifier: MPL-2.0. Preserve third-party
+  terms and bundle source and required notices with binary distributions.
 - Keep source and tests organized by cohesive responsibility; do not grow
   monolithic files or multi-purpose workflow functions. Extract reusable
   boundaries (RPC, private storage, lifecycle) and keep command orchestration

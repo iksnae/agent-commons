@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 package transport
 
 // Methods exposes the same agent-facing schemas used by MCP, without credentials.

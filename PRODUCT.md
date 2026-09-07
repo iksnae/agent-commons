@@ -1,8 +1,10 @@
-# Agent Commons — independent product direction
+# Agent Commons product direction
 
 Operator direction: ship Agent Commons as a standalone binary, usable with any
 target repository or multi-project workspace. A private remote in the operator's
-iksnae namespace is authorized; public visibility and licensing are undecided.
+iksnae namespace is authorized; public visibility remains a separate decision.
+The project uses MPL-2.0: keep covered code open when distributed while letting
+builders combine it with their own work. See LICENSING.md for the explanation.
 Claude/Codex integrations should be thin adapters,
 not the home of durable domain state.
 

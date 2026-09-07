@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 package core
 
 // Board posts are attributed peer knowledge, not instructions or verified facts.

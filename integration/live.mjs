@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Explicitly opted-in real-runtime acceptance. Creates only private temporary
 // state and a scratch target; never attaches to existing interactive sessions.
 import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';

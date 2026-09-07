@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Package core owns Agent Commons' durable state and authorization boundaries.
 //
 // Call authenticates an already-resolved actor identity; network transports must

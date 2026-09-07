@@ -20,4 +20,14 @@ subagent in a project.
 Manifest validation has been exercised with Claude's validator and the Codex
 plugin validator. Marketplace publication, installer testing and automatic
 SessionStart hook wiring are not complete. This bundle is not globally installed
-or automatically enabled by the repository. No license is selected yet.
+or automatically enabled by the repository.
+
+This plugin's scripts, skills, configuration and documentation use [MPL-2.0](LICENSE).
+Its editable source is included in the bundle. Keep the required notices and make
+covered source available when distributing changes. Your target project's code
+and agent definitions keep their own licenses. The plugin comes without warranty
+or a promise of ongoing support; sections 6 and 7 of the license set the terms.
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
