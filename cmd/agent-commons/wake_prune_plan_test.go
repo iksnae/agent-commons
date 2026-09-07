@@ -9,12 +9,12 @@ import (
 )
 
 func TestWakePruningUsesAcknowledgedReceiptsAndPreservesUncertainty(t *testing.T) {
-	records := map[string]wakeRecord{"read": {Status: "queued"}, "unread": {Status: "queued"}, "uncertain": {Status: "uncertain"}, "missing": {Status: "queued"}}
+	records := map[string]wakeRecord{"read": {Status: "queued"}, "suppressed": {Status: "suppressed"}, "unread": {Status: "queued"}, "uncertain": {Status: "uncertain"}, "missing": {Status: "queued"}}
 	kept, err := planWakePruning(context.Background(), records, "lead", func(cursor string) (wakeReceiptPage, error) {
 		if cursor == "" {
 			return wakeReceiptPage{Messages: []wakeReceipt{{"read", "lead", true}, {"unread", "lead", false}}, NextCursor: "next"}, nil
 		}
-		return wakeReceiptPage{Messages: []wakeReceipt{{"uncertain", "lead", true}}}, nil
+		return wakeReceiptPage{Messages: []wakeReceipt{{"uncertain", "lead", true}, {"suppressed", "lead", true}}}, nil
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestWakePruningUsesAcknowledgedReceiptsAndPreservesUncertainty(t *testing.T
 	if len(kept) != 3 || kept["unread"].Status != "queued" || kept["uncertain"].Status != "uncertain" || kept["missing"].Status != "queued" {
 		t.Fatal("unsafe prune plan", kept)
 	}
-	if len(records) != 4 {
+	if len(records) != 5 {
 		t.Fatal("planning mutated source ledger")
 	}
 }

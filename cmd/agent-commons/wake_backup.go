@@ -8,7 +8,13 @@ import (
 	"path/filepath"
 )
 
-func (w *wakeWriter) prune(kept map[string]wakeRecord, report *wakeMaintenanceReport) error {
+type wakeWriteResult struct {
+	Applied   bool   `json:"applied"`
+	Uncertain bool   `json:"uncertain"`
+	Backup    string `json:"backup,omitempty"`
+}
+
+func (w *wakeWriter) replaceWithBackup(kept map[string]wakeRecord, report *wakeWriteResult) error {
 	var err error
 	report.Backup, err = w.backup()
 	if err != nil {
@@ -26,7 +32,7 @@ func (w *wakeWriter) prune(kept map[string]wakeRecord, report *wakeMaintenanceRe
 }
 
 // Keep a durable snapshot before removing any suppression history. Backups are
-// never removed automatically and contain wake metadata, not message bodies.
+// never removed automatically and include operator evidence when present.
 func (w *wakeWriter) backup() (string, error) {
 	data, err := json.Marshal(w.records)
 	if err != nil {

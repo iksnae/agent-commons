@@ -9,16 +9,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"path/filepath"
 	"time"
 )
 
 type wakeMaintenanceReport struct {
-	Eligible  int    `json:"eligible"`
-	Remaining int    `json:"remaining"`
-	Applied   bool   `json:"applied"`
-	Uncertain bool   `json:"uncertain"`
-	Backup    string `json:"backup,omitempty"`
+	wakeWriteResult
+	Eligible  int `json:"eligible"`
+	Remaining int `json:"remaining"`
 }
 
 func runWakeMaintenance(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -36,18 +33,7 @@ func runWakeMaintenance(ctx context.Context, args []string, out, errOut io.Write
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	connection, err := openProjectConnection(*config)
-	if err != nil {
-		return err
-	}
-	if err = connection.verifyIdentity(ctx); err != nil {
-		return err
-	}
-	socket, err := filepath.EvalSymlinks(connection.config.Socket)
-	if err != nil {
-		return err
-	}
-	w, err := openWake(ctx, connection.config.State, *thread, socket+"\x00"+connection.config.Identity, io.Discard)
+	w, connection, err := openScopedWake(ctx, *config, *thread)
 	if err != nil {
 		return err
 	}
@@ -60,7 +46,7 @@ func runWakeMaintenance(ctx context.Context, args []string, out, errOut io.Write
 	}
 	report := wakeMaintenanceReport{Eligible: len(w.records) - len(kept), Remaining: len(kept)}
 	if *apply && report.Eligible > 0 {
-		err = w.prune(kept, &report)
+		err = w.replaceWithBackup(kept, &report.wakeWriteResult)
 	}
 	if outputErr := json.NewEncoder(out).Encode(report); outputErr != nil {
 		return errors.Join(err, fmt.Errorf("maintenance report failed (backup %q): %w", report.Backup, outputErr))

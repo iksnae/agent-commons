@@ -126,8 +126,10 @@ append that would exceed the limit stops before queuing and preserves the saved
 history. Keep the ledger when investigating an error. Deleting it discards
 duplicate-suppression history and can repeat notifications. Use
 [wake maintenance](WAKE-MAINTENANCE.md) to preview and explicitly prune confirmed,
-acknowledged records with a backup. Automatic retention and reconciliation of
-uncertain attempts remain unimplemented.
+acknowledged records with a backup. The same guide covers `wake-resolve`, which
+requires operator credentials, an inspected record hash and recorded evidence to
+approve one retry or suppress an uncertain notification. Automatic retention and
+full service recovery remain open.
 
 ## Shared knowledge board
 

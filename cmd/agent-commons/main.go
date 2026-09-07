@@ -31,6 +31,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	if len(args) > 0 && args[0] == "wake-resolve" {
+		return runWakeResolution(ctx, args[1:], out, errOut)
+	}
 	if len(args) > 0 && args[0] == "wake-maintain" {
 		return runWakeMaintenance(ctx, args[1:], out, errOut)
 	}
@@ -59,6 +62,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runOnboarding(ctx, args, out, errOut)
 	}
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		if _, err := io.WriteString(out, "wake-resolve --config FILE --codex-thread UUID --message-id ID: inspect an uncertain notification; applying requires explicit operator authority\n"); err != nil {
+			return err
+		}
 		if _, err := io.WriteString(out, "wake-maintain --config FILE --codex-thread UUID: preview pruning of acknowledged wake history; see --help before applying\n"); err != nil {
 			return err
 		}

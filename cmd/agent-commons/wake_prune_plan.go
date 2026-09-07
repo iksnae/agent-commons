@@ -39,7 +39,8 @@ func planWakePruning(ctx context.Context, records map[string]wakeRecord, identit
 			if receipt.To != identity {
 				return nil, errors.New("inbox receipt identity mismatch")
 			}
-			if receipt.Acknowledged && kept[receipt.ID].Status == "queued" {
+			status := kept[receipt.ID].Status
+			if receipt.Acknowledged && (status == "queued" || status == "suppressed") {
 				delete(kept, receipt.ID)
 			}
 		}

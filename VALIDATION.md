@@ -17,7 +17,7 @@ otherwise worked around. The associated G5 gate remains open.
 
 Enrollment and check-in are tested; unattended launch hooks have not been
 installed. Wake watchers are foreground pilot processes, not reboot-supervised
-services. Retention, reconciliation of uncertain queue attempts, complete state
+services. Automatic retention, native recovery of uncertain queue attempts, complete state
 migrations/rollback and signed release distribution remain work for
 product release. MPL-2.0 licensing and source-bearing binary archives are now in
 place; archive checks rebuild all four binaries from bundled source. See
@@ -96,4 +96,12 @@ confirmation, wrong-scope and incomplete pagination evidence, and unchanged inbo
 state. Backup failure prevents pruning; ledger-write failure retains the backup
 and reports uncertainty. Uncertain attempts and unread or missing receipts are
 preserved. No live pilot maintenance was performed. Automatic retention and
-uncertain-attempt reconciliation remain open.
+native uncertain-attempt recovery verification remain open.
+
+The `wake-resolve` increment adds explicit operator decisions for uncertain or
+attempting notifications. Isolated RPC/filesystem tests cover role-credential
+refusal, unchanged inbox state, exact-record hashes, retained backups and rejection
+of repeated decisions. Restart tests use a fake notification queue: suppression
+makes no queue call, an approved retry runs once, and another failure stops further
+automatic retries while retaining operator evidence. These are recovery-contract
+tests, not evidence of native Codex delivery. No live pilot record was resolved.

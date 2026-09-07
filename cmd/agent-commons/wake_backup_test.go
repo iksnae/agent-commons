@@ -10,8 +10,8 @@ import (
 
 func TestWakePruneBackupFailureDoesNotChangeRecords(t *testing.T) {
 	w := &wakeWriter{path: filepath.Join(t.TempDir(), "missing", "ledger.json"), records: map[string]wakeRecord{"kept": {Status: "queued"}}}
-	var report wakeMaintenanceReport
-	if err := w.prune(map[string]wakeRecord{}, &report); err == nil {
+	var report wakeWriteResult
+	if err := w.replaceWithBackup(map[string]wakeRecord{}, &report); err == nil {
 		t.Fatal("backup failure hidden")
 	}
 	if len(w.records) != 1 || report.Applied || report.Uncertain {
@@ -26,8 +26,8 @@ func TestWakePruneWriteFailurePreservesBackupAndReportsUncertainty(t *testing.T)
 		t.Fatal(err)
 	}
 	w := &wakeWriter{path: path, records: map[string]wakeRecord{"retained": {Status: "queued"}}}
-	var report wakeMaintenanceReport
-	if err := w.prune(map[string]wakeRecord{}, &report); err == nil {
+	var report wakeWriteResult
+	if err := w.replaceWithBackup(map[string]wakeRecord{}, &report); err == nil {
 		t.Fatal("write failure hidden")
 	}
 	if report.Applied || !report.Uncertain || report.Backup == "" {
