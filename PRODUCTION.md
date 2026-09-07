@@ -115,7 +115,7 @@ exercise these checks.
 | Recovery without lost work or duplicate effects | Durable state, task revision and crash-restart tests; backed-up wake maintenance and operator-decision tests | Migration/rollback rehearsal, full service backup/restore tooling, bounded journals and native reconciliation verification |
 | Project-shaped development teams | Definition inventory, read-only task/review ledger, explicit membership and team-scoped task/context/result routing with revocation and restart tests | Native launch-time participation, approved write-capable dispatch, native-session/project isolation, full planning/review/red-team delivery flow |
 | Observable operation | Scoped doctor checks; bounded RPC logs; process-local supervisor heartbeat and bounded, content-free queue/cancellation counts | Provider readiness, complete actionable failure diagnostics and native operational acceptance |
-| Distributable product | MPL, source-bearing archives, rebuild and CI checks; pinned Vercel Skills install/removal preserves shared skill and support files at all four harness paths | Signed release artifacts, version/compatibility policy, clean-machine native integration installs |
+| Distributable product | MPL, source-bearing archives, rebuild and CI checks; pinned Vercel Skills install/removal preserves shared skill and support files at all four harness paths; version and compatibility policy documented | Signed release artifacts, clean-machine native integration installs |
 
 Each open item needs tests at the matching boundary and recorded evidence. A mock
 runner cannot prove provider behavior; a parsed service file cannot prove reboot

@@ -20,6 +20,7 @@ For a fresh development session, use [the resume guide](../START-HERE.md).
 ## Build and decide
 
 - [Builds and archives](builds.md)
+- [Version and compatibility policy](version-compatibility.md)
 - [Production readiness](../PRODUCTION.md): current delivery priorities and gates
 - [Validation evidence](../VALIDATION.md): historical test results, not current permission
 - [Implementation contract](../PLAN.md) and [design lineage](../RESEARCH.md)
