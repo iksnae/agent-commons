@@ -11,7 +11,8 @@ other gates below remain open. The production goal remains active.
 
 The current completion target covers the remaining production work up to signing,
 with Hermes excluded. Signing itself remains a later operator-controlled step;
-the other core workflow and operational gates are not waived.
+the other core workflow and operational gates are not waived, except that full
+archival/backup tooling is explicitly deferred beyond this foundational target.
 
 ## Delivery priority
 
@@ -98,9 +99,10 @@ the limit are refused, not truncated or migrated automatically.
 
 This cap is not retention management or complete corruption detection. Preserve
 the state and its backups if the limit is reached; do not strip messages or token
-records by hand. Archival, full backup/restore tooling and validation of every
-persisted record remain work to do. No live pilot state was opened or changed to
-exercise these checks.
+records by hand. Full backup/restore and archival tooling are intentionally
+deferred beyond the foundational release target. Validation of every persisted
+record also remains unfinished. State-size protection and wake-ledger safety
+remain in scope; no live pilot state was opened or changed to exercise them.
 
 ## Acceptance ledger
 
@@ -112,7 +114,7 @@ exercise these checks.
 | Durable communication and return paths | Scoped RPC tests; existing-conversation wake evidence | Full managed cross-runtime acceptance; supervised role watchers and offline recovery |
 | Shared context and learnings | Versioned context and scoped board tests; newest-first check-in for all four harnesses with older-service compatibility | Explicit cross-project publication flow, durable review tracking and native launch-time review |
 | Safe local installation and lifecycle | Native macOS/Linux full service CLI lifecycle CI; bundle boundary tests; recoverable removal and Linux persistent-link checks | Clean-machine upgrades, login/reboot behavior |
-| Recovery without lost work or duplicate effects | Durable state, task revision and crash-restart tests; backed-up wake maintenance and operator-decision tests | Migration/rollback rehearsal, full service backup/restore tooling, bounded journals and native reconciliation verification |
+| Recovery without lost work or duplicate effects | Durable state, task revision and crash-restart tests; backed-up wake maintenance and operator-decision tests | Migration/rollback rehearsal, bounded journals and native reconciliation verification; full service backup/restore is deferred beyond the foundational target |
 | Project-shaped development teams | Definition inventory, read-only task/review ledger, explicit membership and team-scoped task/context/result routing with revocation and restart tests | Native launch-time participation, approved write-capable dispatch, native-session/project isolation, full planning/review/red-team delivery flow |
 | Observable operation | Scoped doctor checks with stable safe failure categories; bounded RPC logs; process-local supervisor heartbeat and bounded, content-free queue/cancellation counts | Provider readiness, complete provider diagnostics and native operational acceptance |
 | Distributable product | MPL, source-bearing archives, rebuild and CI checks; pinned Vercel Skills install/removal preserves shared skill and support files at all four harness paths; version and compatibility policy documented | Signed release artifacts, clean-machine native integration installs |

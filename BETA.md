@@ -34,8 +34,9 @@ operational gate.
   uncertain queue results. A service restart must not silently replay an uncertain wake.
 - [ ] Explicit project/workspace launch integration tested with both Claude and
   Codex. Credentials must not leak into unrelated subagents.
-- [ ] Existing private state backed up, migration/rollback rehearsed, then an
-  explicitly scheduled switch from the old foreground service.
+- Deferred beyond the foundational beta: full private-state backup/restore and
+  an explicitly scheduled switch from the old foreground service. Migration and
+  rollback evidence for supported state changes remains required before upgrades.
 - [ ] Clean-machine install and recovery tests; diagnostics for provider access,
   queue state and supervisor health. `doctor` checks scoped RPC access and emits
   safe failure categories, but does not prove provider access.
