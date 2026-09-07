@@ -25,7 +25,10 @@ The matching recovery, observability, installation and release gates below still
 apply. This priority does not turn a read-only adapter or a passing fixture into
 production acceptance.
 
-Hermes is a visitor integration. Its installer, MCP and launch acceptance work is
+Hermes is currently a visitor integration, with a later role as a system-level
+orchestrator and organizer across workspaces and projects. That role will need
+explicit cross-workspace identity and access boundaries; it does not inherit
+project credentials or execution authority. Its installer, MCP and launch acceptance work is
 deferred behind the core team workflow and does not gate the initial core-team
 release. Pi remains foundational support, also behind Claude/Codex delivery.
 Neither runtime is being removed from the product; their incomplete capabilities

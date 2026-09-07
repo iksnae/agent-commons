@@ -59,6 +59,20 @@ author joins a shared space. Shared knowledge remains attributed peer data;
 publishing an idea does not authorize an experiment. This is planned scope, not
 an existing cross-project access grant or implemented feature.
 
+Hermes can later serve as a system-level orchestrator and organizer across
+workspaces and projects. Its visitor status describes the current integration
+priority, not a permanent limit on its role. That future role can coordinate
+project leads, organize shared learnings and track work across explicitly
+connected workspaces. Claude/Codex project teams remain responsible for their
+project-shaped execution and review workflows.
+
+System-level coordination needs its own explicit identity and access scope; it
+must not reuse a project's role credential as universal authority. Workspace and
+project participation must be granted and revocable. Private inboxes, target
+definitions and work permissions stay within their existing boundaries unless
+explicitly shared or delegated. This is future product direction, not permission
+to enroll Hermes, adopt sessions or open cross-project access now.
+
 ## Shared interfaces (freeze before parallel work)
 
 Module `agentcommons`; Go 1.26. The original dependency-free constraint was amended
