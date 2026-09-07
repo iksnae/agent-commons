@@ -10,6 +10,7 @@ For a fresh development session, use [the resume guide](../START-HERE.md).
 - [Runtime capabilities and team membership](../HARNESS-SUPPORT.md)
 - [Managed process environment](managed-environment.md)
 - [Coordination, context and result review](coordination.md)
+- [Team-scoped work and revocation](team-work.md)
 - [Inbox notifications](notifications.md)
 - [Terminal console](console.md)
 - [Service installation and control](../SERVICE.md)

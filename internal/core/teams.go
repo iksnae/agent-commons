@@ -94,7 +94,9 @@ func (s *Service) createTeam(actor, key, target string, p params) (any, error) {
 	}
 	team := teamRecord{ID: p.ID, Target: target, Title: p.Title, Brief: p.Text, Membership: map[string]string{}}
 	s.data.Teams[key] = team
-	s.data.SchemaVersion = 2
+	if s.data.SchemaVersion < 2 {
+		s.data.SchemaVersion = 2
+	}
 	return s.teamView(team, ""), nil
 }
 

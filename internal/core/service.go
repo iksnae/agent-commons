@@ -96,18 +96,22 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, errors.New("negative state schema version")
 	}
-	if s.data.SchemaVersion > 2 {
+	if s.data.SchemaVersion > 3 {
 		s.Close()
 		return nil, errors.New("state schema newer than this binary")
 	}
-	if s.data.SchemaVersion == 2 && s.data.Teams == nil {
+	if s.data.SchemaVersion >= 2 && s.data.Teams == nil {
 		s.Close()
-		return nil, errors.New("team state missing from schema 2")
+		return nil, errors.New("team state missing from team-aware schema")
 	}
 	if s.data.Teams == nil {
 		s.data.Teams = map[string]teamRecord{}
 	}
 	if err = s.validateTeams(); err != nil {
+		s.Close()
+		return nil, err
+	}
+	if err = s.validateTeamWork(); err != nil {
 		s.Close()
 		return nil, err
 	}
@@ -248,6 +252,7 @@ func (s *Service) Sessions() []Session {
 
 type params struct {
 	Session
+	TeamID                   string `json:"teamId"`
 	NativeID                 string `json:"nativeId"`
 	LeaseID                  string `json:"leaseId"`
 	Topic                    string `json:"topic"`
@@ -356,7 +361,7 @@ func (s *Service) pinned(target string, p params) (string, int, error) {
 		}
 		return p.Text, 0, nil
 	}
-	vs := s.data.Contexts[target+"\x00"+p.ContextID]
+	vs := s.data.Contexts[contextKey(target, p.TeamID, p.ContextID)]
 	v := p.ContextVersion
 	if v == 0 {
 		v = len(vs)
@@ -368,6 +373,9 @@ func (s *Service) pinned(target string, p params) (string, int, error) {
 }
 func (s *Service) call(actor, method string, p params) (any, error) {
 	fail := func(msg string) (any, error) { return nil, errors.New(msg) }
+	if p.TeamID != "" && method != "messages.send" && method != "tasks.assign" && method != "context.put" && method != "context.get" {
+		return fail("teamId is only valid for new work and context access")
+	}
 	if strings.HasPrefix(method, "teams.") {
 		return s.teams(actor, method, p)
 	}
@@ -378,7 +386,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	case "sessions.attach", "sessions.renew", "sessions.detach":
 		return s.attach(actor, method, p)
 	case "sessions.capabilities":
-		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
+		return map[string]any{"identity": actor, "policy": s.data.Sessions[actor].Policy, "target": s.data.Sessions[actor].Target, "teamMembershipAvailable": true, "teamWorkAvailable": true, "boardOrderingAvailable": true, "messageGrantsAuthority": false, "externalProcessEnforcement": false, "repositoryWriteGranted": false, "deploymentGranted": false, "registrationOperatorOnly": true}, nil
 	case "sessions.policy":
 		if actor != "operator" {
 			return fail("operator required")
@@ -502,16 +510,29 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if !ok || !s.scoped(actor, to.Target) {
 			return fail("recipient unavailable")
 		}
+		if !s.teamAccess(actor, to.Target, p.TeamID) || !s.teamAccess(to.ID, to.Target, p.TeamID) {
+			return fail("joined team participants required")
+		}
+		if parent != nil && (parent.TeamID != p.TeamID || !s.deliveryAccess(actor, *parent)) {
+			return fail("reply must retain accessible team scope")
+		}
 		if strings.TrimSpace(p.Text) == "" || p.IdempotencyKey == "" {
 			return fail("text and idempotencyKey required")
 		}
 		key := actor + "\x00" + method + "\x00" + p.IdempotencyKey
 		if id, ok := s.data.Keys[key]; ok {
 			if method == "tasks.assign" {
-				return cloneTask(s.data.Tasks[id]), nil
+				existing := s.data.Tasks[id]
+				if existing.TeamID != p.TeamID || !s.teamAccess(actor, existing.Target, existing.TeamID) {
+					return fail("idempotency key belongs to different or unavailable scope")
+				}
+				return cloneTask(existing), nil
 			}
 			for _, d := range s.data.Deliveries {
 				if d.ID == id {
+					if d.TeamID != p.TeamID || !s.deliveryAccess(actor, d) {
+						return fail("idempotency key belongs to different or unavailable scope")
+					}
 					return d, nil
 				}
 			}
@@ -524,7 +545,11 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			return fail("pinned message exceeds 128KiB")
 		}
 		if method == "messages.send" {
+			if err := s.enableTeamWork(p.TeamID); err != nil {
+				return nil, err
+			}
 			d := s.enqueue(actor, p.To, txt, "message", "", p.ContextID, ver)
+			d.TeamID = p.TeamID
 			if actor != "operator" && p.Provenance != "" {
 				d.Provenance = p.Provenance
 			}
@@ -555,10 +580,17 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				return fail("independent red team required")
 			}
 		}
-		t := Task{ID: randomID(), Target: to.Target, Lead: actor, Author: to.ID, Title: p.Title, Criteria: p.Criteria, Reviewer: p.Reviewer, RedTeam: p.RedTeam, Status: "assigned", Reviews: []Review{}}
+		if !s.teamAccess(p.Reviewer, to.Target, p.TeamID) || p.RedTeam != "" && !s.teamAccess(p.RedTeam, to.Target, p.TeamID) {
+			return fail("review participants must join the task team")
+		}
+		if err := s.enableTeamWork(p.TeamID); err != nil {
+			return nil, err
+		}
+		t := Task{TeamID: p.TeamID, ID: randomID(), Target: to.Target, Lead: actor, Author: to.ID, Title: p.Title, Criteria: p.Criteria, Reviewer: p.Reviewer, RedTeam: p.RedTeam, Status: "assigned", Reviews: []Review{}}
 		s.data.Tasks[t.ID] = t
 		s.data.Keys[key] = t.ID
 		s.enqueue(actor, to.ID, txt+"\n\nAcceptance criteria: "+p.Criteria, "task", t.ID, p.ContextID, ver)
+		s.data.Deliveries[len(s.data.Deliveries)-1].TeamID = p.TeamID
 		return cloneTask(t), nil
 	case "inbox.list", "inbox.page":
 		id := actor
@@ -579,7 +611,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		next := ""
 		size := 0
 		for _, d := range s.data.Deliveries {
-			if d.To == id {
+			if d.To == id && s.deliveryAccess(actor, d) {
 				if !start {
 					if d.ID == p.Cursor {
 						start = true
@@ -613,6 +645,9 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			d := &s.data.Deliveries[i]
 			if d.ID != p.MessageID {
 				continue
+			}
+			if !s.deliveryAccess(actor, *d) {
+				return fail("delivery unavailable")
 			}
 			if method == "messages.retry" {
 				if actor != "operator" || !p.AcknowledgeDuplicateRisk {
@@ -654,35 +689,11 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		}
 		return fail("message missing")
 	case "context.put", "context.get":
-		target, err := s.target(actor, p.Target)
-		if err != nil {
-			return nil, err
-		}
-		if !checkID(p.ID) {
-			return fail("invalid context ID")
-		}
-		key := target + "\x00" + p.ID
-		vs := s.data.Contexts[key]
-		if method == "context.put" {
-			if p.ExpectedVersion != len(vs) {
-				return fail("context version conflict")
-			}
-			c := Context{ID: p.ID, Target: target, Text: p.Text, Version: len(vs) + 1}
-			s.data.Contexts[key] = append(vs, c)
-			return c, nil
-		}
-		v := p.Version
-		if v == 0 {
-			v = len(vs)
-		}
-		if v < 1 || v > len(vs) {
-			return fail("context missing")
-		}
-		return vs[v-1], nil
+		return s.context(actor, method, p)
 	case "tasks.list":
 		out := []Task{}
 		for _, t := range s.data.Tasks {
-			if s.scoped(actor, t.Target) {
+			if s.scoped(actor, t.Target) && s.teamAccess(actor, t.Target, t.TeamID) {
 				out = append(out, cloneTask(t))
 			}
 		}
@@ -690,11 +701,14 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		return out, nil
 	case "tasks.get", "tasks.review", "tasks.accept", "tasks.submit":
 		t, ok := s.data.Tasks[p.ID]
-		if !ok || !s.scoped(actor, t.Target) {
+		if !ok || !s.scoped(actor, t.Target) || !s.teamAccess(actor, t.Target, t.TeamID) {
 			return fail("task unavailable")
 		}
 		if method == "tasks.get" {
 			return cloneTask(t), nil
+		}
+		if !s.taskTeamActive(t) {
+			return fail("task team participant left or was revoked; operator coordination required")
 		}
 		if method == "tasks.submit" {
 			if len(p.Output) > 128<<10 {
@@ -776,6 +790,7 @@ func (s *Service) submit(t Task, output string) Task {
 		}
 	}
 	s.enqueue(t.Author, t.Lead, output, "result", t.ID, "", 0)
+	s.data.Deliveries[len(s.data.Deliveries)-1].TeamID = t.TeamID
 	if parent.ID != "" {
 		d := &s.data.Deliveries[len(s.data.Deliveries)-1]
 		d.ReplyTo = parent.ID
@@ -798,7 +813,7 @@ func (s *Service) Claim(agentID string) (*Delivery, error) {
 	}
 	pending := false
 	for _, d := range s.data.Deliveries {
-		if d.To == agentID && d.Status == "pending" {
+		if d.To == agentID && d.Status == "pending" && s.deliveryRunnable(d) {
 			if d.Kind == "task" && v.Policy != "workflow" {
 				return nil, errors.New("task author policy requires operator repair before execution")
 			}
@@ -812,7 +827,7 @@ func (s *Service) Claim(agentID string) (*Delivery, error) {
 	res, err := s.mutate(func() (any, error) {
 		for i := range s.data.Deliveries {
 			d := &s.data.Deliveries[i]
-			if d.To == agentID && d.Status == "pending" {
+			if d.To == agentID && d.Status == "pending" && s.deliveryRunnable(*d) {
 				d.Status = "running"
 				d.Attempts++
 				v.Busy = true
@@ -854,6 +869,10 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 			}
 			v := s.data.Sessions[d.To]
 			v.Busy = false
+			if !s.deliveryRunnable(*d) {
+				runErr = errors.Join(errors.New("team access changed during execution; result withheld"), runErr)
+				output = ""
+			}
 			if runtimeID != "" && v.RuntimeSessionID != "" && runtimeID != v.RuntimeSessionID {
 				// A runner cannot silently rebind a role while reporting a result.
 				runErr = errors.Join(errors.New("runtime session identity changed; operator reconciliation required"), runErr)
@@ -888,6 +907,7 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 				parent := *d
 				s.enqueue(d.To, d.From, output, "result", d.TaskID, "", 0)
 				result := &s.data.Deliveries[len(s.data.Deliveries)-1]
+				result.TeamID = parent.TeamID
 				result.ReplyTo = parent.ID
 				result.ThreadID = parent.ThreadID
 			}

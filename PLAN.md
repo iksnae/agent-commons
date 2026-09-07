@@ -47,9 +47,10 @@ prove this complete membership workflow.
 The first membership slice now provides operator-created immutable team briefs,
 explicit same-project invitations and revocation, and agent get/join/leave/rejoin.
 It persists separately from native attachments and the legacy `Team` label.
-See HARNESS-SUPPORT.md for usage and the schema-2 compatibility boundary. Brief
-and roster delivery is implemented; launch-time knowledge review and a complete
-team-scoped work flow still need integration and acceptance.
+See HARNESS-SUPPORT.md for membership usage. Optional team-scoped task, context
+and result routing now uses schema 3; [team work](docs/team-work.md) describes
+its access and upgrade boundaries. Native participation, knowledge review and
+isolated execution still need integration and acceptance.
 
 A later system scope will support persistent boards and inboxes beyond project
 work: shared learnings, techniques, strategies, ideas and experiments across

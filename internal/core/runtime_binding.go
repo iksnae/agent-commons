@@ -24,7 +24,7 @@ func (s *Service) BindRuntime(deliveryID, runtimeID string) error {
 				continue
 			}
 			session := s.data.Sessions[delivery.To]
-			if delivery.Status != "running" || session.Mode != "managed" || !session.Busy {
+			if delivery.Status != "running" || session.Mode != "managed" || !session.Busy || !s.deliveryRunnable(delivery) {
 				return nil, errors.New("runtime binding requires a running managed delivery")
 			}
 			if session.RuntimeSessionID != "" && session.RuntimeSessionID != runtimeID {

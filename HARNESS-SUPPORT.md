@@ -11,8 +11,10 @@ session, receives the team brief and relevant knowledge, and contributes through
 its inbox and task/review responsibilities. Its native runtime session stays
 separate from that shared coordination space. Current check-in support is the
 foundation. Explicit project team membership now supports invitation, brief and
-roster retrieval, join/rejoin, leave and revocation. Native launch-time participation
-and team-scoped work integration still need acceptance. Later cross-team boards and inboxes will provide a separate,
+roster retrieval, join/rejoin, leave and revocation. Optional
+[team-scoped work](docs/team-work.md) now restricts task/context access and result
+routing. Native launch-time participation and execution isolation still need
+acceptance. Later cross-team boards and inboxes will provide a separate,
 explicit sharing scope for learning and experiments beyond project work.
 
 | Runtime | Explicit role check-in and shared coordination | Managed dispatch adapter | Existing-session arrival signal |
@@ -122,6 +124,10 @@ pre-schema build on upgraded state. Rollback requires a pre-team backup and lose
 subsequent changes unless separately reconciled. Merely starting
 the new binary does not upgrade a legacy state to schema 2. No live pilot state
 was upgraded while implementing this workflow.
+
+Optional team-scoped work advances state again to schema 3 after preserving a
+schema-2 snapshot. See [team work compatibility](docs/team-work.md) before using
+it or planning a downgrade.
 
 These are project work rooms, not the campus-wide Commons yet. Cross-team public
 spaces and durable connections beyond project work remain separate implementation

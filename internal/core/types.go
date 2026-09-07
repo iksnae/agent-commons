@@ -38,6 +38,7 @@ type Attachment struct {
 	ExpiresAt int64  `json:"expiresAt"`
 }
 type Delivery struct {
+	TeamID           string `json:"teamId,omitempty"`
 	Provenance       string `json:"provenance"`
 	GrantsAuthority  bool   `json:"grantsAuthority"`
 	ReplyTo          string `json:"replyTo,omitempty"`
@@ -66,6 +67,7 @@ type Review struct {
 	Revision int    `json:"revision"`
 }
 type Task struct {
+	TeamID   string   `json:"teamId,omitempty"`
 	ID       string   `json:"id"`
 	Target   string   `json:"target"`
 	Lead     string   `json:"lead"`
@@ -80,6 +82,7 @@ type Task struct {
 	Reviews  []Review `json:"reviews"`
 }
 type Context struct {
+	TeamID  string `json:"teamId,omitempty"`
 	ID      string `json:"id"`
 	Target  string `json:"target"`
 	Text    string `json:"text"`
