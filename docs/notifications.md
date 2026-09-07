@@ -28,4 +28,9 @@ requires operator credentials, an inspected record hash and recorded evidence to
 approve one retry or suppress an uncertain notification. Automatic retention and
 full service recovery remain open.
 
+The foreground watcher also caps one inbox poll at 10,000 messages. An oversized
+poll fails visibly before emitting notifications; it does not acknowledge or
+discard the messages. Reduce the backlog through the normal inbox and operator
+reconciliation paths before starting it again.
+
 For role-bound check-in and renewal, see [onboarding](../integrations/ONBOARDING.md).

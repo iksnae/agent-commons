@@ -24,6 +24,8 @@ type availability struct {
 	Recipient string `json:"recipient"`
 }
 
+const maxWatchMessages = 10000
+
 // watchInbox reports availability, not reading/handling. Unacknowledged messages
 // replay on restart; downstream consumers must deduplicate by messageId.
 func watchInbox(ctx context.Context, interval time.Duration, once bool, read inboxReader, out io.Writer) error {
@@ -40,6 +42,9 @@ func watchInbox(ctx context.Context, interval time.Duration, once bool, read inb
 		if err != nil {
 			return err
 		} // Fail visibly; an unavailable inbox is not empty.
+		if len(messages) > maxWatchMessages {
+			return errors.New("inbox exceeds watcher notification budget; no messages acknowledged")
+		}
 		present := map[string]bool{}
 		emitted := false
 		batch := []availability{}
@@ -152,6 +157,9 @@ func runWatch(ctx context.Context, args []string, out, errOut io.Writer) error {
 			}
 			if err := json.Unmarshal(raw, &result); err != nil {
 				return nil, err
+			}
+			if len(result.Messages) > maxWatchMessages-len(messages) {
+				return nil, errors.New("inbox exceeds watcher notification budget; no messages acknowledged")
 			}
 			messages = append(messages, result.Messages...)
 			if result.NextCursor == "" {

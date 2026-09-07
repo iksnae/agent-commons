@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -61,6 +62,20 @@ func TestWatchCancellationAndReadFailure(t *testing.T) {
 	}
 	if err := watchInbox(context.Background(), 0, true, nil, io.Discard); err == nil {
 		t.Fatal("zero interval allowed")
+	}
+}
+
+func TestWatchRejectsOversizedPollWithoutOutput(t *testing.T) {
+	messages := make([]core.Delivery, maxWatchMessages+1)
+	for i := range messages {
+		messages[i].ID = fmt.Sprintf("message-%d", i)
+	}
+	var out bytes.Buffer
+	err := watchInbox(context.Background(), time.Second, true, func(context.Context) ([]core.Delivery, error) {
+		return messages, nil
+	}, &out)
+	if err == nil || !strings.Contains(err.Error(), "notification budget") || out.Len() != 0 {
+		t.Fatalf("oversized poll was not failed closed: %v %q", err, out.String())
 	}
 }
 
