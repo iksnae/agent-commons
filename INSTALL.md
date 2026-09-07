@@ -32,7 +32,8 @@ skill copies through both routes for the same role. The same extracted plugin
 directory also installs through `pi install /absolute/path/to/agent-commons`;
 see its README for explicit launch binding and limits. Hermes can read the
 bundle's portable Agent Plugins manifests; the plugin README describes its
-upstream install/enable workflow and the remaining native acceptance checks.
+experimental status and the remaining native acceptance checks. Hermes MCP
+environment binding is not ready; do not treat parsed metadata as a working connection.
 
 `just skills-installer-test` exercises the real pinned installer in disposable
 directories. Ordinary tests do not download it or invoke native agents.
@@ -51,7 +52,9 @@ complete bundle into a new, dedicated installation directory:
 
 The parent installation directory must already exist. The destination itself must
 not exist, even as an empty directory. The command copies the binary, project
-license and guide, source archive, and third-party notices. Symlinks are rejected.
+license and guides, integration plugin, source archive, and third-party notices.
+Plugin executable permissions are retained, but its scripts are not run during
+installation. Symlinks are rejected.
 Nothing is added to PATH, no service is started, and no agents are enrolled.
 
 Keep service state and connection files outside the installation directory.

@@ -8,5 +8,7 @@ installed="$scratch/installed"
 "$archive/agent-commons" bundle install --from "$archive" --to "$installed"
 "$installed/agent-commons" bundle verify --to "$installed"
 "$installed/agent-commons" --help > /dev/null
+node scripts/check-docs.mjs "$installed"
+test -x "$installed/plugins/agent-commons/scripts/check-in.sh"
 "$installed/agent-commons" bundle remove --to "$installed" --confirm-stopped
 test ! -e "$installed"

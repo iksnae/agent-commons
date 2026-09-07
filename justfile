@@ -5,6 +5,15 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
+# Read-only handoff: reject the wrong checkout and print current repository state.
+resume:
+    @test "$(git rev-parse --show-toplevel)" = "$PWD"
+    @rg -q '^module agentcommons$' go.mod
+    @pwd
+    @git status --short
+    @git log -1 --oneline
+    @cat START-HERE.md
+
 # Compile a development binary without replacing the running pilot's binary.
 build:
     mkdir -p dist/dev
@@ -27,7 +36,12 @@ fmt:
     gofmt -w cmd internal integration
 
 # Run ordinary pre-commit checks; no models or native service registration.
-check: fmt-check test vet pi-extension-test
+check: fmt-check test vet pi-extension-test docs-check
+
+# Verify local documentation links and keep the two entry-point READMEs short.
+docs-check:
+    node --test scripts/check-docs.test.mjs
+    node scripts/check-docs.mjs
 
 # Test Pi lifecycle behavior with fakes; no Pi installation or model calls.
 pi-extension-test:

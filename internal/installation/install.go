@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func Install(bundle, target string) error {
@@ -39,6 +40,15 @@ func Install(bundle, target string) error {
 		mode := uint32(0600)
 		if name == "agent-commons" {
 			mode = 0700
+		}
+		if strings.HasPrefix(name, "plugins/agent-commons/") {
+			info, err := os.Lstat(filepath.Join(bundle, name))
+			if err != nil {
+				return err
+			}
+			if info.Mode().Perm()&0100 != 0 {
+				mode = 0700
+			}
 		}
 		r.Files = append(r.Files, fileRecord{name, hash, mode})
 	}

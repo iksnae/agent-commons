@@ -4,6 +4,11 @@ This is an independent local coordination service for project-shaped Claude and
 Codex teams, with Pi and Hermes included in the foundational harness scope.
 Target repositories are inputs, not this project's working tree.
 
+Start each new session with START-HERE.md and `just resume`. Check the repository
+root before editing. Tool calls must explicitly use this checkout as their working
+directory; a prior `cd` is not persistent session rooting. If the session opened
+in a target repository, do not edit that target to repair the path mismatch.
+
 - Read PLAN.md for ownership/interfaces and RESEARCH.md for lineage.
 - Keep the domain independent of runtime processes and transports.
 - Keep the coordination core standard-library-only. Charm dependencies are

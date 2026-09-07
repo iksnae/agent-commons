@@ -12,6 +12,7 @@ for platform in darwin linux; do
     name="agent-commons-$platform-$arch"
     tar -xzf "dist/$name.tar.gz" -C "$check_dir"
     archive="$check_dir/$name"
+    node scripts/check-docs.mjs "$archive"
     cmp LICENSE "$archive/LICENSE"
     test -x "$archive/agent-commons"
     test -s "$archive/third-party-notices/go/LICENSE"

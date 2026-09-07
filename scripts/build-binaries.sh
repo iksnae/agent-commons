@@ -29,6 +29,9 @@ for platform in darwin linux; do
       "$build_dir/source/LICENSING.md" "$build_dir/source/INSTALL.md" "$build_dir/source/SERVICE.md" \
       "$build_dir/source/WAKE-MAINTENANCE.md" "$build_dir/source/HARNESS-SUPPORT.md" "$build_dir/source.tar.gz" "$build_dir/$name/"
     cp -R "$build_dir/notices" "$build_dir/$name/third-party-notices"
+    cp "$build_dir/source/"*.md "$build_dir/$name/"
+    cp -R "$build_dir/source/docs" "$build_dir/source/gates" \
+      "$build_dir/source/integrations" "$build_dir/source/plugins" "$build_dir/$name/"
     tar -czf "$build_dir/artifacts/$name.tar.gz" -C "$build_dir" "$name"
   done
 done

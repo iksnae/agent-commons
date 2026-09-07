@@ -25,6 +25,8 @@ jobs:
       - run: go test -race ./...
       - run: go vet ./...
       - run: node --test plugins/agent-commons/pi/commons.test.mjs
+      - run: node scripts/check-docs.mjs
+      - run: node --test scripts/check-docs.test.mjs
 
   binaries:
     needs: test

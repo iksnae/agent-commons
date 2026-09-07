@@ -37,6 +37,9 @@ func payloadPath(path string) bool {
 	if path == "." || filepath.IsAbs(path) || filepath.Clean(path) != path || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
 		return false
 	}
+	if documentationPayload(path) || strings.HasPrefix(path, "plugins/agent-commons/") {
+		return true
+	}
 	for _, name := range requiredFiles {
 		if path == name {
 			return true
@@ -88,7 +91,7 @@ func inspectFiles(root string, installed bool) ([]string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if rel == "third-party-notices" || strings.HasPrefix(rel, "third-party-notices/") {
+			if payloadDirectory(rel) {
 				return nil
 			}
 			if installed {
