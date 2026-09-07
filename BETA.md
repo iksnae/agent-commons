@@ -41,8 +41,10 @@ operational gate.
   safe failure categories, but does not prove provider access.
 - [ ] Full bidirectional managed-runtime acceptance. The prior provider refusal
   remains recorded, not bypassed or counted as a pass.
-- [ ] Notification retention, backpressure and operator reconciliation for
-  uncertain deliveries.
+- [x] Watcher backpressure rejects polls above 10,000 messages before emitting
+  notifications or acknowledging work.
+- [ ] Notification retention and operator reconciliation for uncertain
+  deliveries still need end-to-end validation.
 
 Signed public releases and write-capable autonomous teams are later release work.
 The local beta will remain read-only. Repository visibility does not change when
