@@ -854,6 +854,11 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 			}
 			v := s.data.Sessions[d.To]
 			v.Busy = false
+			if runtimeID != "" && v.RuntimeSessionID != "" && runtimeID != v.RuntimeSessionID {
+				// A runner cannot silently rebind a role while reporting a result.
+				runErr = errors.Join(errors.New("runtime session identity changed; operator reconciliation required"), runErr)
+				runtimeID, output = "", ""
+			}
 			if runtimeID != "" {
 				v.RuntimeSessionID = runtimeID
 			}

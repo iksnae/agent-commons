@@ -9,6 +9,10 @@ Native service lifecycle tests pass on macOS and Linux. Wake maintenance and
 operator resolution now have isolated recovery tests; native recovery and the
 other gates below remain open. The production goal remains active.
 
+The current completion target covers the remaining production work up to signing,
+with Hermes excluded. Signing itself remains a later operator-controlled step;
+the other core workflow and operational gates are not waived.
+
 ## Delivery priority
 
 The operator has confirmed that Claude and Codex are the core working-team
@@ -35,6 +39,12 @@ Neither runtime is being removed from the product; their incomplete capabilities
 must remain visible rather than advertised as equivalent to the working teams.
 
 ## Core-state recovery guardrails
+
+Managed results cannot replace an already bound native session ID. A mismatched
+runner result is recorded as failed, its output is withheld from successful
+return delivery and task submission, and the original binding survives restart.
+Claude/Codex adapter fixtures and durable service regression tests exercise this
+boundary. They do not prove native resume or provide an operator rebind workflow.
 
 Existing state is decoded without fresh-service defaults. Empty, null and
 missing-map files are rejected without replacing them. A missing operator

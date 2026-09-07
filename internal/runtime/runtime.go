@@ -168,7 +168,11 @@ func (c CLI) Run(ctx context.Context, s core.Session, d core.Delivery) (sessionI
 	if err != nil {
 		return "", "", err
 	}
-	return parse(s.Runtime, raw)
+	id, result, err := parse(s.Runtime, raw)
+	if id != "" && s.RuntimeSessionID != "" && id != s.RuntimeSessionID {
+		return "", "", errors.New("resumed runtime returned a different session identity; operator reconciliation required")
+	}
+	return id, result, err
 }
 
 var credentialPattern = regexp.MustCompile(`(?i)(bearer\s+[^\s]+|(?:token|secret|password|api[_-]?key)\s*[:=]\s*[^\s,;]+|sk-[A-Za-z0-9_-]+|[a-f0-9]{48,})`)
@@ -238,6 +242,9 @@ func parse(runtime string, raw []byte) (string, string, error) {
 		}
 		switch event.Type {
 		case "thread.started":
+			if id != "" && id != event.ThreadID {
+				return "", "", errors.New("Codex result contains conflicting thread identities")
+			}
 			id = event.ThreadID
 		case "item.completed":
 			if event.Item.Type == "agent_message" {
