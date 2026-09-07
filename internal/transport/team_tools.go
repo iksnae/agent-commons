@@ -4,6 +4,7 @@ package transport
 
 func teamTools() []tool {
 	return []tool{
+		{"teams.list", "List your invited, joined and left project teams, never uninvited or revoked teams. Limit 1..20, default 10; follow nextCursor. Operator must supply target. No inbox acknowledgement.", schema([]string{}, map[string]string{"target": "string", "cursor": "string", "limit": "integer"})},
 		{"teams.create", "Operator only: create an immutable project team brief. First creation advances state to schema 2; back up before use. Does not authorize work.", schema([]string{"id", "target", "title", "text"}, map[string]string{"id": "string", "target": "string", "title": "string", "text": "string"})},
 		{"teams.invite", "Operator only: invite an enrolled identity from this project; sends one notice for a new invitation.", schema([]string{"id", "target", "to"}, map[string]string{"id": "string", "target": "string", "to": "string"})},
 		{"teams.revoke", "Operator only: revoke team access. Existing project-wide access and task duties are unchanged.", schema([]string{"id", "target", "to"}, map[string]string{"id": "string", "target": "string", "to": "string"})},

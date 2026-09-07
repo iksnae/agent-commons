@@ -303,7 +303,7 @@ func (s *Service) Call(actor, method string, raw json.RawMessage) (any, error) {
 		}
 	}
 	switch method {
-	case "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
+	case "teams.list", "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
 		return s.call(actor, method, p)
 	default:
 		return s.mutate(func() (any, error) { return s.call(actor, method, p) })

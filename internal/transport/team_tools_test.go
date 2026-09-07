@@ -24,9 +24,10 @@ func TestHarnessTeamJoinThroughAuthenticatedRPC(t *testing.T) {
 		invokeTeamRPC(t, s, token, "teams.join", map[string]any{"id": "product"}, 400)
 		invokeTeamRPC(t, s, operator, "teams.invite", map[string]any{"id": "product", "target": target, "to": runtime}, 200)
 		invokeTeamRPC(t, s, token, "teams.join", map[string]any{"id": "product"}, 200)
+		invokeTeamRPC(t, s, token, "teams.list", map[string]any{"limit": 1}, 200)
 		invokeTeamRPC(t, s, token, "teams.revoke", map[string]any{"id": "product", "target": target, "to": runtime}, 400)
 	}
-	for _, name := range []string{"teams.create", "teams.invite", "teams.get", "teams.join", "teams.leave", "teams.revoke"} {
+	for _, name := range []string{"teams.list", "teams.create", "teams.invite", "teams.get", "teams.join", "teams.leave", "teams.revoke"} {
 		if !isTool(name) {
 			t.Fatal("team method absent from MCP catalog", name)
 		}

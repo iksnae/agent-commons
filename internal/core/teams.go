@@ -37,6 +37,9 @@ func (s *Service) teams(actor, method string, p params) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if method == "teams.list" {
+		return s.listTeams(actor, target, p)
+	}
 	if !checkID(p.ID) {
 		return nil, errors.New("team ID required")
 	}
