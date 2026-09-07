@@ -131,6 +131,14 @@ requires operator credentials, an inspected record hash and recorded evidence to
 approve one retry or suppress an uncertain notification. Automatic retention and
 full service recovery remain open.
 
+## Runtime harnesses
+
+Foundational runtime support now includes Pi and Hermes alongside Claude and
+Codex. Use `agent-commons harnesses` to inspect capabilities and
+[the harness guide](HARNESS-SUPPORT.md) for check-in, project sources and native
+adapter limits. Pi and Hermes managed dispatch and automatic wake-up are not yet
+implemented.
+
 ## Shared knowledge board
 
 `board.post`, `board.list`, and `board.get` expose a durable target-scoped board.

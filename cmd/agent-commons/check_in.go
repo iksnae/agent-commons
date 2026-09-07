@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"agentcommons/internal/core"
+	"agentcommons/internal/harness"
 )
 
 type projectConnection struct {
@@ -46,8 +47,8 @@ func checkInAgent(ctx context.Context, options onboardingOptions, streams comman
 }
 
 func resolveCheckIn(options onboardingOptions) (onboardingOptions, error) {
-	if options.Config == "" || (options.Runtime != "claude" && options.Runtime != "codex") {
-		return options, errors.New("check-in requires --config and --runtime claude|codex")
+	if options.Config == "" || !harness.CanAttach(options.Runtime) {
+		return options, errors.New("check-in requires --config and a supported --runtime; see agent-commons harnesses")
 	}
 	if options.NativeSession == "" && options.Runtime == "codex" {
 		options.NativeSession = os.Getenv("CODEX_THREAD_ID")

@@ -9,8 +9,16 @@ import (
 )
 
 func TestInstallCarriesWakeMaintenanceGuide(t *testing.T) {
+	testInstallGuide(t, "WAKE-MAINTENANCE.md")
+}
+
+func TestInstallCarriesHarnessSupportGuide(t *testing.T) {
+	testInstallGuide(t, "HARNESS-SUPPORT.md")
+}
+
+func testInstallGuide(t *testing.T, name string) {
+	t.Helper()
 	bundle := bundleFixture(t)
-	const name = "WAKE-MAINTENANCE.md"
 	if err := os.WriteFile(filepath.Join(bundle, name), []byte("maintenance guide"), 0600); err != nil {
 		t.Fatal(err)
 	}

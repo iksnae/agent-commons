@@ -31,7 +31,7 @@ type fileRecord struct {
 }
 
 func payloadPath(path string) bool {
-	if path == "SERVICE.md" || path == "WAKE-MAINTENANCE.md" {
+	if path == "SERVICE.md" || path == "WAKE-MAINTENANCE.md" || path == "HARNESS-SUPPORT.md" {
 		return true
 	}
 	if path == "." || filepath.IsAbs(path) || filepath.Clean(path) != path || strings.HasPrefix(path, ".."+string(filepath.Separator)) {

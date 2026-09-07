@@ -1,7 +1,8 @@
 # Agent Commons engineering
 
 This is an independent local coordination service for project-shaped Claude and
-Codex teams. Target repositories are inputs, not this project's working tree.
+Codex teams, with Pi and Hermes included in the foundational harness scope.
+Target repositories are inputs, not this project's working tree.
 
 - Read PLAN.md for ownership/interfaces and RESEARCH.md for lineage.
 - Keep the domain independent of runtime processes and transports.

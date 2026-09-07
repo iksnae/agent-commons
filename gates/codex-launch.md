@@ -79,8 +79,35 @@ still needed for that case. A ready checkpoint is not a live attachment.
 Codex 0.153.4, stops that app-server, and resumes the saved thread through a fresh
 app-server. It uses disposable state without model calls or hook trust. This
 proves that this prepared history survives process replacement, not that an
-arbitrary interrupted preparation can be recovered. The public launcher command,
-credential verification, hook handoff and attachment renewal remain unimplemented.
+arbitrary interrupted preparation can be recovered.
+
+## Preparation command
+
+```sh
+agent-commons codex-prepare --config /private/connection.json --codex-home /private/codex-home
+```
+
+The command verifies the enrolled credential/target/name/role first. It requires
+an explicit real private Codex home and records the binding under the configured
+Agent Commons state directory. Native startup is deferred until the reservation
+has been saved; an existing binding prevents another startup. The JSON report
+includes the checkpoint directory and any known thread ID, including on failure.
+Retain that directory if preparation is incomplete. Do not delete it to retry.
+
+The command owns a separate stdio app-server process group, limits preparation to
+45 seconds and closes it after preparation. It sends no model turn or role
+attachment request and does not acknowledge the inbox. The native CLI test uses
+a disposable home with an offline fixture provider.
+
+The selected Codex home and target still supply configuration. They may contain
+credentials, MCP servers and plugins. The child environment allowlist is not
+configuration isolation. Hooks are disabled for preparation, but other configured
+native components may initialize, start subprocesses or use the network. Review
+that configuration before using an existing home. No hook trust is granted.
+
+This command prepares a thread; it does not launch an interactive role or complete
+the hook handoff. Automatic check-in, attachment renewal, process-specific
+credential isolation and incomplete-reservation recovery remain open.
 
 An earlier `codex debug prompt-input` probe returned JSON with no hook-review
 diagnostic. Absence of hook text in that output did not establish that trust

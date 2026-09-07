@@ -38,66 +38,65 @@ func Inventory(target string) ([]Definition, error) {
 	}
 	var out []Definition
 	var totalBytes int64
-	for _, runtime := range []string{"claude", "codex", "agencyx"} {
-		for _, kind := range []string{"agents", "skills", "commands"} {
-			root := filepath.Join(target, "."+runtime, kind)
-			// Resolve project-owned directory links without copying files or losing origins.
-			resolved, e := filepath.EvalSymlinks(root)
-			if os.IsNotExist(e) {
-				continue
-			}
+	for _, source := range definitionSources() {
+		runtime, kind := source.Runtime, source.Kind
+		root := filepath.Join(target, source.Directory)
+		// Resolve project-owned directory links without copying files or losing origins.
+		resolved, e := filepath.EvalSymlinks(root)
+		if os.IsNotExist(e) {
+			continue
+		}
+		if e != nil {
+			return nil, e
+		}
+		e = walkDefinitions(resolved, map[string]bool{}, func(path string, d fs.DirEntry, e error) error {
 			if e != nil {
-				return nil, e
+				return e
 			}
-			e = walkDefinitions(resolved, map[string]bool{}, func(path string, d fs.DirEntry, e error) error {
-				if e != nil {
-					return e
-				}
-				if d.IsDir() {
-					return nil
-				}
-				if strings.ToLower(filepath.Ext(path)) != ".md" {
-					return nil
-				}
-				if kind == "skills" && filepath.Base(path) != "SKILL.md" {
-					return nil
-				}
-				real, e := filepath.EvalSymlinks(path)
-				if e != nil {
-					return e
-				}
-				st, e := os.Stat(real)
-				if e != nil {
-					return e
-				}
-				if !st.Mode().IsRegular() {
-					return nil
-				}
-				if st.Size() > 1024*1024 {
-					return fmt.Errorf("definition exceeds 1 MiB: %s", path)
-				}
-				totalBytes += st.Size()
-				if totalBytes > 8*1024*1024 {
-					return fmt.Errorf("project definition contents exceed 8 MiB")
-				}
-				b, e := os.ReadFile(real)
-				if e != nil {
-					return e
-				}
-				sum := sha256.Sum256(b)
-				name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-				if strings.EqualFold(name, "SKILL") {
-					name = filepath.Base(filepath.Dir(path))
-				}
-				out = append(out, Definition{Name: name, Kind: kind, Runtime: runtime, Path: real, BaseDir: filepath.Dir(real), Digest: hex.EncodeToString(sum[:]), Content: string(b)})
-				if len(out) > 2000 {
-					return fmt.Errorf("too many project definitions")
-				}
+			if d.IsDir() {
 				return nil
-			})
-			if e != nil {
-				return nil, e
 			}
+			if strings.ToLower(filepath.Ext(path)) != ".md" {
+				return nil
+			}
+			if kind == "skills" && filepath.Base(path) != "SKILL.md" {
+				return nil
+			}
+			real, e := filepath.EvalSymlinks(path)
+			if e != nil {
+				return e
+			}
+			st, e := os.Stat(real)
+			if e != nil {
+				return e
+			}
+			if !st.Mode().IsRegular() {
+				return nil
+			}
+			if st.Size() > 1024*1024 {
+				return fmt.Errorf("definition exceeds 1 MiB: %s", path)
+			}
+			totalBytes += st.Size()
+			if totalBytes > 8*1024*1024 {
+				return fmt.Errorf("project definition contents exceed 8 MiB")
+			}
+			b, e := os.ReadFile(real)
+			if e != nil {
+				return e
+			}
+			sum := sha256.Sum256(b)
+			name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+			if strings.EqualFold(name, "SKILL") {
+				name = filepath.Base(filepath.Dir(path))
+			}
+			out = append(out, Definition{Name: name, Kind: kind, Runtime: runtime, Path: real, BaseDir: filepath.Dir(real), Digest: hex.EncodeToString(sum[:]), Content: string(b)})
+			if len(out) > 2000 {
+				return fmt.Errorf("too many project definitions")
+			}
+			return nil
+		})
+		if e != nil {
+			return nil, e
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })

@@ -49,7 +49,7 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	flags.StringVar(&options.Role, "role", "", "project role")
 	flags.StringVar(&options.Team, "team", "", "project team label")
 	flags.StringVar(&options.Target, "target", "", "canonical project/workspace directory")
-	flags.StringVar(&options.Runtime, "runtime", "", "runtime for this attachment: claude or codex")
+	flags.StringVar(&options.Runtime, "runtime", "", "runtime for this attachment: claude, codex, pi or hermes")
 	flags.StringVar(&options.NativeSession, "native-session", "", "exact native runtime session ID")
 	flags.BoolVar(&options.Hold, "hold", false, "renew attachment while watching for inbox arrivals")
 	flags.BoolVar(&options.Once, "once", false, "with hold: exit after one arrival batch")

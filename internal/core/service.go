@@ -19,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"agentcommons/internal/harness"
 )
 
 type state struct {
@@ -419,14 +421,14 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			}
 			return fail("session already registered")
 		}
-		if v.Runtime != "claude" && v.Runtime != "codex" && v.Runtime != "manual" {
+		if !harness.CanAttach(v.Runtime) && v.Runtime != "manual" {
 			return fail("invalid runtime")
 		}
 		if v.Mode != "managed" && v.Mode != "manual" {
 			return fail("invalid mode")
 		}
-		if v.Mode == "managed" && v.Runtime == "manual" {
-			return fail("manual runtime cannot be managed")
+		if v.Mode == "managed" && !harness.CanManage(v.Runtime) {
+			return fail("managed dispatch adapter unavailable for this runtime; use explicit manual coordination")
 		}
 		if v.RuntimeSessionID != "" || v.Busy || v.Attachment != (Attachment{}) {
 			return fail("runtime state is supervisor owned")

@@ -36,11 +36,15 @@ New(directory string) (*Service, error)
 
 `operator` is reserved. Token returns internal credentials, never exposed by RPC.
 Session fields: ID, Target (absolute directory), Team, Role, Runtime (`claude`,
-`codex`, `manual`), Mode (`managed`, `manual`), RuntimeSessionID, Instructions,
+`codex`, `pi`, `hermes`, `manual`), Mode (`managed`, `manual`), RuntimeSessionID, Instructions,
 Busy bool. JSON fields camelCase. Credentials are omitted from every public DTO.
 Delivery fields: ID, From, To, Text, Kind (`message`, `task`, `result`), TaskID,
 ContextID, ContextVersion int, Status, Attempts int, Output, Error, CreatedAt.
 Session and Delivery exported Go fields named exactly above.
+
+Pi and Hermes support explicit manual attachment and shared coordination. Managed
+registration remains limited to Claude and Codex until native adapters are tested.
+See HARNESS-SUPPORT.md for the capability boundary and project inventory sources.
 
 Core RPC methods with JSON params:
 - `sessions.register`: operator-only; Session fields; returns session + token.
