@@ -20,14 +20,16 @@ operational gate.
 
 ## Still required for the beta
 
-- [ ] Service install/start/stop/uninstall tested on macOS and Linux without
-  touching unrelated jobs or deleting state. `service-plan` now renders user-job
-  files for review; it does not install them. Native parser tests are not lifecycle tests.
-  Transient lifecycle passes on macOS and Linux. Local bundle installation,
+- [x] Service install/start/stop/uninstall tested on macOS and Linux without
+  touching unrelated jobs or deleting state. `service-plan` renders user-job
+  files for review; it does not install them. Native lifecycle evidence includes
+  transient start/stop, crash recovery and recoverable removal. Local bundle installation,
   receipt verification and recoverable removal are implemented. The `service` CLI
   passed its full native lifecycle on both platforms in run 34150065040, including
   recoverable removal and Linux persistent-link checks. Login/reboot persistence
-  tests remain open.
+  is a separate open gate.
+- [ ] Login/reboot persistence and clean-machine service recovery are tested on
+  macOS and Linux.
 - [ ] Role check-in and wake processes supervised, including offline startup and
   uncertain queue results. A service restart must not silently replay an uncertain wake.
 - [ ] Explicit project/workspace launch integration tested with both Claude and
