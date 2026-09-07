@@ -37,7 +37,8 @@ operational gate.
 - [ ] Existing private state backed up, migration/rollback rehearsed, then an
   explicitly scheduled switch from the old foreground service.
 - [ ] Clean-machine install and recovery tests; diagnostics for provider access,
-  queue state and supervisor health. `doctor` currently checks scoped RPC access only.
+  queue state and supervisor health. `doctor` checks scoped RPC access and emits
+  safe failure categories, but does not prove provider access.
 - [ ] Full bidirectional managed-runtime acceptance. The prior provider refusal
   remains recorded, not bypassed or counted as a pass.
 - [ ] Notification retention, backpressure and operator reconciliation for
