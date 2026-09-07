@@ -23,8 +23,9 @@ product release. Full backup/restore and archival are intentionally deferred
 beyond the foundational target. MPL-2.0 licensing and source-bearing binary archives are now in
 place; archive checks rebuild all four binaries from bundled source. See
 [the beta checklist](BETA.md) for remaining operational gates.
-Role attachment leases prevent accidental concurrent takeover;
-they are not process isolation for callers sharing the same role credential.
+Role attachment leases prevent accidental concurrent takeover, and server-issued
+epochs prevent stale cleanup from releasing a newer holder; they are not process
+isolation for callers sharing the same role credential.
 
 Beta preparation adds a read-only `doctor` command and `service-plan` renderers
 for launchd and systemd user services. Tests cover scoped identity checks, no

@@ -8,6 +8,8 @@ operational gate.
 
 - Durable scoped identities, inboxes, shared knowledge and result review gates.
 - Enrollment and check-in tests, including lease conflicts and renewal failure.
+- Attachment epochs prevent failed or stale check-ins from releasing a newer
+  holder; legacy services remain compatible when epochs are unavailable.
 - Existing-conversation inbox arrival, Codex wake signal, read and acknowledgement.
 - MPL-2.0 licensing, native archives with source and third-party notices, and
   byte-for-byte rebuild checks from bundled source.
