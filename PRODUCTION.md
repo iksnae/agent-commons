@@ -33,7 +33,7 @@ exercise these checks.
 | Requirement | Current evidence | What still needs proof |
 | --- | --- | --- |
 | Stable project + agent name/role identity | Enrollment, conflict and lease tests; native Claude init-only hook attachment | Codex launch integration, model inbox recovery, and launcher credential isolation |
-| Foundational Claude/Codex/Pi/Hermes harnesses | Shared capability catalog, explicit Pi/Hermes check-in and project-source inventory tests | Pi/Hermes native dispatch, permission boundaries, launch/wake and recovery acceptance |
+| Foundational Claude/Codex/Pi/Hermes harnesses | Shared capability catalog, explicit Pi/Hermes check-in and project-source inventory tests; Pi local package install, startup, seeded-root resume, fork rejection and removal | Pi/Hermes native dispatch, credential isolation, Hermes launch, wake and fresh-session recovery acceptance |
 | Durable communication and return paths | Scoped RPC tests; existing-conversation wake evidence | Full managed cross-runtime acceptance; supervised role watchers and offline recovery |
 | Shared context and learnings | Versioned context and scoped board tests; newest-first check-in for all four harnesses with older-service compatibility | Explicit cross-project publication flow, durable review tracking and native launch-time review |
 | Safe local installation and lifecycle | Native macOS/Linux full service CLI lifecycle CI; bundle boundary tests; recoverable removal and Linux persistent-link checks | Clean-machine upgrades, login/reboot behavior |

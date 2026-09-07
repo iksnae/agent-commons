@@ -14,6 +14,7 @@ import (
 type onboardingOptions struct {
 	Command, State, Config, Identity, Name, Role, Team, Target string
 	Runtime, NativeSession                                     string
+	LaunchDirectory                                            string
 	Hold, Once                                                 bool
 }
 
@@ -51,6 +52,7 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	flags.StringVar(&options.Target, "target", "", "canonical project/workspace directory")
 	flags.StringVar(&options.Runtime, "runtime", "", "runtime for this attachment: claude, codex, pi or hermes")
 	flags.StringVar(&options.NativeSession, "native-session", "", "exact native runtime session ID")
+	flags.StringVar(&options.LaunchDirectory, "launch-directory", "", "native launch directory; must match enrolled target")
 	flags.BoolVar(&options.Hold, "hold", false, "renew attachment while watching for inbox arrivals")
 	flags.BoolVar(&options.Once, "once", false, "with hold: exit after one arrival batch")
 	if err := flags.Parse(args[1:]); err != nil {

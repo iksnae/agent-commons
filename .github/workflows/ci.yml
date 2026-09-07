@@ -24,6 +24,7 @@ jobs:
           cache: false
       - run: go test -race ./...
       - run: go vet ./...
+      - run: node --test plugins/agent-commons/pi/commons.test.mjs
 
   binaries:
     needs: test

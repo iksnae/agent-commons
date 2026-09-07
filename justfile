@@ -12,7 +12,7 @@ build:
 
 # Run the credential-free suite with the race detector.
 test:
-    AGENT_COMMONS_SKILLS_INSTALLER=0 AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
+    AGENT_COMMONS_PI_HOOK=0 AGENT_COMMONS_SKILLS_INSTALLER=0 AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
 
 # Run Go's static checks.
 vet:
@@ -27,7 +27,15 @@ fmt:
     gofmt -w cmd internal integration
 
 # Run ordinary pre-commit checks; no models or native service registration.
-check: fmt-check test vet
+check: fmt-check test vet pi-extension-test
+
+# Test Pi lifecycle behavior with fakes; no Pi installation or model calls.
+pi-extension-test:
+    node --test plugins/agent-commons/pi/commons.test.mjs
+
+# OPT-IN: use Pi's local package installer and metadata RPC in disposable config.
+pi-hook-test: build
+    AGENT_COMMONS_PI_HOOK=1 AGENT_COMMONS_TEST_BINARY="$PWD/dist/dev/agent-commons" go test -race ./cmd/agent-commons -run '^TestNativePiPackageChecksInExactSession$' -count=1 -v -timeout 90s
 
 # Build all native archives and the plugin; stage new files first.
 package:

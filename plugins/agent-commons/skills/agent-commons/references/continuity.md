@@ -15,6 +15,8 @@ do not invent a replacement identity or terminate another agent. Reconnecting
 keeps the stable role and inbox, but does not merge native transcripts.
 
 Skill installation does not arrange automatic startup. The native Claude plugin
-has a separately configured launch hook. Other harness launch integrations must
+has a separately configured launch hook. The Pi package can supply startup
+guidance for an explicitly bound role, but does not start a holder. A fresh Pi
+session path does not prove its transcript has been saved. Other launch integrations must
 be checked against their implemented support rather than inferred from this
 skill being installed.

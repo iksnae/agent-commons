@@ -1,0 +1,11 @@
+{
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Commons shared skills and opt-in Pi launch check-in",
+  "license": "MPL-2.0",
+  "pi": {
+    "extensions": ["./pi/commons.mjs"],
+    "skills": ["./skills"]
+  }
+}

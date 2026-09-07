@@ -37,8 +37,9 @@ rules are shared across harnesses. Check-in returns inbox data but does not
 acknowledge it. Acknowledge only messages actually read.
 
 `--hold` renews the attachment and emits arrival events. For Pi and Hermes those
-events do not automatically start a model turn. Their native notification and
-launch integrations remain work to do. Managed registration is rejected while
+events do not automatically start a model turn. Pi now has an opt-in native
+startup package, described below; Hermes launch integration and both native
+notification adapters remain work to do. Managed registration is rejected while
 the corresponding dispatch adapter is unavailable; work is not silently queued
 for a nonexistent runner.
 
@@ -138,13 +139,23 @@ and [Hermes project skills](https://hermes-agent.nousresearch.com/docs/user-guid
 
 ## Native adapter work still required
 
+The shared plugin directory now supports Pi's native local-package installer.
+Its extension checks in an explicitly bound role on startup/resume/reload,
+using Pi's exact session ID and native directory. It rejects forks and supplies
+fixed guidance without a model turn, inbox acknowledgement or automatic team
+join. See the plugin README for installation, required paths and limitations.
+`just pi-hook-test` exercises Pi 0.84.1 in disposable offline configuration,
+including exact-file resume from a seeded native header and package removal.
+Fresh Pi sessions are not necessarily persisted before their first assistant
+message; that test does not establish automatic fresh-session recovery.
+
 Pi exposes JSON/RPC modes and exact-session selection. Hermes exposes CLI session
 resume and ACP. These are integration candidates, not implemented dispatch paths
 in this release. Hermes's installed one-shot help says it bypasses approvals, so
 it must not be substituted for an approval-preserving managed adapter. See the
 [Hermes CLI guide](https://hermes-agent.nousresearch.com/docs/user-guide/cli).
 
-Both harnesses still need native result/failure parsing, explicit session resume,
+Both harnesses still need native result/failure parsing, managed session resume,
 credential isolation, project tool restrictions, cancellation/restart tests, and
 launch/wake verification. Existing locally configured Pi extensions do not prove
 those integrations are bundled with Agent Commons. No provider was installed,

@@ -28,8 +28,10 @@ Use `npx skills@1.5.24 remove agent-commons` to remove a skills-only installatio
 
 Claude/Codex native plugin installation is a separate route when you need the
 bundled MCP configuration and supported startup hook. Do not install duplicate
-skill copies through both routes for the same role. Pi/Hermes native integration
-packages remain work to do; their skills can already use the explicit CLI path.
+skill copies through both routes for the same role. The same extracted plugin
+directory also installs through `pi install /absolute/path/to/agent-commons`;
+see its README for explicit launch binding and limits. Hermes native integration
+packaging remains work to do; its skill can use the explicit CLI path.
 
 `just skills-installer-test` exercises the real pinned installer in disposable
 directories. Ordinary tests do not download it or invoke native agents.

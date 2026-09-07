@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 
 	"agentcommons/internal/core"
 	"agentcommons/internal/harness"
@@ -27,6 +28,14 @@ func checkInAgent(ctx context.Context, options onboardingOptions, streams comman
 	connection, err := openProjectConnection(options.Config)
 	if err != nil {
 		return err
+	}
+	if options.LaunchDirectory != "" {
+		if !filepath.IsAbs(options.LaunchDirectory) {
+			return errors.New("launch directory must be absolute")
+		}
+		if err = matchLaunchTarget(options.LaunchDirectory, connection.config.Target); err != nil {
+			return err
+		}
 	}
 	if err = connection.verifyIdentity(ctx); err != nil {
 		return err
