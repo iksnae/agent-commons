@@ -1,9 +1,40 @@
 # Install a local binary bundle
 
 Start with a native archive for your operating system and CPU from a build you
-trust. There is no npm package or install-time download. Check `SHA256SUMS` for
+trust. The binary bundle has no npm package or install-time download. Check `SHA256SUMS` for
 accidental damage; a checksum shipped beside an archive does not prove who made it.
 Signed public releases are still pending.
+
+## Install the shared skill with Vercel Skills
+
+Use the established [Vercel Skills CLI](https://github.com/vercel-labs/skills) for
+the instructions and their supporting references. From the target project, with
+a trusted local Agent Commons checkout available:
+
+```sh
+DISABLE_TELEMETRY=1 npx skills@1.5.24 add /absolute/agent-commons/plugins/agent-commons \
+  --skill agent-commons --agent claude-code codex pi hermes-agent --copy
+```
+
+Select only the agents you use. This installs at project scope; add `--global`
+only when you want a user-wide skill. `--copy` keeps support files together
+without depending on symlinks. Vercel also supports Git sources; the repository
+is currently private, so remote installation needs your existing Git access.
+
+The command downloads Vercel's npm-published installer, not an Agent Commons npm
+package. It does not install our binary, register MCP, start a service, enroll a
+role or grant work authority. Keep the operator-provided connection separate.
+Use `npx skills@1.5.24 remove agent-commons` to remove a skills-only installation.
+
+Claude/Codex native plugin installation is a separate route when you need the
+bundled MCP configuration and supported startup hook. Do not install duplicate
+skill copies through both routes for the same role. Pi/Hermes native integration
+packages remain work to do; their skills can already use the explicit CLI path.
+
+`just skills-installer-test` exercises the real pinned installer in disposable
+directories. Ordinary tests do not download it or invoke native agents.
+
+## Install the binary bundle
 
 Unpack the archive in a scratch directory. For example, the macOS ARM64 archive
 contains an `agent-commons-darwin-arm64` directory. Run its binary to copy the

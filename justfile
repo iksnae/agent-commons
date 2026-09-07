@@ -12,7 +12,7 @@ build:
 
 # Run the credential-free suite with the race detector.
 test:
-    AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
+    AGENT_COMMONS_SKILLS_INSTALLER=0 AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
 
 # Run Go's static checks.
 vet:
@@ -59,6 +59,10 @@ native-test: build
 # OPT-IN: use actual Claude/Codex models; may consume paid quota. Retains evidence.
 live-test:
     AGENT_COMMONS_LIVE=1 node integration/live.mjs
+
+# OPT-IN: download pinned Vercel Skills CLI; install/remove in a disposable project.
+skills-installer-test:
+    AGENT_COMMONS_SKILLS_INSTALLER=1 go test -race ./integration -run '^TestVercelSkillsInstallerPreservesPortableSkill$' -count=1 -v -timeout 4m
 
 # OPT-IN: run Claude init-only against isolated config/project; no model turn.
 claude-hook-test: build

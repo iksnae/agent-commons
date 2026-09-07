@@ -25,7 +25,9 @@ without warranty or a promise of ongoing support.
 ## Build and start
 
 For a downloaded native bundle, follow [the installation guide](INSTALL.md).
-Installation is local and explicit; no npm package or install-time download is used.
+Binary bundle installation is local and explicit, with no npm package or download.
+Shared skills use the established Vercel Skills installer; see the same guide for
+its separate project-scoped install command and native-plugin boundaries.
 
 This is a read-only local pilot. See the [beta checklist](BETA.md) for what still
 needs operational testing. `doctor --config FILE` checks a scoped connection;

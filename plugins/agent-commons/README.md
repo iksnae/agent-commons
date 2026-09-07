@@ -5,6 +5,11 @@ skills, a check-in wrapper and MCP configuration. No files referenced by the
 plugin live outside its archive. The standalone `agent-commons` executable must
 be installed separately and available on PATH.
 
+For a skills-only installation across Claude, Codex, Pi and Hermes, use Vercel's
+Skills CLI against this directory. The `skills/agent-commons` directory is the
+shared source and includes its references and license. This route installs no
+MCP configuration or hooks; see the repository's INSTALL.md for the command.
+
 Before enabling the plugin for a role, the operator enrolls project + name + role
 and sets `AGENT_COMMONS_CONNECTION` in that role's launcher environment to the
 private connection-file path. The MCP server checks that the configured identity
