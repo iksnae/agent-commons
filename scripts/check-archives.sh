@@ -38,6 +38,8 @@ done
 tar -xzf dist/agent-commons-plugin.tar.gz -C "$check_dir"
 cmp LICENSE "$check_dir/agent-commons/LICENSE"
 test -s "$check_dir/agent-commons/skills/agent-commons/SKILL.md"
+cmp plugins/agent-commons/plugin.json "$check_dir/agent-commons/plugin.json"
+cmp plugins/agent-commons/mcp.json "$check_dir/agent-commons/mcp.json"
 node --test "$check_dir/agent-commons/pi/commons.test.mjs"
 test -x "$check_dir/agent-commons/scripts/check-in.sh"
 test -s "$check_dir/agent-commons/hooks/claude.json"

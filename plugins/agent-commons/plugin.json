@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "description": "Project-scoped agent inboxes, team participation and shared learnings",
+  "license": "MPL-2.0",
+  "repository": "https://github.com/iksnae/agent-commons"
+}

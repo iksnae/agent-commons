@@ -12,7 +12,7 @@ build:
 
 # Run the credential-free suite with the race detector.
 test:
-    AGENT_COMMONS_PI_HOOK=0 AGENT_COMMONS_SKILLS_INSTALLER=0 AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
+    AGENT_COMMONS_HERMES_LOADER=0 AGENT_COMMONS_PI_HOOK=0 AGENT_COMMONS_SKILLS_INSTALLER=0 AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 AGENT_COMMONS_CODEX_HOOK=0 go test -race ./...
 
 # Run Go's static checks.
 vet:
@@ -32,6 +32,11 @@ check: fmt-check test vet pi-extension-test
 # Test Pi lifecycle behavior with fakes; no Pi installation or model calls.
 pi-extension-test:
     node --test plugins/agent-commons/pi/commons.test.mjs
+
+# OPT-IN: parse a copied bundle with Hermes's installed portable plugin loader.
+# Set AGENT_COMMONS_HERMES_ROOT to an absolute Hermes checkout with venv/bin/python.
+hermes-loader-test:
+    AGENT_COMMONS_HERMES_LOADER=1 go test -race ./integration -run '^TestNativeHermesLoadsPortablePackage$' -count=1 -v -timeout 30s
 
 # OPT-IN: use Pi's local package installer and metadata RPC in disposable config.
 pi-hook-test: build

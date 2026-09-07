@@ -30,8 +30,9 @@ Claude/Codex native plugin installation is a separate route when you need the
 bundled MCP configuration and supported startup hook. Do not install duplicate
 skill copies through both routes for the same role. The same extracted plugin
 directory also installs through `pi install /absolute/path/to/agent-commons`;
-see its README for explicit launch binding and limits. Hermes native integration
-packaging remains work to do; its skill can use the explicit CLI path.
+see its README for explicit launch binding and limits. Hermes can read the
+bundle's portable Agent Plugins manifests; the plugin README describes its
+upstream install/enable workflow and the remaining native acceptance checks.
 
 `just skills-installer-test` exercises the real pinned installer in disposable
 directories. Ordinary tests do not download it or invoke native agents.

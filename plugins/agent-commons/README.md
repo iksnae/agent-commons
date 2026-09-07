@@ -1,7 +1,7 @@
 # Agent Commons integration plugin
 
 One self-contained plugin directory carries Claude and Codex manifests, a Pi
-package, shared skills, a check-in wrapper and MCP configuration. No files referenced by the
+package, portable Agent Plugins manifests, shared skills, a check-in wrapper and MCP configuration. No files referenced by the
 plugin live outside its archive. The standalone `agent-commons` executable must
 be installed separately and available on PATH.
 
@@ -95,6 +95,46 @@ fixture starts with a native-format session header; no model output is invented.
 Pi defers writing a fresh session until an assistant message, so a returned
 session path alone does not prove persistence. Fresh-session recovery and actual
 model participation remain separate acceptance work.
+
+## Hermes portable package
+
+Root `plugin.json` and `mcp.json` use the Agent Plugins v1.0.0 schemas supported
+by [Hermes's portable loader](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins).
+They reuse the same skill directory and `agent-commons connect-mcp` command as
+the other integrations. No Python plugin or additional installer is shipped.
+
+Hermes documents this install/enable workflow. With Git access to this currently
+private repository, the package source is its plugin subdirectory:
+
+```sh
+hermes plugins install 'https://github.com/iksnae/agent-commons.git#plugins/agent-commons' --no-enable
+hermes plugins list
+hermes plugins enable agent-commons
+```
+
+Review the source before enabling it. Add `--ref FULL_COMMIT_SHA` to installation
+when pinning a reviewed revision. Remove the registration with
+`hermes plugins remove agent-commons`. This route does not publish an npm package.
+
+Before using MCP, the role launcher must supply `AGENT_COMMONS_CONNECTION` and
+put the separately installed binary on PATH. Credentials do not belong in the
+manifest. The connection command refuses missing or mismatched identity rather
+than falling back to operator credentials. Enabling a plugin is a trust decision;
+the portable format does not sandbox its executable or isolate inherited secrets.
+
+Hermes exposes the shared skill under a generated namespace; use `skills_list`
+to discover its qualified name. This package has no Hermes startup hook. Follow
+the skill's explicit check-in flow with the actual native session ID, then read
+the inbox and any team invitation before deciding what to do.
+
+`just hermes-loader-test` checks a copied bundle with an installed Hermes parser.
+It passed with Hermes 0.21.0 (checkout `63279301bcbdc185c1b07b98a9312eb0c862f26d`):
+the shared skill and support files were found, both
+MCP manifests named the same scoped command, and no component diagnostics were
+reported. This test does not invoke the Hermes CLI, enable a plugin, start MCP
+or run a model. Native installer lifecycle, MCP execution and launch recovery
+remain acceptance work; the commands above are the upstream workflow, not a
+claim that those gates have passed.
 
 This plugin's scripts, skills, configuration and documentation use [MPL-2.0](LICENSE).
 Its editable source is included in the bundle. Keep the required notices and make
