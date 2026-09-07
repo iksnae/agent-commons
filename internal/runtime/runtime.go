@@ -53,7 +53,12 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 }
 
 func command(ctx context.Context, name, target, input string, args ...string) ([]byte, error) {
+	return commandEnvironment(ctx, name, target, input, nil, args...)
+}
+
+func commandEnvironment(ctx context.Context, name, target, input string, environment []string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = environment
 	cmd.Dir = target
 	cmd.Stdin = strings.NewReader(input)
 	cmd.WaitDelay = 2 * time.Second
@@ -104,6 +109,10 @@ func failureDetails(raw []byte) string {
 func (c CLI) Run(ctx context.Context, s core.Session, d core.Delivery) (sessionID, output string, runErr error) {
 	if s.Mode != "managed" {
 		return "", "", errors.New("only explicitly managed sessions can run")
+	}
+	environment, err := managedEnvironment(s.Runtime, os.Environ())
+	if err != nil {
+		return "", "", err
 	}
 	defs, err := Inventory(s.Target)
 	if err != nil {
@@ -170,7 +179,7 @@ func (c CLI) Run(ctx context.Context, s core.Session, d core.Delivery) (sessionI
 	default:
 		return "", "", fmt.Errorf("unsupported runtime %q", s.Runtime)
 	}
-	raw, err := command(ctx, s.Runtime, s.Target, prompt, args...)
+	raw, err := commandEnvironment(ctx, s.Runtime, s.Target, prompt, environment, args...)
 	if err != nil {
 		return "", "", err
 	}

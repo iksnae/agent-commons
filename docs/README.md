@@ -8,6 +8,7 @@ For a fresh development session, use [the resume guide](../START-HERE.md).
 - [Plugin integration](../plugins/agent-commons/README.md)
 - [Discovery without adoption](discovery.md)
 - [Runtime capabilities and team membership](../HARNESS-SUPPORT.md)
+- [Managed process environment](managed-environment.md)
 - [Coordination, context and result review](coordination.md)
 - [Inbox notifications](notifications.md)
 - [Terminal console](console.md)

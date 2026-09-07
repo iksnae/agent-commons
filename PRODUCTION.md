@@ -40,6 +40,13 @@ must remain visible rather than advertised as equivalent to the working teams.
 
 ## Core-state recovery guardrails
 
+Managed execution now filters its environment to launch essentials, configured
+network settings and the selected harness's authentication variables. Child-process
+fixtures verify that unrelated secrets and the other harness's credentials are
+absent. Unsupported provider-routing selectors stop execution before preparation;
+they are not silently removed. This does not isolate native homes or credentials
+between roles. See [the exact environment contract](docs/managed-environment.md).
+
 Managed results cannot replace an already bound native session ID. A mismatched
 runner result is recorded as failed, its output is withheld from successful
 return delivery and task submission, and the original binding survives restart.

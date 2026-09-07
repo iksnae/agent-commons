@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"agentcommons/internal/core"
@@ -17,9 +18,8 @@ func TestManagedPreparationMustCheckpointBeforeModelExecution(t *testing.T) {
 		t.Run(fail, func(t *testing.T) {
 			prepared, saved := false, false
 			marker := filepath.Join(t.TempDir(), "model-started")
-			t.Setenv("COMMONS_TEST_MODEL_MARKER", marker)
 			fixture(t, "codex", `cat >/dev/null
-touch "$COMMONS_TEST_MODEL_MARKER"
+touch `+strconv.Quote(marker)+`
 case "$*" in *resume*prepared-root*) ;; *) exit 4;; esac
 printf '%s\n' '{"type":"thread.started","thread_id":"prepared-root"}' '{"type":"item.completed","item":{"type":"agent_message","text":"executed"}}' '{"type":"turn.completed"}'
 `)
