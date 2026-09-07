@@ -3,7 +3,6 @@
 package integration
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"io"
@@ -11,6 +10,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"agentcommons/internal/codexrpc"
 )
 
 // Starts an isolated stdio server, never the user's daemon or a model turn.
@@ -42,37 +43,18 @@ func codexFixture(t *testing.T, configDir, target string) func(string, any) json
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { cancel(); _ = in.Close(); _ = command.Wait() })
-	encoder, scanner := json.NewEncoder(in), bufio.NewScanner(out)
-	scanner.Buffer(make([]byte, 4096), 1<<20)
-	id := 0
+	client := codexrpc.New(codexrpc.Pipes(in, out))
+	t.Cleanup(func() { _ = client.Close() })
 	request := func(method string, params any) json.RawMessage {
 		t.Helper()
-		id++
-		if err := encoder.Encode(map[string]any{"id": id, "method": method, "params": params}); err != nil {
+		result, err := client.Call(ctx, method, params)
+		if err != nil {
 			t.Fatal(err)
 		}
-		for scanner.Scan() {
-			var event struct {
-				ID     int             `json:"id"`
-				Result json.RawMessage `json:"result"`
-				Error  json.RawMessage `json:"error"`
-			}
-			if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-				t.Fatal(err)
-			}
-			if event.ID != id {
-				continue
-			}
-			if len(event.Error) > 0 && string(event.Error) != "null" {
-				t.Fatalf("native Codex rejected %s", method)
-			}
-			return event.Result
-		}
-		t.Fatalf("native Codex stream closed during %s: %v", method, scanner.Err())
-		return nil
+		return result
 	}
 	request("initialize", map[string]any{"clientInfo": map[string]string{"name": "agent-commons-test", "version": "0.1.0"}, "capabilities": map[string]bool{"experimentalApi": true}})
-	if err := encoder.Encode(map[string]string{"method": "initialized"}); err != nil {
+	if err := client.Notify(ctx, "initialized"); err != nil {
 		t.Fatal(err)
 	}
 	return request
