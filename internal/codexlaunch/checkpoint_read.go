@@ -9,24 +9,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 )
 
 const maxCheckpointBytes = 64 << 10
 
 func readCheckpoint(root *os.Root, name string, value any) error {
-	f, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	f, err := openExistingBindingFile(root, name, os.O_RDONLY)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", name, err)
 	}
 	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
-		return fmt.Errorf("%s must be a private regular file", name)
-	}
 	data, err := io.ReadAll(io.LimitReader(f, maxCheckpointBytes+1))
 	if err != nil {
 		return err

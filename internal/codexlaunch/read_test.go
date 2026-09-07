@@ -95,7 +95,9 @@ func damageCheckpoint(t *testing.T, path, damage string) {
 		if err = os.Remove(path); err == nil {
 			switch damage {
 			case "symlink":
-				err = os.Symlink("reservation.json", path)
+				if err = os.WriteFile(path+".saved", data, 0600); err == nil {
+					err = os.Symlink(filepath.Base(path)+".saved", path)
+				}
 			case "fifo":
 				err = syscall.Mkfifo(path, 0600)
 			}

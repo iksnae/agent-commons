@@ -81,6 +81,19 @@ func TestCodexResumeCheckRequiresSavedBindingBeforeStartup(t *testing.T) {
 	if bytes.Contains(output.Bytes(), []byte(connection.client.token)) {
 		t.Fatal("resume report leaked credential")
 	}
+	role, err := parseCodexRoleScope(context.Background(), "test", args, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := codexlaunch.AcquireReady(role.Binding, role.Native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	busyErr := runCodexResumeCheckWith(context.Background(), args, io.Discard, io.Discard, start)
+	_ = lease.Close()
+	if !errors.Is(busyErr, codexlaunch.ErrBindingBusy) || starts != 2 {
+		t.Fatal("busy binding started native process", busyErr)
+	}
 	otherHome := t.TempDir()
 	if err = os.Chmod(otherHome, 0700); err != nil {
 		t.Fatal(err)

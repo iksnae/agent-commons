@@ -94,6 +94,11 @@ oversized or trailing data, unsupported versions and changed scopes. Local
 checkpoint validation does not prove native ancestry or grant attachment
 authority. A launcher must still verify native metadata before using the role.
 
+Checkpoint opens now compare no-follow file metadata with the opened descriptor.
+Go's rooted file API can resolve in-directory symlinks despite the supplied
+no-follow flag. Regression tests use symlinks to otherwise valid checkpoint data,
+so a schema error cannot hide a failure to reject the link.
+
 `internal/codexlaunch.Resume` performs that native identity check around resume.
 It inspects the exact saved ID first and rejects changed targets, forks, child
 threads or missing ancestry fields before requesting resume. The resume request
@@ -164,8 +169,20 @@ Native failure retains the saved ID and checkpoint directory; it does not retry
 or repair the preparation. Missing or conflicting local evidence prevents startup.
 
 This is an active resume diagnostic, not just a file inspection. Use it on an
-idle prepared thread: it does not acquire persistent ownership or coordinate
-with other native processes using that thread. The selected home and project
+idle prepared thread. An exclusive `resume.lock` prevents cooperating Agent
+Commons processes from checking the same binding concurrently. It remains held
+until the owned native process closes. A busy binding fails before native
+startup; close or process exit releases the OS lock. The lock file stays in place:
+never unlink or replace it to bypass a busy result.
+
+Process-death tests prove lock release, not cleanup of orphaned native processes.
+Do not treat an available lock after a crash as proof that an interrupted native
+operation had no effects. Persistent supervision and crash reconciliation remain
+separate launch requirements.
+
+This advisory lock does not constrain external Codex processes, copied binding
+directories, or other clients that do not use it. It is not persistent role
+ownership or a service attachment. The selected home and project
 configuration still apply, with the same isolation limits as preparation.
 It starts no model turn, acknowledges no messages and creates no role attachment.
 `verified: true` does not mean an agent or watcher remains running.

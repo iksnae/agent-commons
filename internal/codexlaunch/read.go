@@ -21,11 +21,15 @@ func LoadReady(path string, expected Scope) (string, error) {
 		return "", err
 	}
 	defer root.Close()
+	return loadReady(root, expected)
+}
+
+func loadReady(root *os.Root, expected Scope) (string, error) {
 	var reservation struct {
 		Version int   `json:"version"`
 		Scope   Scope `json:"scope"`
 	}
-	if err = readCheckpoint(root, "reservation.json", &reservation); err != nil {
+	if err := readCheckpoint(root, "reservation.json", &reservation); err != nil {
 		return "", err
 	}
 	if reservation.Version != 1 || reservation.Scope != expected {
