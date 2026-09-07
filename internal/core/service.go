@@ -81,25 +81,20 @@ func New(directory string) (*Service, error) {
 		return nil, fmt.Errorf("state already locked: %w", err)
 	}
 	s := &Service{dir: directory, lock: f, data: state{Sessions: map[string]Session{}, Tokens: map[string]string{}, Tasks: map[string]Task{}, Contexts: map[string][]Context{}, Keys: map[string]string{}}}
-	stateFile, err := os.OpenFile(filepath.Join(directory, "state.json"), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	loaded, err := readStateFile(filepath.Join(directory, "state.json"))
+	existingState := err == nil
 	if err == nil {
-		info, statErr := stateFile.Stat()
-		if statErr != nil || !info.Mode().IsRegular() {
-			err = errors.New("state must be regular file")
-		} else {
-			var b []byte
-			b, err = io.ReadAll(stateFile)
-			if err == nil {
-				err = json.Unmarshal(b, &s.data)
-			}
-		}
-		stateFile.Close()
+		s.data = loaded
 	} else if errors.Is(err, os.ErrNotExist) {
 		err = nil
 	}
 	if err != nil {
 		s.Close()
 		return nil, err
+	}
+	if s.data.SchemaVersion < 0 {
+		s.Close()
+		return nil, errors.New("negative state schema version")
 	}
 	if s.data.SchemaVersion > 2 {
 		s.Close()
@@ -124,6 +119,10 @@ func New(directory string) (*Service, error) {
 		return nil, errors.New("invalid state")
 	}
 	if s.data.Tokens["operator"] == "" {
+		if existingState {
+			s.Close()
+			return nil, errors.New("existing state is missing its operator credential; not regenerated")
+		}
 		s.data.Tokens["operator"] = randomID()
 	}
 	for i := range s.data.Deliveries {
@@ -158,7 +157,7 @@ func New(directory string) (*Service, error) {
 	return s, nil
 }
 func (s *Service) save() error {
-	b, err := json.Marshal(s.data)
+	b, err := encodeState(s.data)
 	if err != nil {
 		return err
 	}

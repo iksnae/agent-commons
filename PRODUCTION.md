@@ -9,6 +9,25 @@ Native service lifecycle tests pass on macOS and Linux. Wake maintenance and
 operator resolution now have isolated recovery tests; native recovery and the
 other gates below remain open. The production goal remains active.
 
+## Core-state recovery guardrails
+
+Existing state is decoded without fresh-service defaults. Empty, null and
+missing-map files are rejected without replacing them. A missing operator
+credential in an existing file is also an error; startup does not invent a
+replacement. A genuinely absent state file still creates a new service.
+
+`state.json` must be a private regular file and no larger than 64 MiB. Startup
+rejects special files without waiting for a writer. The same encoded-size limit
+applies before saving mutations, so a rejected oversized change preserves the
+previous disk state and rolls back the in-memory change. Existing snapshots above
+the limit are refused, not truncated or migrated automatically.
+
+This cap is not retention management or complete corruption detection. Preserve
+the state and its backups if the limit is reached; do not strip messages or token
+records by hand. Archival, full backup/restore tooling and validation of every
+persisted record remain work to do. No live pilot state was opened or changed to
+exercise these checks.
+
 ## Acceptance ledger
 
 | Requirement | Current evidence | What still needs proof |
