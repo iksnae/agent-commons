@@ -73,3 +73,10 @@ with its definition hash. This proves native inventory and trust metadata only;
 no hook was trusted or executed and no model turn ran. Packaged hook loading,
 fork-safe identity binding and launch-time inbox recovery remain open. See
 [Codex launch acceptance](gates/codex-launch.md).
+
+The native Codex test now also installs the product plugin from a disposable local
+marketplace. Codex 0.153.4 lists the MCP server and namespaced skill, makes the
+installed skill available to the target, and copies every bundled file unchanged.
+Uninstall clears installed status and removes the cache. The Claude-only hook is
+absent from Codex's plugin metadata. These checks do not exercise an MCP connection,
+model turn or Codex launch hook. No plugin was installed in the operator's config.

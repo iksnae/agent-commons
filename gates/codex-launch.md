@@ -25,6 +25,13 @@ hook as enabled and untrusted, with a nonempty hash. It starts a fresh stdio
 app-server with a disposable Codex home and no inherited model credentials.
 It does not connect to the user's daemon, trust a hook or start a model turn.
 
+The same recipe also exercises native plugin install and uninstall in a fresh
+Codex home. It verifies copied payload bytes, the MCP server name, the namespaced
+skill and removal of the installed cache. `plugin/read` returns marketplace
+source paths; the test uses `skills/list` to locate the installed skill instead.
+The current Claude-only hook is excluded from Codex plugin metadata. A Codex
+launch hook has not been added yet.
+
 An earlier `codex debug prompt-input` probe returned JSON with no hook-review
 diagnostic. Absence of hook text in that output did not establish that trust
 prevented execution, so that probe is not acceptance evidence.

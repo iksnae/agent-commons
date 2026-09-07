@@ -18,8 +18,12 @@ messages for the next steps. Do not enable one shared role connection for every
 subagent in a project.
 
 Manifest validation has been exercised with Claude's validator and the Codex
-plugin validator. The Claude manifest includes a SessionStart hook; Codex automatic
-launch wiring, marketplace publication and installer testing remain open. This
+plugin validator. Native Codex 0.153.4 install/removal testing also passed in a
+disposable configuration: the complete bundle was copied, the MCP server and
+namespaced skill were listed, and uninstall removed its cache. That test did not
+start the MCP server or run a model conversation.
+The Claude manifest includes a SessionStart hook; Codex automatic
+launch wiring and marketplace publication remain open. This
 bundle is not globally installed or automatically enabled by the repository.
 
 ## Claude launch check-in
