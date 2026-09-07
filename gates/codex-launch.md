@@ -99,6 +99,18 @@ The command owns a separate stdio app-server process group, limits preparation t
 attachment request and does not acknowledge the inbox. The native CLI test uses
 a disposable home with an offline fixture provider.
 
+The ordinary race suite also checks shutdown with a real subprocess fixture.
+Cancellation during initialization and explicit close after initialization both
+close a descendant's independent connection; repeated close is safe. Replacing
+the process-group kill with a parent-only kill makes both tests fail because the
+descendant remains connected. These fixtures exercise the launcher's shutdown
+boundary without a native agent or model call. They do not cover descendants
+that deliberately leave the owned process group.
+
+The close assertion runs without a parent cancellation timer; startup alone has
+a timeout. A no-op close also fails the test, so fallback cancellation cannot
+stand in for the shutdown behavior being checked.
+
 The selected Codex home and target still supply configuration. They may contain
 credentials, MCP servers and plugins. The child environment allowlist is not
 configuration isolation. Hooks are disabled for preparation, but other configured
