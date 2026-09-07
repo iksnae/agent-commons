@@ -151,6 +151,28 @@ An earlier `codex debug prompt-input` probe returned JSON with no hook-review
 diagnostic. Absence of hook text in that output did not establish that trust
 prevented execution, so that probe is not acceptance evidence.
 
+## Resume diagnostic
+
+```sh
+agent-commons codex-resume-check --config /private/connection.json --codex-home /private/codex-home
+```
+
+This command verifies the enrolled role and complete saved binding before
+starting a separate native process. It checks and resumes the saved root, then
+closes that process. The JSON report includes `verified`, `threadId` and `binding`.
+Native failure retains the saved ID and checkpoint directory; it does not retry
+or repair the preparation. Missing or conflicting local evidence prevents startup.
+
+This is an active resume diagnostic, not just a file inspection. Use it on an
+idle prepared thread: it does not acquire persistent ownership or coordinate
+with other native processes using that thread. The selected home and project
+configuration still apply, with the same isolation limits as preparation.
+It starts no model turn, acknowledges no messages and creates no role attachment.
+`verified: true` does not mean an agent or watcher remains running.
+
+The native CLI test prepares a thread and runs this check through another
+app-server, preserving the exact binding and leaving the role unattached.
+
 ## Remaining acceptance checks
 
 1. Load the packaged Codex hook through the real plugin loader without also

@@ -6,11 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"agentcommons/internal/codexlaunch"
@@ -28,46 +25,13 @@ type codexPreparationReport struct {
 }
 
 func runCodexPrepareWith(ctx context.Context, args []string, out, errOut io.Writer, start codexStarter) error {
-	f := flag.NewFlagSet("codex-prepare", flag.ContinueOnError)
-	f.SetOutput(errOut)
-	config := f.String("config", "", "private enrolled role connection")
-	home := f.String("codex-home", "", "explicit private Codex configuration/session directory")
-	if err := f.Parse(args); err != nil {
-		return err
-	}
-	if *config == "" || !filepath.IsAbs(*home) || f.NArg() != 0 {
-		return errors.New("codex-prepare requires --config and absolute --codex-home")
-	}
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	connection, err := openProjectConnection(*config)
+	role, err := parseCodexRoleScope(ctx, "codex-prepare", args, errOut)
 	if err != nil {
 		return err
 	}
-	if err = connection.verifyIdentity(ctx); err != nil {
-		return err
-	}
-	info, err := os.Lstat(*home)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
-		return errors.New("Codex home must be a real private directory")
-	}
-	nativeHome, err := filepath.EvalSymlinks(*home)
-	if err != nil {
-		return err
-	}
-	target, err := filepath.EvalSymlinks(connection.config.Target)
-	if err != nil {
-		return err
-	}
-	socket, err := filepath.EvalSymlinks(connection.config.Socket)
-	if err != nil {
-		return err
-	}
-	path := filepath.Join(connection.config.State, "codex-binding-"+identityDigest(socket+"\x00"+connection.config.Identity))
-	scope := codexlaunch.Scope{Identity: connection.config.Identity, Target: target, Home: nativeHome}
+	scope, path := role.Native, role.Binding
 	bootstrap := &lazyCodexBootstrap{start: start, scope: scope}
 	id, prepareErr := codexlaunch.Prepare(ctx, bootstrap, codexlaunch.NewDirectoryJournal(path), scope)
 	err = errors.Join(prepareErr, bootstrap.Close())
