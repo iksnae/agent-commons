@@ -57,3 +57,12 @@ with neither test skipped. It verified install, enable, start, status, SIGKILL
 recovery, clean restart, stop, recoverable removal and retained agent state.
 Linux persistent startup links were present after enable and absent after removal.
 Login/reboot recovery remains unverified; see [service setup](SERVICE.md).
+
+Claude launch integration has an opt-in native test using `--init-only`, a private
+Claude configuration, and a disposable enrolled project. With Claude Code 2.1.236
+on macOS, it passed in 0.36 seconds: the plugin's SessionStart hook attached the
+role while welcome messages remained unread. No model conversation ran. Parser
+tests cover version floors, fork/subagent rejection and bounded events; integration
+tests cover identity reuse and project mismatch. Codex startup, automatic renewal,
+and inherited credential isolation remain open. This test does not demonstrate
+that a model read or obeyed the hook's inbox guidance.

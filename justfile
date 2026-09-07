@@ -12,7 +12,7 @@ build:
 
 # Run the credential-free suite with the race detector.
 test:
-    AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 go test -race ./...
+    AGENT_COMMONS_NATIVE_SUPERVISOR=0 AGENT_COMMONS_NATIVE_SERVICE_CLI=0 AGENT_COMMONS_CLAUDE_HOOK=0 go test -race ./...
 
 # Run Go's static checks.
 vet:
@@ -59,3 +59,7 @@ native-test: build
 # OPT-IN: use actual Claude/Codex models; may consume paid quota. Retains evidence.
 live-test:
     AGENT_COMMONS_LIVE=1 node integration/live.mjs
+
+# OPT-IN: run Claude init-only against isolated config/project; no model turn.
+claude-hook-test: build
+    AGENT_COMMONS_CLAUDE_HOOK=1 AGENT_COMMONS_TEST_BINARY="$PWD/dist/dev/agent-commons" go test -race ./cmd/agent-commons -run '^TestNativeClaudeLaunchHook$' -count=1 -v -timeout 45s

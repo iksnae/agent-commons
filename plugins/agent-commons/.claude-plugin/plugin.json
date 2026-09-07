@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "description": "Project-scoped agent check-in, durable messaging and shared learnings.",
   "author": { "name": "iksnae" },
+  "hooks": "./hooks/claude.json",
   "repository": "https://github.com/iksnae/agent-commons"
 }

@@ -13,7 +13,7 @@ next missing behavior. The production goal remains active.
 
 | Requirement | Current evidence | What still needs proof |
 | --- | --- | --- |
-| Stable project + agent name/role identity | Enrollment, conflict and lease tests | Real Claude/Codex project and workspace launch integration without credential sharing |
+| Stable project + agent name/role identity | Enrollment, conflict and lease tests; native Claude init-only hook attachment | Codex launch integration, model inbox recovery, and launcher credential isolation |
 | Durable communication and return paths | Scoped RPC tests; existing-conversation wake evidence | Full managed cross-runtime acceptance; supervised role watchers and offline recovery |
 | Shared context and learnings | Versioned context and scoped board tests | Explicit cross-project publication flow and launch-time review |
 | Safe local installation and lifecycle | Native macOS/Linux full service CLI lifecycle CI; bundle boundary tests; recoverable removal and Linux persistent-link checks | Clean-machine upgrades, login/reboot behavior |
