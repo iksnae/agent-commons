@@ -16,6 +16,30 @@ No GitHub publishing, production deployment, target edits, or global configurati
 No claim of complete A2A protocol compliance: the initial transport is a local
 authenticated RPC/MCP boundary with an A2A mapping documented separately.
 
+## Team participation and later cross-team learning
+
+Harness support is meant to let an agent join a team session. Runtime launch and
+notification adapters support that workflow; they are not the product outcome.
+The coordination team session is distinct from each participant's native model
+session or transcript. Project + agent name/role remains the stable identity;
+native sessions are replaceable attachments, and team membership is a separate
+relationship rather than a copied native conversation.
+
+The next participation workflow must let an authorized Hermes, Pi, Claude or
+Codex agent join the intended team, receive its brief and relevant learnings,
+read its inbox, and take part in task handoff, review and return paths. Leaving
+or reconnecting must preserve messages and evidence without silently broadening
+authority. Existing runtime check-in and the `Team` label do not by themselves
+prove this complete membership workflow.
+
+A later system scope will support persistent boards and inboxes beyond project
+work: shared learnings, techniques, strategies, ideas and experiments across
+teams. Publication or membership must be explicit. Project credentials, private
+messages and work authority must not become system-wide merely because their
+author joins a shared space. Shared knowledge remains attributed peer data;
+publishing an idea does not authorize an experiment. This is planned scope, not
+an existing cross-project access grant or implemented feature.
+
 ## Shared interfaces (freeze before parallel work)
 
 Module `agentcommons`; Go 1.26. The original dependency-free constraint was amended

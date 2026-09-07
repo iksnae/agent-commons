@@ -6,6 +6,14 @@ Agent Commons has foundational integrations for Claude Code, Codex, the
 Run `agent-commons harnesses` for the implemented capability catalog. These flags
 describe Agent Commons adapters, not everything an upstream agent can do.
 
+The intended workflow is team participation: an agent joins a coordination team
+session, receives the team brief and relevant knowledge, and contributes through
+its inbox and task/review responsibilities. Its native runtime session stays
+separate from that shared coordination space. Current check-in support is the
+foundation; the complete join/rejoin/membership workflow still needs implementation
+and acceptance tests. Later cross-team boards and inboxes will provide a separate,
+explicit sharing scope for learning and experiments beyond project work.
+
 | Runtime | Explicit role check-in and shared coordination | Managed dispatch adapter | Existing-session arrival signal |
 | --- | --- | --- | --- |
 | Claude Code | Yes | Read-only adapter; live acceptance gate remains open | Not implemented |
