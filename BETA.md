@@ -14,8 +14,8 @@ operational gate.
 - An isolated subprocess test kills the service, restarts it, and verifies that
   the registry survives and the stale default socket is recovered. Active sockets,
   custom paths, regular files and symlinks are not removed by recovery.
-- A native macOS launchd test starts an isolated service, kills it, observes a new
-  PID with the same registry, and stops/unregisters its temporary job. This is
+- Native macOS launchd and Linux systemd tests start an isolated service, kill it,
+  observe a new PID with the same registry, then stop and unregister the job. This is
   session-local supervision evidence, not a login/reboot or production migration test.
 
 ## Still required for the beta
@@ -23,8 +23,8 @@ operational gate.
 - [ ] Service install/start/stop/uninstall tested on macOS and Linux without
   touching unrelated jobs or deleting state. `service-plan` now renders user-job
   files for review; it does not install them. Native parser tests are not lifecycle tests.
-  macOS transient lifecycle is exercised; Linux lifecycle and a user-facing
-  installer remain open.
+  Transient lifecycle passes on macOS and Linux; a user-facing installer and
+  login/reboot persistence tests remain open.
 - [ ] Role check-in and wake processes supervised, including offline startup and
   uncertain queue results. A service restart must not silently replay an uncertain wake.
 - [ ] Explicit project/workspace launch integration tested with both Claude and
@@ -89,3 +89,6 @@ The test unregisters its job and removes its temporary files on success. On fail
 it attempts cleanup but retains its files and reports their path for inspection.
 The manually triggered `Native supervisor lifecycle` workflow runs the same test
 on both platforms. A missing supervisor is a failure, not evidence of a passing gate.
+Both hosted platforms passed in [run 34147092700](https://github.com/iksnae/agent-commons/actions/runs/34147092700),
+including clean stop/start, crash recovery, preserved state and explicit confirmation
+that the supervisor registration was removed.
