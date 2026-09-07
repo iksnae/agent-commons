@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -278,75 +277,6 @@ func parse(runtime string, raw []byte) (string, string, error) {
 		return "", "", errors.New("incomplete Codex result")
 	}
 	return id, strings.Join(outputs, "\n"), nil
-}
-
-// Serve polls durable state without model calls until an assignment is claimable.
-func Serve(ctx context.Context, svc *core.Service, runner Runner, interval time.Duration) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if interval <= 0 {
-		interval = 250 * time.Millisecond
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	var wg sync.WaitGroup
-	defer func() { cancel(); wg.Wait() }()
-	active := map[string]bool{}
-	var mu sync.Mutex
-	errorsCh := make(chan error, 1)
-	for {
-		for _, s := range svc.Sessions() {
-			if s.Mode != "managed" {
-				continue
-			}
-			mu.Lock()
-			busy := active[s.ID]
-			if !busy {
-				active[s.ID] = true
-			}
-			mu.Unlock()
-			if busy {
-				continue
-			}
-			d, err := svc.Claim(s.ID)
-			if err != nil || d == nil {
-				mu.Lock()
-				delete(active, s.ID)
-				mu.Unlock()
-				if err != nil {
-					return err
-				}
-				continue
-			}
-			token, err := svc.Token(s.ID)
-			if err != nil {
-				_ = svc.Finish(d.ID, "", "", err)
-				return err
-			}
-			wg.Add(1)
-			go func(s core.Session, d core.Delivery, token string) {
-				defer wg.Done()
-				id, out, e := runner.Run(context.WithValue(ctx, credentialKey{}, token), s, d)
-				e = svc.Finish(d.ID, id, out, e)
-				if e != nil {
-					select {
-					case errorsCh <- e:
-					default:
-					}
-				}
-				mu.Lock()
-				delete(active, s.ID)
-				mu.Unlock()
-			}(s, *d, token)
-		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case err := <-errorsCh:
-			return err
-		case <-ticker.C:
-		}
-	}
 }
 
 type Discovered struct {

@@ -43,8 +43,10 @@ must remain visible rather than advertised as equivalent to the working teams.
 Optional team-scoped tasks, messages and context now enforce joined membership
 through assignment, reads, inbox access, review and result routing. Schema-3
 migration preserves a private pre-upgrade snapshot. Service tests cover revocation,
-restart and malformed scope records. Checks use current membership; native process
-cancellation and transcript/worktree isolation remain open. See
+restart and malformed scope records. The supervisor now cancels owned runs when
+it observes withdrawn access; subprocess tests verify process-group termination
+and withheld results after rejoin. Native provider/tool cancellation acceptance
+and transcript/worktree isolation remain open. See
 [team-scoped work](docs/team-work.md) for the exact boundary.
 
 Managed execution now filters its environment to launch essentials, configured

@@ -39,10 +39,15 @@ not bypass that check. Finish checks membership again: if a required participant
 is absent, the run fails without submitting its output or sending a result.
 Retained task evidence remains available to the operator and eligible members.
 
-These checks use current membership. Leaving and rejoining before the next check
+The supervisor checks active deliveries each polling interval (250 ms by default)
+and cancels a run when it observes withdrawn access. The CLI adapter terminates
+its owned process group. A canceled run cannot submit a successful result even if
+the participant rejoins before the runner returns. Cancellation cannot undo
+effects already performed; it is not an instantaneous revocation barrier.
+
+Checks use current membership. Leaving and rejoining entirely between checks
 does not invalidate the run. Rejoining can make retained work accessible again.
-Revocation does not kill an already-running native process or erase content it
-already received. Native history can outlive team access, including when one role
+Revocation cannot erase content already received. Native history can outlive team access, including when one role
 joins multiple teams. Separate native/worktree isolation remains a production
 gate; RPC access checks are not a confidentiality boundary inside a shared native
 session. Peers can also copy information they have already read.
@@ -61,4 +66,7 @@ effects. Full backup/restore tooling and native upgrade rehearsals remain open.
 
 Tests cover scoped assignment, independent review, immutable context pins,
 revocation, withheld results, restart, migration failure and malformed scope
-records. They use service and subprocess fixtures, not autonomous native teams.
+records. Supervisor fixtures verify sticky cancellation after rejoin and termination
+of a real child process plus its descendant. They do not prove native Claude/Codex
+provider cancellation, tool cleanup outside the owned process group, or autonomous
+native team operation.
