@@ -19,8 +19,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      # Release archives are built with -buildvcs=false, so the tag is the only
+      # thing a released binary can report about itself. Both steps take the
+      # same version: the second rebuilds the shipped source and compares.
       - run: bash scripts/build-binaries.sh
+        env:
+          AGENT_COMMONS_VERSION: ${{ github.ref_name }}
       - run: bash scripts/check-archives.sh
+        env:
+          AGENT_COMMONS_VERSION: ${{ github.ref_name }}
       # gh ships on the runner; no third-party action is trusted with the token.
       - name: Publish the tagged release
         env:

@@ -80,6 +80,12 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
 		return writeHelp(out)
 	}
+	if len(args) > 0 && (args[0] == "version" || args[0] == "--version") {
+		return writeVersion(out)
+	}
+	if len(args) > 0 && args[0] == "update" {
+		return runUpdate(ctx, args[1:], out, errOut)
+	}
 	if len(args) > 0 && args[0] == "methods" {
 		return json.NewEncoder(out).Encode(transport.Methods())
 	}

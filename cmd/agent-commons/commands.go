@@ -39,6 +39,8 @@ func commandSections() []helpSection {
 			"watch        print unread inbox notifications as JSON",
 			"call         invoke one RPC method",
 			"methods      print the agent-facing RPC catalog",
+			"version      print the release this binary was built from",
+			"update       replace this binary with the latest published release",
 		}},
 	}
 }

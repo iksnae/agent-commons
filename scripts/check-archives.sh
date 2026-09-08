@@ -3,6 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The offline rebuild must stamp the same version, or the comparison below
+# would report the stamp as a difference between the shipped binary and the
+# source it was built from.
+version="$(bash scripts/release-version.sh)"
+
 check_dir=$(mktemp -d)
 trap 'rm -rf "$check_dir"' EXIT
 (cd dist; shasum -a 256 -c SHA256SUMS)
@@ -27,9 +32,13 @@ for platform in darwin linux; do
     tar -xzf "$archive/source.tar.gz" -C "$archive/source"
     cmp LICENSE "$archive/source/LICENSE"
     (cd "$archive/source"; GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" \
-      go build -mod=vendor -trimpath -buildvcs=false -ldflags='-s -w' \
+      go build -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X main.version=$version" \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
+    if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
+      # The shipped binary must report the version it was stamped with.
+      test "$("$archive/agent-commons" --version)" = "agent-commons $version"
+    fi
     if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
       bash scripts/check-bundle-install.sh "$archive" "$check_dir"
     fi
