@@ -30,7 +30,8 @@ func runOnboarding(ctx context.Context, args []string, out, errOut io.Writer) er
 	}
 	streams := commandStreams{Output: out, Errors: errOut}
 	if options.Command == "enroll" {
-		return enrollAgent(ctx, options, streams.Output)
+		_, err := enrollAgent(ctx, options, streams.Output)
+		return err
 	}
 	return checkInAgent(ctx, options, streams)
 }
