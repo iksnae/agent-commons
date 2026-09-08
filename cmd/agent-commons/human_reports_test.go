@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"agentcommons/internal/core"
 )
 
 // humanCommand runs a command and returns stdout and stderr separately. The two
@@ -49,6 +51,32 @@ func assertNotJSON(t *testing.T, label, output string) {
 	var anything any
 	if err := json.Unmarshal([]byte(output), &anything); err == nil {
 		t.Fatalf("%s still wrote a JSON document by default:\n%s", label, output)
+	}
+}
+
+// The queue line must not let work stopped by abandonment hide inside a count
+// the operator would read as waiting on a membership change.
+func TestRuntimeSummaryReportsAbandonedWorkInItsOwnRight(t *testing.T) {
+	var out bytes.Buffer
+	human := newReport(&out)
+	writeRuntimeSummary(human, &core.RuntimeStatusPage{
+		Sessions: []core.RuntimeQueueStatus{{
+			Identity: "lead", Runtime: "codex",
+			Ready: 1, Running: 2, Interrupted: 3, Failed: 4,
+			WaitingAbandoned: 5, WaitingTeam: 6,
+		}},
+	})
+	if err := human.write(); err != nil {
+		t.Fatal(err)
+	}
+	rendered := out.String()
+	if !strings.Contains(rendered, "5 held by abandoned tasks") {
+		t.Fatalf("queue line does not report abandoned work:\n%s", rendered)
+	}
+	for _, other := range []string{"1 ready", "2 running", "3 interrupted", "4 failed"} {
+		if !strings.Contains(rendered, other) {
+			t.Fatalf("queue line lost %q:\n%s", other, rendered)
+		}
 	}
 }
 

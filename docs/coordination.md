@@ -74,8 +74,10 @@ and cannot be undone or repeated. Afterwards `tasks.submit`, `tasks.review` and
 `tasks.accept` all refuse the task, and neither a claim nor `messages.retry`
 will spend a runtime turn on it — though any result already addressed to the
 lead stays in that inbox, unedited and readable. It is refused from `accepted`,
-and it is the one task method that still works when a team participant has left,
-because it is the operator coordination that situation calls for. It is operator
+and it is the only mutating task method that still works when a team participant
+has left, because it is the operator coordination that situation calls for.
+Reading is never blocked by that gate: `tasks.get` and `tasks.list` keep working
+too, which is how the lead resolves what happened. It is operator
 RPC, so like `sessions.register`, `sessions.policy` and `messages.retry` it is
 deliberately absent from `methods.list` and the MCP tool surface. The first
 successful abandonment advances the durable schema; see

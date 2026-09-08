@@ -91,8 +91,10 @@ relationships between deliveries are reconstructed by convention. The status log
 below records the failure this would have made legible: the reverse request that
 reached Codex after restart, and the resumed Claude acknowledgement refused with
 `[reasoning_extraction]`. Collision: the interface freeze below fixes `Delivery`'s
-exported fields, so this is a schema-4 migration with a pre-upgrade snapshot on
-the pattern schema 3 already set, not an edit to the frozen list.
+exported fields, so this is a schema migration with a pre-upgrade snapshot on
+the pattern schema 3 already set, not an edit to the frozen list. It takes the
+next free schema number at the time it merges; schema 4 is already taken by task
+abandonment, and numbers are never shared between features.
 
 A capability broker keeps credentials in a supervisor and gives the child only an
 opaque capability and a socket path, so the child never sees the secret.

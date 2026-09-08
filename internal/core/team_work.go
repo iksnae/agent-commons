@@ -46,9 +46,13 @@ func (s *Service) deliveryRunnable(d Delivery) bool {
 	// whatever its kind. Claiming task work would move the task back to
 	// "working" and undo the operator's decision; claiming the result that
 	// reports it would spend a managed session's paid runtime turn on
-	// terminated work. Runnability governs only whether Claim takes a
-	// delivery, so nothing is withheld by refusing it: the delivery stays
-	// pending and readable in the recipient's inbox, text and output intact.
+	// terminated work. Runnability governs both whether Claim takes a
+	// delivery and whether Finish records the result of one already running.
+	// A delivery still pending is only left alone: it stays readable in the
+	// recipient's inbox with its text intact. One already in flight when the
+	// operator abandons is failed by Finish with its output discarded and no
+	// retry available, which is the same treatment a team change gives work
+	// in flight. Either way the text the recipient was sent stays readable.
 	// Acceptance is deliberately not checked here, because result
 	// deliveries carry the task ID of tasks that legitimately reach accepted.
 	if s.taskAbandoned(d) {

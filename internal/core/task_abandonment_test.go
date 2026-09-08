@@ -335,8 +335,13 @@ func TestAbandonStopsResultDeliveryButKeepsItReadable(t *testing.T) {
 	for _, listed := range rpc(t, s, "manager", "inbox.list", nil).([]Delivery) {
 		if listed.ID == result.ID {
 			found = true
-			if listed.Text != result.Text || listed.Output != result.Output {
-				t.Fatal("abandonment rewrote peer result content")
+			// Finish carries the payload in Text; a result delivery's Output
+			// is empty, so asserting on it would prove nothing.
+			if listed.Text != result.Text {
+				t.Fatalf("abandonment rewrote peer result content: %q -> %q", result.Text, listed.Text)
+			}
+			if !strings.Contains(listed.Text, "Delivered result") {
+				t.Fatalf("result text lost the author's payload: %q", listed.Text)
 			}
 		}
 	}
@@ -351,6 +356,48 @@ func TestAbandonStopsResultDeliveryButKeepsItReadable(t *testing.T) {
 			s.data.Deliveries[i].Status = "failed"
 		}
 	}
+	denied(t, s, "operator", "messages.retry", map[string]any{"messageId": result.ID, "acknowledgeDuplicateRisk": true})
+}
+
+// Abandoning while a result delivery is in flight is not the no-op the pending
+// case is: Finish discards that turn's output and retry stays refused. Only the
+// text the recipient was already sent survives.
+func TestAbandonDuringResultTurnDiscardsThatTurnsOutput(t *testing.T) {
+	s, _, target := setup(t)
+	rpc(t, s, "operator", "sessions.register", Session{ID: "manager", Target: target, Mode: "managed", Runtime: "codex", Policy: "workflow"})
+	task := rpc(t, s, "manager", "tasks.assign", map[string]any{"to": "builder", "title": "Inspect", "text": "Work", "criteria": "Evidence", "reviewer": "reviewer", "idempotencyKey": "inflight-result"}).(Task)
+	assigned := claim(t, s, "builder")
+	if err := s.Finish(assigned.ID, "", "Delivered result", nil); err != nil {
+		t.Fatal(err)
+	}
+	result := claim(t, s, "manager")
+	if result.Kind != "result" || result.TaskID != task.ID {
+		t.Fatalf("did not claim the result delivery: %+v", result)
+	}
+	sentText := result.Text
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	if err := s.Finish(result.ID, "", "Lead's reaction to a terminated task", nil); err != nil {
+		t.Fatal(err)
+	}
+	var finished Delivery
+	for _, candidate := range s.data.Deliveries {
+		if candidate.ID == result.ID {
+			finished = candidate
+		}
+	}
+	if finished.Status != "failed" {
+		t.Fatalf("in-flight result delivery status is %q, want failed", finished.Status)
+	}
+	if finished.Output != "" {
+		t.Fatalf("output recorded for a turn on a terminated task: %q", finished.Output)
+	}
+	if !strings.Contains(finished.Error, "abandoned") {
+		t.Fatalf("withholding reason does not name abandonment: %q", finished.Error)
+	}
+	if finished.Text != sentText {
+		t.Fatalf("the text the recipient was sent was rewritten: %q -> %q", sentText, finished.Text)
+	}
+	// Failed plus abandoned is exactly the state messages.retry must refuse.
 	denied(t, s, "operator", "messages.retry", map[string]any{"messageId": result.ID, "acknowledgeDuplicateRisk": true})
 }
 
