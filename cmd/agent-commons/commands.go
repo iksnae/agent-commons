@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: MPL-2.0
+
+package main
+
+import (
+	"errors"
+	"strings"
+)
+
+// helpSection groups documented commands for the help screen. This catalog is
+// the single source for both the help screen and the bare-argument usage line;
+// adding a command in one rendering can never omit it from the other.
+type helpSection struct {
+	name string
+	rows []string
+}
+
+func commandSections() []helpSection {
+	return []helpSection{
+		{name: "Connect a session", rows: []string{
+			"init         bootstrap this project and enroll the first role",
+			"enroll       create a project + agent role connection",
+			"check-in     read onboarding, inbox and project context",
+			"doctor       diagnose a connection without changing state",
+		}},
+		{name: "Run the local service", rows: []string{
+			"serve        run the local coordination service",
+			"service      install or control the per-user service",
+			"console      open the read-only command center",
+		}},
+		{name: "Harness integration", rows: []string{
+			"connect-mcp  serve the scoped MCP connection",
+			"harnesses    show runtime capabilities",
+			"discover     inspect Claude or Codex project definitions",
+			"inventory    list discovered project resources",
+		}},
+		{name: "Inspect and maintain", rows: []string{
+			"bundle       install, verify or remove a local bundle",
+			"watch        print unread inbox notifications as JSON",
+			"call         invoke one RPC method",
+			"methods      print the agent-facing RPC catalog",
+		}},
+	}
+}
+
+// commandNames returns every documented command in help order.
+func commandNames() []string {
+	var names []string
+	for _, section := range commandSections() {
+		for _, row := range section.rows {
+			if fields := strings.Fields(row); len(fields) > 0 {
+				names = append(names, fields[0])
+			}
+		}
+	}
+	return names
+}
+
+// usageError reports the documented command set when invoked with no arguments.
+func usageError() error {
+	return errors.New("usage: agent-commons " + strings.Join(commandNames(), "|") + " [options]; see help")
+}

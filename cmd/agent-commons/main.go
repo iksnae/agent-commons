@@ -87,7 +87,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runWatch(ctx, args[1:], out, errOut)
 	}
 	if len(args) == 0 {
-		return errors.New("usage: agent-commons serve|call|mcp|discover|inventory|watch|methods [options]; see help")
+		return usageError()
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
