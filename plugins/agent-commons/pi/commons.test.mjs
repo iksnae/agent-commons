@@ -39,6 +39,24 @@ test('missing configuration stays inactive; partial configuration fails closed',
   }
 });
 
+test('without a connection the binary resolves the role from the project', async () => {
+  const f = fixture(async () => ({ stdout: JSON.stringify({ identity: 'enrolled', attachment: { nativeId: session, runtime: 'pi' } }) }),
+    { AGENT_COMMONS_BINARY: '/bin/commons' });
+  await f.start();
+  assert.deepEqual(f.calls[0][1], ['check-in', '--runtime', 'pi', '--native-session', session, '--launch-directory', '/project']);
+  assert.match(f.messages[0][0].content, /inbox/);
+});
+
+test('a relative connection is refused rather than passed through', async () => {
+  const f = fixture(() => assert.fail('must not execute'),
+    { AGENT_COMMONS_CONNECTION: 'role.json', AGENT_COMMONS_BINARY: '/bin/commons' });
+  await f.start();
+  // The child must never run: a refusal that merely fails inside execute is
+  // indistinguishable from passing a bad path through to the binary.
+  assert.equal(f.calls.length, 0);
+  assert.match(f.messages[0][0].content, /failed/);
+});
+
 test('forks, new sessions and invalid native IDs never attach', async () => {
   for (const [reason, id] of [['fork', session], ['new', session], ['startup', 'latest']]) {
     const f = fixture(() => assert.fail('must not execute'));

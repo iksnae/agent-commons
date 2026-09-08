@@ -40,9 +40,17 @@ function launchArguments(event, ctx, env) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     throw new Error('exact native UUID required');
   }
-  for (const path of [env.AGENT_COMMONS_CONNECTION, env.AGENT_COMMONS_BINARY, ctx.cwd]) {
+  // The connection is optional: without it the binary resolves the role from
+  // an upward .agent-commons/project.json search rooted at the launch
+  // directory. Supplying it still pins one role in a multi-role project, and
+  // an explicit value must still be an absolute path.
+  const connection = env.AGENT_COMMONS_CONNECTION;
+  const required = connection ? [connection, env.AGENT_COMMONS_BINARY, ctx.cwd] : [env.AGENT_COMMONS_BINARY, ctx.cwd];
+  for (const path of required) {
     if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('absolute paths required');
   }
-  return ['check-in', '--config', env.AGENT_COMMONS_CONNECTION, '--runtime', 'pi',
-    '--native-session', id, '--launch-directory', ctx.cwd];
+  const args = ['check-in'];
+  if (connection) args.push('--config', connection);
+  args.push('--runtime', 'pi', '--native-session', id, '--launch-directory', ctx.cwd);
+  return args;
 }
