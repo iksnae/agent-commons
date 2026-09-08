@@ -15,7 +15,8 @@ source checkout keeps it. `bundle install` adds nothing to PATH, so the middle
 step is the one an installed plugin normally uses. When no step finds an
 executable the hook exits quietly without output: a plugin can be installed
 without the binary, and a SessionStart hook must not break a launch. The bundled
-`scripts/check-in.sh` resolves its binary the same way.
+`scripts/check-in.sh` shares the first two steps but, being an explicit command
+rather than a launch hook, reports the failure instead of exiting quietly.
 
 On startup or resume, the hook attaches the native session to that identity and
 returns brief instructions to read its inbox and project learnings. It does not

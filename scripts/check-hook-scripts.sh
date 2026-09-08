@@ -144,8 +144,8 @@ test ! -f "$invoked" || fail "hook invoked something with no binary findable"
 test ! -s "$check_dir/out.log" || fail "hook wrote stdout with no binary findable"
 test ! -s "$check_dir/err.log" || fail "hook wrote stderr with no binary findable"
 
-# 7. check-in.sh carries the identical chain: tier 2 from a bundle-install
-#    destination with nothing on PATH.
+# 7. check-in.sh shares tiers 1 and 2: tier 2 from a bundle-install destination
+#    with nothing on PATH. Its tier 3 differs and is case 9.
 run "$plugin/scripts/check-in.sh" PATH="$bare_path:/usr/bin:/bin" \
   CLAUDE_PLUGIN_ROOT="$plugin" AGENT_COMMONS_CONNECTION=/private/role.json claude
 test "$status" -eq 0 || fail "check-in.sh exited $status from a bundle-install destination"
@@ -177,4 +177,25 @@ run "$orphan/scripts/check-in.sh" PATH="$bare_path:/usr/bin:/bin" \
 test "$status" -ne 0 || fail "check-in.sh reported success with no binary findable"
 test -s "$check_dir/err.log" || fail "check-in.sh failed without saying why"
 
-echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, check-in.sh chain."
+# 10. Tier 2 outranks tier 3: with the installed binary AND an agent-commons on
+#     PATH, and no AGENT_COMMONS_BINARY to short-circuit the chain, the hook must
+#     run the installed one. `bundle install` adds nothing to PATH, so a PATH hit
+#     here is some other copy and must not win over the plugin's own.
+run "$plugin/scripts/claude-session-start.sh" PATH="$full_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$plugin"
+test "$(invoked_path)" = "$root/agent-commons" ||
+  fail "PATH outranked the installed binary: ran $(invoked_path)"
+
+# 11. check-in.sh applies the same executability test to its derived path: a
+#     non-executable file there falls through to PATH rather than failing.
+printf 'not executable\n' > "$check_dir/orphan/agent-commons"
+chmod 644 "$check_dir/orphan/agent-commons"
+run "$orphan/scripts/check-in.sh" PATH="$full_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$orphan" AGENT_COMMONS_CONNECTION=/private/role.json claude
+test "$status" -eq 0 ||
+  fail "check-in.sh exited $status on a non-executable derived path"
+test "$(invoked_path)" = "$full_path/agent-commons" ||
+  fail "check-in.sh ran $(invoked_path) from a non-executable derived path"
+rm -f "$check_dir/orphan/agent-commons"
+
+echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, check-in.sh chain."
