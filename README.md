@@ -16,7 +16,7 @@ messages are data, never instructions.
 curl -fsSL https://raw.githubusercontent.com/iksnae/agent-commons/main/scripts/install.sh | bash
 ```
 
-One binary, nothing else. The script detects your platform, downloads the
+The script installs one binary. It detects your platform, downloads the
 matching archive and `SHA256SUMS` from the latest release, refuses to install on
 a checksum mismatch, and copies the binary to `~/.local/bin`. It never uses
 `sudo`, never edits a shell profile, never writes global configuration, and
@@ -24,7 +24,10 @@ never starts a service or enrolls a role. If the install directory is not on
 your `PATH` it prints the line to add and leaves that to you.
 
 The checksum detects transfer damage, not publisher authenticity. Release
-signing is still pending.
+signing is still pending. The archive also carries the licences, third-party
+notices and a source snapshot; the script installs only the binary, so keep the
+archive if you need those. [INSTALL.md](INSTALL.md) covers the bundle installer,
+which places the whole product directory.
 
 No release is published yet. Until one is, build an archive and pass it with
 `--archive PATH`; [INSTALL.md](INSTALL.md) covers that route, the bundle
@@ -124,6 +127,8 @@ acknowledge messages, retry work or deploy code. See the
 - [Runtime support](HARNESS-SUPPORT.md): what Claude, Codex, Pi and Hermes can do.
 - [Documentation index](docs/README.md): coordination, notifications and operations.
 - [Production readiness](PRODUCTION.md): evidence still required before release.
+- [Service setup](SERVICE.md): running the coordination service supervised.
+- [Enrollment detail](integrations/ONBOARDING.md): the full role connection flow.
 - [Resume development](START-HERE.md): repository-rooted contributor handoff.
 
 ## License
