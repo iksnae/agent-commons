@@ -300,12 +300,16 @@ func TestCallIsClassifiedAndLeavesStdoutEmpty(t *testing.T) {
 	}
 }
 
-// call's stdout contract survives the seam because both ends are
-// json.RawMessage: as a result type its UnmarshalJSON copies the response
-// verbatim. The numeric cases are the ones that would betray a decode through
-// any other type -- a large integer or a trailing-zero float does not survive a
+// call's stdout contract rests on the RESULT half of the seam: json.RawMessage's
+// UnmarshalJSON copies the response bytes unchanged. This covers only that half
+// -- the parameter half is not verbatim (json.Marshal compacts and escapes) and
+// does not need to be, because transport.Call already marshalled params the same
+// way before the seam existed.
+//
+// The numeric cases are the ones that would betray a decode through any other
+// type: a large integer or a trailing-zero float does not survive a
 // map[string]any round trip.
-func TestRawMessageRoundTripIsTheIdentityFunction(t *testing.T) {
+func TestRawMessageResultCopiesTheResponseUnchanged(t *testing.T) {
 	for _, body := range []string{
 		`{"a":1}`, `[1,2,3]`, `null`, `"text"`, `{"n":{"deep":[true,false]}}`,
 		`12345678901234567890`, `{"f":1.0}`, `{"unicode":"é"}`,

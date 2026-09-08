@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -134,4 +136,36 @@ func shortStateDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return filepath.Clean(state)
+}
+
+// init removes the capture on every path out of runInit, not only on the paths
+// service_start's own tests cover. Without that wiring a real service start
+// leaves a service-start-*.log in the private state directory permanently, and
+// the design's stated invariant quietly stops holding.
+//
+// The spawn is injected: from a test binary os.Executable() is the test binary,
+// so the real spawn would run this whole suite as a child.
+func TestInitRemovesTheStartupCaptureOnEveryPath(t *testing.T) {
+	state, target := shortStateDir(t), shortStateDir(t)
+	var out, errOut bytes.Buffer
+	err := runInitWith(context.Background(), []string{"--state", state, "--target", target,
+		"--name", "lead", "--role", "workspace-lead", "--runtime", "codex"}, &out, &errOut,
+		func(string, string) (*serviceStartup, error) {
+			return startDetached(exec.Command("/bin/sh", "-c",
+				"echo 'state already locked: resource temporarily unavailable' >&2"), state)
+		})
+	if err == nil {
+		t.Fatal("init reported success though no service was started")
+	}
+	// The captured reason reaches the operator rather than a directory to search.
+	if !strings.Contains(err.Error(), "state already locked") {
+		t.Fatalf("init lost the child's reason: %v", err)
+	}
+	leftovers, globErr := filepath.Glob(filepath.Join(state, "service-start-*.log"))
+	if globErr != nil {
+		t.Fatal(globErr)
+	}
+	if len(leftovers) != 0 {
+		t.Fatalf("init left %d startup capture(s) behind: %v", len(leftovers), leftovers)
+	}
 }

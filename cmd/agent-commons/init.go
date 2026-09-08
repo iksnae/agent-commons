@@ -29,7 +29,23 @@ type projectDefaults struct {
 	State       string `json:"state"`
 }
 
+// serviceSpawn starts the detached service for a state directory. init takes
+// one rather than calling startDetached directly so a test can drive the
+// failure path without spawning a real service -- which, from a test binary,
+// means spawning the test binary.
+type serviceSpawn func(binary, state string) (*serviceStartup, error)
+
+// startService is the real spawn, and the only one main ever uses.
+func startService(binary, state string) (*serviceStartup, error) {
+	return startDetached(exec.Command(binary, "serve", "--state", state), state)
+}
+
+// runInit is the production entry point: the real spawn, always.
 func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
+	return runInitWith(ctx, args, out, errOut, startService)
+}
+
+func runInitWith(ctx context.Context, args []string, out, errOut io.Writer, spawn serviceSpawn) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(errOut)
 	target, _ := os.Getwd()
@@ -85,7 +101,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 		if err != nil {
 			return err
 		}
-		startup, err = startDetached(exec.Command(binary, "serve", "--state", state), state)
+		startup, err = spawn(binary, state)
 		if err != nil {
 			return fmt.Errorf("start service: %w", err)
 		}

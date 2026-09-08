@@ -25,11 +25,36 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	os.Exit(execute(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
+
+// execute is the process boundary: it runs the command and turns the outcome
+// into an exit status, printing any error that has not already been reported.
+//
+// It is separate from main so a test can drive the whole boundary -- dispatch,
+// rendering and printing together. Driving run alone cannot see what this
+// function adds, which is exactly how the diagnosis came to print twice.
+func execute(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) int {
+	err := run(ctx, args, in, out, errOut)
+	if err == nil {
+		return 0
+	}
+	var reported reportedError
+	if !errors.As(err, &reported) {
+		fmt.Fprintln(errOut, err)
+	}
+	return 1
+}
+
+// reportedError marks an error whose diagnosis has already been written to the
+// error stream. It carries the original Error() text and unwraps to the
+// original error, so classification and errors.Is/As are unaffected; the only
+// thing it changes is that the process boundary does not print it a second
+// time. The exit status is unchanged.
+type reportedError struct{ err error }
+
+func (e reportedError) Error() string { return e.err.Error() }
+func (e reportedError) Unwrap() error { return e.err }
 
 // run dispatches and then renders. Attaching the unreachable-service block here
 // rather than in each command is what keeps one rendering of it: a command only
@@ -44,6 +69,10 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		if renderErr := writeServiceUnreachable(errOut, unreachable); renderErr != nil {
 			return renderErr
 		}
+		// The block IS the diagnosis. Without this marker the process boundary
+		// prints Error() underneath it, repeating the headline, the fix and the
+		// socket path verbatim -- which is what it used to do.
+		return reportedError{err}
 	}
 	return err
 }
@@ -240,10 +269,17 @@ func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.W
 			return errors.New("parameters must be valid JSON")
 		}
 		// json.RawMessage on both ends is what preserves call's stdout contract
-		// through the seam. As a parameter it marshals verbatim rather than as
-		// the base64 string a plain []byte would become; as the result type its
-		// UnmarshalJSON copies the response bytes unchanged, so the round trip
-		// is the identity function and this still prints what the service sent.
+		// through the seam.
+		//
+		// As a parameter it is required for correctness but is NOT passed
+		// through untouched: json.Marshal compacts whitespace and escapes <, >
+		// and &. That is the same treatment transport.Call already gave params
+		// before this seam existed, so the wire bytes are unchanged and the
+		// second marshal is idempotent.
+		//
+		// The stdout contract rests on the result half: json.RawMessage's
+		// UnmarshalJSON copies the response bytes unchanged, so what is printed
+		// here is what the service sent.
 		result, err := rpcCall[json.RawMessage](ctx,
 			rpcClient{socket: *socket, token: token, state: *state}, rest[0], json.RawMessage(raw))
 		if err != nil {
