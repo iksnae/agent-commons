@@ -18,8 +18,8 @@ type helpSection struct {
 func commandSections() []helpSection {
 	return []helpSection{
 		{name: "Connect a session", rows: []string{
-			"init         bootstrap this project and enroll the first role",
-			"enroll       create a project + agent role connection",
+			"init         set up a project: enroll or adopt a role, write project defaults",
+			"enroll       create or adopt a project + role connection, no project defaults",
 			"check-in     read onboarding, inbox and project context",
 			"doctor       diagnose a connection without changing state",
 		}},
@@ -37,8 +37,8 @@ func commandSections() []helpSection {
 		{name: "Inspect and maintain", rows: []string{
 			"bundle       install, verify or remove a local bundle",
 			"watch        print unread inbox notifications as JSON",
-			"call         invoke one RPC method",
-			"methods      print the agent-facing RPC catalog",
+			"call         invoke one RPC method (agents)",
+			"methods      print the RPC catalog (agents)",
 			"version      print the release this binary was built from",
 			"update       replace this binary with the latest published release",
 		}},
