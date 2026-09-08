@@ -28,6 +28,7 @@ type RuntimeQueueStatus struct {
 
 type RuntimeStatusPage struct {
 	Supervisor SupervisorHealth     `json:"supervisor"`
+	Build      BuildIdentity        `json:"build"`
 	Sessions   []RuntimeQueueStatus `json:"sessions"`
 	NextCursor string               `json:"nextCursor"`
 	Notice     string               `json:"notice"`
@@ -64,7 +65,7 @@ func (s *Service) runtimeStatus(actor string, p params, now time.Time) (any, err
 		start = index + 1
 	}
 	end := min(start+limit, len(ids))
-	page := RuntimeStatusPage{Supervisor: s.supervisorHealth(now), Sessions: []RuntimeQueueStatus{}, Notice: "Supervisor and durable queue observations only; provider availability and production readiness are not verified. Counts include retained work, not message contents."}
+	page := RuntimeStatusPage{Supervisor: s.supervisorHealth(now), Build: s.build, Sessions: []RuntimeQueueStatus{}, Notice: "Supervisor and durable queue observations only; provider availability and production readiness are not verified. Counts include retained work, not message contents."}
 	for _, id := range ids[start:end] {
 		page.Sessions = append(page.Sessions, s.runtimeQueue(s.data.Sessions[id]))
 	}

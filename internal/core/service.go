@@ -41,6 +41,7 @@ type Service struct {
 	data       state
 	closed     bool
 	supervisor supervisorObservation
+	build      BuildIdentity
 }
 
 var validID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,199}$`)
@@ -81,7 +82,7 @@ func New(directory string) (*Service, error) {
 		f.Close()
 		return nil, fmt.Errorf("state already locked: %w", err)
 	}
-	s := &Service{dir: directory, lock: f, data: state{Sessions: map[string]Session{}, Tokens: map[string]string{}, Tasks: map[string]Task{}, Contexts: map[string][]Context{}, Keys: map[string]string{}}}
+	s := &Service{dir: directory, lock: f, build: newBuildIdentity(time.Now()), data: state{Sessions: map[string]Session{}, Tokens: map[string]string{}, Tasks: map[string]Task{}, Contexts: map[string][]Context{}, Keys: map[string]string{}}}
 	loaded, err := readStateFile(filepath.Join(directory, "state.json"))
 	existingState := err == nil
 	if err == nil {
