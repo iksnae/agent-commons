@@ -45,6 +45,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 	fs.StringVar(&role, "role", role, "project role")
 	fs.StringVar(&team, "team", team, "project team label")
 	fs.StringVar(&runtimeName, "runtime", runtimeName, "runtime: "+initRuntimeVocabulary())
+	asJSON := fs.Bool("json", false, jsonFlagUsage)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -119,7 +120,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 	// and TestInitFailureLeavesRecordedDefaultsIntact deliberately does not
 	// claim otherwise.
 	options := onboardingOptions{Command: "enroll", State: state, Name: name, Role: role, Team: team, Target: target}
-	enrolled, err := enrollAgent(ctx, options, io.Discard)
+	enrolled, err := enrollAgent(ctx, options)
 	if err != nil {
 		return err
 	}
@@ -141,9 +142,17 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 			return err
 		}
 	}
-	report := map[string]string{"operation": "init", "target": target, "manifest": manifest,
-		"config": enrolled.Config, "state": state, "runtime": runtimeName,
-		"identity": enrolled.Identity, "identityStatus": enrolled.IdentityStatus}
+	// One set of values, two forms. The JSON document is a machine contract and
+	// is unchanged; --json is the only way to get it now that a person reading
+	// the terminal is the default reader.
+	summary := initSummary{target: target, manifest: manifest, config: enrolled.Config,
+		state: state, runtime: runtimeName, identity: enrolled.Identity, identityStatus: enrolled.IdentityStatus}
+	if !*asJSON {
+		return writeInitSummary(out, summary)
+	}
+	report := map[string]string{"operation": "init", "target": summary.target, "manifest": summary.manifest,
+		"config": summary.config, "state": summary.state, "runtime": summary.runtime,
+		"identity": summary.identity, "identityStatus": summary.identityStatus}
 	if warning != "" {
 		report["warning"] = warning
 	}

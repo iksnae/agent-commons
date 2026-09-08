@@ -31,10 +31,15 @@ type initReport struct {
 
 // initCommand runs init and returns both its JSON report and everything it
 // wrote to stderr, because the overwrite notice must survive on both.
+//
+// --json is passed deliberately and must stay: init's default is now the human
+// summary, and this helper is the regression guard on the machine document. It
+// asserts the document is still parseable and still carries every key it
+// carried before, which is exactly what a parser downstream depends on.
 func initCommand(t *testing.T, args ...string) (initReport, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	if err := run(context.Background(), append([]string{"init"}, args...), nil, &out, &errOut); err != nil {
+	if err := run(context.Background(), append([]string{"init", "--json"}, args...), nil, &out, &errOut); err != nil {
 		t.Fatalf("init %v: %v", args, err)
 	}
 	var report initReport
@@ -110,7 +115,7 @@ func TestInitPointsProjectAtAdoptedIdentity(t *testing.T) {
 	}
 
 	identity := []string{"--name", "publisher-lead", "--role", "workspace-lead", "--team", "publisher"}
-	onboardingCommand(t, append([]string{"enroll", "--state", state, "--target", target}, identity...)...)
+	onboardingCommand(t, append([]string{"enroll", "--json", "--state", state, "--target", target}, identity...)...)
 
 	report, _ := initCommand(t, append([]string{"--state", state, "--target", target, "--runtime", "claude"}, identity...)...)
 	if report.Identity != legacyID {

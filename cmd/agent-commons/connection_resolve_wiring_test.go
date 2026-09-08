@@ -25,7 +25,7 @@ func TestRoleCommandsFallBackToProjectManifest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}
@@ -49,7 +49,7 @@ func TestRoleCommandsFallBackToProjectManifest(t *testing.T) {
 
 	t.Run("doctor", func(t *testing.T) {
 		var out bytes.Buffer
-		if err := run(context.Background(), []string{"doctor"}, nil, &out, io.Discard); err != nil {
+		if err := run(context.Background(), []string{"doctor", "--json"}, nil, &out, io.Discard); err != nil {
 			t.Fatalf("doctor did not resolve connection from manifest: %v (%s)", err, out.String())
 		}
 		var report healthReport

@@ -66,6 +66,7 @@ func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error 
 	fs.SetOutput(errOut)
 	config := fs.String("config", "", "private enrolled connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	timeout := fs.Duration("timeout", 5*time.Second, "total diagnostic deadline")
+	asJSON := fs.Bool("json", false, jsonFlagUsage)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -83,13 +84,26 @@ func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error 
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
 	report := diagnoseConnection(ctx, resolvedConfig)
-	if err := json.NewEncoder(out).Encode(report); err != nil {
+	// Both forms are written before the verdict is returned, and both carry the
+	// failing check: an operator who reads only the exit code learns nothing
+	// about which check failed, in either form.
+	if err := writeDoctorReport(out, report, *asJSON); err != nil {
 		return err
 	}
 	if !report.Ready {
 		return fmt.Errorf("connection check failed; inspect the named check (credentials and peer data are omitted)")
 	}
 	return nil
+}
+
+// writeDoctorReport writes one of the two forms. The JSON document is the
+// machine contract and is unchanged; the human summary is the default because
+// a person at a terminal is doctor's ordinary reader.
+func writeDoctorReport(out io.Writer, report healthReport, asJSON bool) error {
+	if asJSON {
+		return json.NewEncoder(out).Encode(report)
+	}
+	return writeHealthSummary(out, report)
 }
 
 func diagnoseConnection(ctx context.Context, path string) healthReport {

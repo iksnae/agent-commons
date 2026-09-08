@@ -15,7 +15,7 @@ import (
 func TestLaunchCheckInReusesIdentityWithoutReadingOrAcknowledgingInbox(t *testing.T) {
 	state := onboardingService(t)
 	target := t.TempDir()
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}

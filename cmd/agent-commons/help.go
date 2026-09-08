@@ -5,12 +5,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
-
-	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/term"
 )
+
+// The palette, the styling policy and the painter this screen uses live in
+// presentation.go, shared with every other human rendering in the CLI.
 
 // usageSynopsis states the shape of an invocation without naming a command.
 // commandSections is the only place commands are listed, and a placeholder
@@ -29,47 +28,8 @@ const connectSection = "Connect a session"
 // before a description.
 const commandColumn = 13
 
-// Colors are mid-tones so they stay legible against both light and dark
-// terminal backgrounds. Weight, hue and dimming separate the four kinds of text
-// on this screen: section headers, command names, descriptions, and asides.
-var (
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#9f4f3d"))
-	headerStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#4f7d9f"))
-	nameStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#9f4f3d"))
-	asideStyle   = lipgloss.NewStyle().Faint(true)
-	commandStyle = lipgloss.NewStyle()
-)
-
-// helpIsStyled reports whether the destination is a human's terminal that has
-// not asked for plain text. Anything else -- a pipe, a redirect, a captured
-// buffer, or NO_COLOR -- gets the unstyled layout.
-func helpIsStyled(out io.Writer) bool {
-	file, ok := out.(*os.File)
-	if !ok {
-		return false
-	}
-	return stylingAllowed(term.IsTerminal(file.Fd()), os.Getenv("NO_COLOR"))
-}
-
-// stylingAllowed holds the policy alone, so both of its refusals can be
-// asserted without a pseudo-terminal to fake the descriptor half.
-func stylingAllowed(isTerminal bool, noColor string) bool {
-	return isTerminal && noColor == ""
-}
-
-// painter applies a style only when the destination can show one. Plain output
-// bypasses lipgloss entirely rather than trusting an empty style to add nothing.
-type painter struct{ styled bool }
-
-func (p painter) paint(style lipgloss.Style, text string) string {
-	if !p.styled {
-		return text
-	}
-	return style.Render(text)
-}
-
 func writeHelp(out io.Writer) error {
-	paint := painter{styled: helpIsStyled(out)}
+	paint := painter{styled: writerIsStyled(out)}
 	var screen strings.Builder
 
 	fmt.Fprintf(&screen, "%s %s\n", paint.paint(titleStyle, "Agent Commons"), paint.paint(asideStyle, version))

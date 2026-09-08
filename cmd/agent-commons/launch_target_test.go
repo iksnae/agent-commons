@@ -92,7 +92,7 @@ func TestLaunchContextChecksInFromASubdirectory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}

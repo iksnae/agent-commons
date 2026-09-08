@@ -16,7 +16,7 @@ import (
 
 func TestDoctorIsReadOnlyAndOmitsPeerData(t *testing.T) {
 	state := onboardingService(t)
-	data := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	data := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}
@@ -31,7 +31,7 @@ func TestDoctorIsReadOnlyAndOmitsPeerData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result := onboardingCommand(t, "doctor", "--config", enrollment.Config)
+	result := onboardingCommand(t, "doctor", "--json", "--config", enrollment.Config)
 	var report healthReport
 	if err = json.Unmarshal(result, &report); err != nil {
 		t.Fatal(err)
@@ -64,7 +64,7 @@ func TestDoctorIsReadOnlyAndOmitsPeerData(t *testing.T) {
 
 func TestDoctorFailsClosed(t *testing.T) {
 	var out bytes.Buffer
-	err := run(context.Background(), []string{"doctor", "--config", filepath.Join(t.TempDir(), "missing")}, nil, &out, io.Discard)
+	err := run(context.Background(), []string{"doctor", "--json", "--config", filepath.Join(t.TempDir(), "missing")}, nil, &out, io.Discard)
 	if err == nil || !bytes.Contains(out.Bytes(), []byte(`"ready":false`)) {
 		t.Fatalf("false health: %v %s", err, out.String())
 	}
@@ -77,7 +77,7 @@ func TestDoctorFailsClosed(t *testing.T) {
 
 func TestDoctorReportsSafeFailureCode(t *testing.T) {
 	var out bytes.Buffer
-	err := run(context.Background(), []string{"doctor", "--config", filepath.Join(t.TempDir(), "missing")}, nil, &out, io.Discard)
+	err := run(context.Background(), []string{"doctor", "--json", "--config", filepath.Join(t.TempDir(), "missing")}, nil, &out, io.Discard)
 	if err == nil || !bytes.Contains(out.Bytes(), []byte(`"code":"not_found"`)) {
 		t.Fatalf("missing actionable code: %v %s", err, out.String())
 	}

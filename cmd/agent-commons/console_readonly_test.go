@@ -11,7 +11,7 @@ import (
 
 func TestConsoleDoesNotAttachAcknowledgeOrExposeCredentials(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}

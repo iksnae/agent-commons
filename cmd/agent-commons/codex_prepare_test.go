@@ -78,7 +78,7 @@ func codexPrepareFixture(t *testing.T) ([]string, projectConnection) {
 	var enrolled struct {
 		Config string `json:"config"`
 	}
-	if err := json.Unmarshal(onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead"), &enrolled); err != nil {
+	if err := json.Unmarshal(onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead"), &enrolled); err != nil {
 		t.Fatal(err)
 	}
 	connection, err := openProjectConnection(enrolled.Config)

@@ -14,7 +14,7 @@ func TestPiAndHermesCheckInUsesExplicitNativeIdentity(t *testing.T) {
 			var enrollment struct {
 				Config string `json:"config"`
 			}
-			if err := json.Unmarshal(onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead"), &enrollment); err != nil {
+			if err := json.Unmarshal(onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead"), &enrollment); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := resolveCheckIn(onboardingOptions{Config: enrollment.Config, Runtime: runtime}); err == nil {

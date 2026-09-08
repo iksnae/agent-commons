@@ -42,7 +42,7 @@ func TestEnrollAdoptsLegacySessionIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	args := []string{"enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
+	args := []string{"enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
 	first := onboardingCommand(t, args...)
 
 	var result struct {

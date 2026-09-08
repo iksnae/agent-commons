@@ -13,7 +13,7 @@ import (
 func wakeMaintenanceFixture(t *testing.T) ([]string, projectConnection, string) {
 	t.Helper()
 	state := onboardingService(t)
-	data := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	data := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var enrolled struct {
 		Config string `json:"config"`
 	}

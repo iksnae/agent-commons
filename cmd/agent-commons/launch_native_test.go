@@ -33,7 +33,7 @@ func TestNativeClaudeLaunchHook(t *testing.T) {
 		t.Fatal(err)
 	}
 	state, target := onboardingService(t), t.TempDir()
-	data := onboardingCommand(t, "enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
+	data := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}

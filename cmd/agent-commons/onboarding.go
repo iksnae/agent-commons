@@ -16,6 +16,9 @@ type onboardingOptions struct {
 	Runtime, NativeSession                                     string
 	LaunchDirectory                                            string
 	Hold, Once                                                 bool
+	// JSON is set only by enroll. check-in has no such flag: its stdout is one
+	// JSON document unconditionally, so there is no second form to select.
+	JSON bool
 }
 
 type commandStreams struct {
@@ -30,8 +33,14 @@ func runOnboarding(ctx context.Context, args []string, out, errOut io.Writer) er
 	}
 	streams := commandStreams{Output: out, Errors: errOut}
 	if options.Command == "enroll" {
-		_, err := enrollAgent(ctx, options, streams.Output)
-		return err
+		enrolled, err := enrollAgent(ctx, options)
+		if err != nil {
+			return err
+		}
+		if options.JSON {
+			return writeEnrollmentDocument(streams.Output, enrolled)
+		}
+		return writeEnrollmentSummary(streams.Output, enrolled)
 	}
 	return checkInAgent(ctx, options, streams)
 }
@@ -56,6 +65,12 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	flags.StringVar(&options.LaunchDirectory, "launch-directory", "", "native launch directory; must be the enrolled target or a directory beneath it")
 	flags.BoolVar(&options.Hold, "hold", false, "renew attachment while watching for inbox arrivals")
 	flags.BoolVar(&options.Once, "once", false, "with hold: exit after one arrival batch")
+	// Registered for enroll only, so `check-in --json` is an unknown flag
+	// rather than a silently accepted no-op. check-in's stdout is a machine
+	// contract with no alternative form; its human header goes to stderr.
+	if options.Command == "enroll" {
+		flags.BoolVar(&options.JSON, "json", false, jsonFlagUsage)
+	}
 	if err := flags.Parse(args[1:]); err != nil {
 		return options, err
 	}

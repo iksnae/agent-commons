@@ -1,12 +1,16 @@
 # Runtime health and queue status
 
 `doctor --config /absolute/private-role-connection.json` now includes a runtime
-snapshot when the connected service advertises `runtimeStatusAvailable`. Its
-`ready` field still means the scoped RPC checks passed, not that a provider is
-available or the product is production-ready. Older services omit this snapshot.
-Failed checks include a stable `code` such as `not_found`, `permission`,
-`authentication`, `busy` or `deadline`. The code is intentionally broad: raw
-socket errors, paths and credentials stay out of the report.
+snapshot when the connected service advertises `runtimeStatusAvailable`. Ready
+still means the scoped RPC checks passed, not that a provider is available or
+the product is production-ready. Older services omit this snapshot. Failed
+checks carry a stable code such as `not_found`, `permission`, `authentication`,
+`busy` or `deadline`. The code is intentionally broad: raw socket errors, paths
+and credentials stay out of the report.
+
+Both output forms carry all of that. `doctor` prints a summary for a person;
+`doctor --json` prints the machine-readable report, where the same values are
+the `ready`, `code` and `runtime` fields.
 
 Agents can call the read-only `runtime.status` tool for their own identity. They
 cannot select another identity, even in the same project. Operators can inspect
