@@ -27,11 +27,27 @@ func Install(bundle, target string) error {
 		return err
 	}
 	r := receipt{Version: 1, Files: []fileRecord{}}
+	// Installation adds nothing to PATH, so MCP manifests travel with the
+	// absolute path of the binary placed here. Their receipt entries must
+	// record the rewritten bytes, not the pristine source ones.
+	binary := filepath.Join(target, binaryName)
+	rewritten := map[string][]byte{}
 	var total int64
 	for _, name := range files {
-		hash, n, err := digestFile(filepath.Join(bundle, name))
-		if err != nil {
-			return err
+		var hash string
+		var n int64
+		if mcpManifest(name) {
+			data, err := rewriteManifestCommand(filepath.Join(bundle, name), binary)
+			if err != nil {
+				return err
+			}
+			rewritten[name] = data
+			hash, n = digestBytes(data)
+		} else {
+			var err error
+			if hash, n, err = digestFile(filepath.Join(bundle, name)); err != nil {
+				return err
+			}
 		}
 		total += n
 		if total > maxBundle {
@@ -61,7 +77,7 @@ func Install(bundle, target string) error {
 		return err
 	}
 	for _, record := range r.Files {
-		if err = copyPayload(bundle, target, record); err != nil {
+		if err = copyPayload(bundle, target, record, rewritten[record.Path]); err != nil {
 			return fmt.Errorf("incomplete installation retained at %s: %w", target, err)
 		}
 	}
@@ -83,21 +99,34 @@ func Install(bundle, target string) error {
 	return syncInstallation(target)
 }
 
-func copyPayload(bundle, target string, record fileRecord) error {
-	source, err := regularFile(filepath.Join(bundle, record.Path))
-	if err != nil {
-		return err
+// copyPayload writes one recorded payload. A non-nil content replaces the
+// bundle's bytes with the ones the receipt already recorded for this path.
+func copyPayload(bundle, target string, record fileRecord, content []byte) error {
+	var source *os.File
+	if content == nil {
+		opened, err := regularFile(filepath.Join(bundle, record.Path))
+		if err != nil {
+			return err
+		}
+		defer opened.Close()
+		source = opened
 	}
-	defer source.Close()
 	path := filepath.Join(target, record.Path)
-	if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, os.FileMode(record.Mode))
 	if err != nil {
 		return err
 	}
-	n, err := io.Copy(f, io.LimitReader(source, maxFile+1))
+	var n int64
+	if content == nil {
+		n, err = io.Copy(f, io.LimitReader(source, maxFile+1))
+	} else {
+		var written int
+		written, err = f.Write(content)
+		n = int64(written)
+	}
 	if err == nil && n > maxFile {
 		err = fmt.Errorf("payload grew beyond limit")
 	}

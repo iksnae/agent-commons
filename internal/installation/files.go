@@ -135,6 +135,11 @@ func inspectFiles(root string, installed bool) ([]string, error) {
 	return files, nil
 }
 
+func digestBytes(data []byte) (string, int64) {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), int64(len(data))
+}
+
 func digestFile(path string) (string, int64, error) {
 	f, err := regularFile(path)
 	if err != nil {

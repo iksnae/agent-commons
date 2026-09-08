@@ -55,6 +55,9 @@ license and guides, integration plugin, source archive, and third-party notices.
 Plugin executable permissions are retained, but its scripts are not run during
 installation. Symlinks are rejected.
 Nothing is added to PATH, no service is started, and no agents are enrolled.
+Because nothing is added to PATH, the installed copies of the plugin's MCP
+manifests name the binary this install placed instead of a bare command. The
+bundle you unpacked is not modified.
 
 Keep service state and connection files outside the installation directory.
 Do not store notes or credentials in it. A failed copy is retained for inspection
@@ -66,8 +69,10 @@ and reported as an incomplete installation, never as success.
 /absolute/installed/agent-commons bundle verify --to /absolute/installed
 ```
 
-This compares files and permissions against a local receipt. It detects changes,
-not forged receipts or an untrusted publisher.
+This compares files and permissions against a local receipt, and checks that each
+MCP manifest still names a binary that exists here and is executable. It detects
+changes, not forged receipts or an untrusted publisher. Moving an installation
+after installing it strands that command, so verify reports it as unusable.
 
 Stop every service and watcher using this binary before removing it:
 
