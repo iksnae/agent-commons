@@ -42,13 +42,17 @@ for platform in darwin linux; do
     tar -xzf "$archive/source.tar.gz" -C "$archive/source"
     cmp LICENSE "$archive/source/LICENSE"
     (cd "$archive/source"; GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" \
-      go build -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X main.version=$version" \
+      go build -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X agentcommons/internal/core.Version=$version" \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
     # Checks that must run the shipped binary, so only for this host.
     if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
-      # The shipped binary must report the version it was stamped with.
+      # The shipped binary must report the version it was stamped with, from
+      # the command line and from the runtime.status DTO alike. Release
+      # archives are built with -buildvcs=false, so this stamp is the only
+      # thing they can say about themselves.
       test "$("$archive/agent-commons" --version)" = "agent-commons $version"
+      bash scripts/check-shipped-version.sh "$archive/agent-commons" "$version" "$check_dir"
       bash scripts/check-bundle-install.sh "$archive" "$check_dir"
     fi
   done

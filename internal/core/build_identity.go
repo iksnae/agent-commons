@@ -17,6 +17,12 @@ import (
 // running process predates it. Like SupervisorHealth these describe the running
 // process, so they are computed once at construction and never persisted.
 type BuildIdentity struct {
+	// Version names the release this binary was built from, or DevVersion for
+	// an untagged working-tree build. It is never omitted: unlike the vcs.*
+	// fields, "dev" is itself an answer, so a caller never has to tell an
+	// absent key from an unstamped build. BinarySHA256 identifies a build but
+	// cannot be mapped back to a release; this is the field that can.
+	Version string `json:"version"`
 	// BinarySHA256 identifies a BUILD, never CODE: it changes on every commit
 	// whether or not the compiled output changed, because a plain `go build`
 	// stamps VCS revision, time and dirty-tree state into the binary by
@@ -34,7 +40,7 @@ type BuildIdentity struct {
 }
 
 func newBuildIdentity(started time.Time) BuildIdentity {
-	identity := BuildIdentity{BinarySHA256: executableDigest(), StartedAt: started.UTC().Format(time.RFC3339Nano)}
+	identity := BuildIdentity{Version: Version, BinarySHA256: executableDigest(), StartedAt: started.UTC().Format(time.RFC3339Nano)}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		identity.VCSRevision, identity.VCSTime, identity.VCSModified = vcsIdentity(info.Settings)
 	}

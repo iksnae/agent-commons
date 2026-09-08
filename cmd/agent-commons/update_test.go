@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"agentcommons/internal/core"
 )
 
 const (
@@ -254,7 +256,7 @@ func TestUpdateFailsLoudlyWhenNoReleaseIsPublished(t *testing.T) {
 	source := releases.start(t)
 	target := installedBinary(t)
 
-	err := performUpdate(context.Background(), request(source, devVersion, target), &bytes.Buffer{})
+	err := performUpdate(context.Background(), request(source, core.DevVersion, target), &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("an absent release was treated as success")
 	}

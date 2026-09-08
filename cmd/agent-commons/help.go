@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"agentcommons/internal/core"
 )
 
 // The palette, the styling policy and the painter this screen uses live in
@@ -32,7 +34,7 @@ func writeHelp(out io.Writer) error {
 	paint := painter{styled: writerIsStyled(out)}
 	var screen strings.Builder
 
-	fmt.Fprintf(&screen, "%s %s\n", paint.paint(titleStyle, "Agent Commons"), paint.paint(asideStyle, version))
+	fmt.Fprintf(&screen, "%s %s\n", paint.paint(titleStyle, "Agent Commons"), paint.paint(asideStyle, core.Version))
 	fmt.Fprintf(&screen, "%s\n\n", paint.paint(asideStyle, "Local coordination for project-shaped agent teams."))
 	fmt.Fprintf(&screen, "%s %s\n\n", paint.paint(asideStyle, "Usage:"), usageSynopsis)
 

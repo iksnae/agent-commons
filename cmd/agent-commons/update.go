@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"agentcommons/internal/core"
 )
 
 // updateRequest is everything the update needs from its environment, so the
@@ -43,7 +45,7 @@ func runUpdate(ctx context.Context, args []string, out, errOut io.Writer) error 
 	}
 	return performUpdate(ctx, updateRequest{
 		source:   githubReleases(),
-		current:  version,
+		current:  core.Version,
 		platform: runtime.GOOS + "-" + runtime.GOARCH,
 		target:   target,
 	}, out)
@@ -68,9 +70,9 @@ func performUpdate(ctx context.Context, request updateRequest, out io.Writer) er
 	}
 	// Ordering is GitHub's: "latest" is what it publishes as latest. This does
 	// not compare version numbers, so it never claims a release is newer.
-	if request.current == devVersion {
+	if request.current == core.DevVersion {
 		fmt.Fprintf(out, "%s\n", paint.paint(headerStyle, fmt.Sprintf(
-			"This build carries no release stamp (%s), so it cannot be compared with %s.", devVersion, tag)))
+			"This build carries no release stamp (%s), so it cannot be compared with %s.", core.DevVersion, tag)))
 	} else {
 		fmt.Fprintf(out, "%s\n", paint.paint(headerStyle, fmt.Sprintf(
 			"This build is %s. The latest published release of %s is %s.", request.current, request.source.repo, tag)))

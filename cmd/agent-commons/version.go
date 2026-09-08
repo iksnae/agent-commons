@@ -5,21 +5,16 @@ package main
 import (
 	"fmt"
 	"io"
+
+	"agentcommons/internal/core"
 )
 
-// devVersion is what an unstamped build calls itself. It is a fact, not a
-// version number: a working-tree binary must never claim to be a release it was
-// never cut from.
-const devVersion = "dev"
-
-// version names the release this binary was built from. Release archives are
-// built with -buildvcs=false, so runtime/debug reports nothing about them;
-// scripts/build-binaries.sh stamps this variable instead, with
-// -ldflags "-X main.version=TAG" taken from the tag being built. An ordinary
-// `go build` leaves it at devVersion.
-var version = devVersion
-
+// The release name lives in internal/core, beside the build identity that
+// reports it over the wire, and the -ldflags stamp targets it there. This
+// command surface reads that one variable rather than carrying a second copy,
+// so `agent-commons version` and runtime.status cannot disagree about which
+// release is running.
 func writeVersion(out io.Writer) error {
-	_, err := fmt.Fprintf(out, "agent-commons %s\n", version)
+	_, err := fmt.Fprintf(out, "agent-commons %s\n", core.Version)
 	return err
 }

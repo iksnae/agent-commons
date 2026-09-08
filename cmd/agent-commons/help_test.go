@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/term"
+
+	"agentcommons/internal/core"
 )
 
 // renderHelp returns the help screen written to an in-memory buffer, which is
@@ -37,12 +39,12 @@ func TestHelpShowsTheInvocationSynopsis(t *testing.T) {
 // release the operator is holding. The stamped value is substituted here so a
 // hard-coded literal that happens to match the unstamped default still fails.
 func TestHelpTitleCarriesTheBuiltVersion(t *testing.T) {
-	built := version
-	t.Cleanup(func() { version = built })
-	version = "v9.9.9-test-stamp"
+	built := core.Version
+	t.Cleanup(func() { core.Version = built })
+	core.Version = "v9.9.9-test-stamp"
 
 	help := renderHelp(t)
-	want := "Agent Commons " + version
+	want := "Agent Commons " + core.Version
 	first, _, _ := strings.Cut(help, "\n")
 	if first != want {
 		t.Fatalf("help title is %q, want %q", first, want)

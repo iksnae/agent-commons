@@ -156,3 +156,65 @@ func TestBuildIdentityVCSModifiedFalseSerialises(t *testing.T) {
 		t.Fatalf("vcsModified:false did not serialise: %s", data)
 	}
 }
+
+// A caller asking "what is this service running?" must get a release name, not
+// only a content hash it cannot map to a release. The digest answers "is this
+// the binary I released"; Version answers "which release is that".
+func TestBuildIdentityReportsTheStampedVersion(t *testing.T) {
+	original := Version
+	Version = "v1.2.3"
+	t.Cleanup(func() { Version = original })
+	if identity := newBuildIdentity(time.Unix(0, 0)); identity.Version != "v1.2.3" {
+		t.Fatalf("stamped version not reported: %q", identity.Version)
+	}
+}
+
+// An unstamped build says "dev" and never invents a release number. `go test`
+// passes no -X flag, so this is what a developer's local binary reports.
+func TestBuildIdentityReportsDevWhenUnstamped(t *testing.T) {
+	if Version != DevVersion {
+		t.Fatalf("test binary is stamped %q; the unstamped default is the thing under test", Version)
+	}
+	if identity := newBuildIdentity(time.Unix(0, 0)); identity.Version != "dev" {
+		t.Fatalf("unstamped build reported %q, want dev", identity.Version)
+	}
+}
+
+// Version is never absent from the wire. Unlike the vcs.* fields, "dev" is
+// itself an answer, so a caller must never have to distinguish an omitted key
+// from an unstamped build.
+func TestBuildIdentityVersionAlwaysSerialises(t *testing.T) {
+	data, err := json.Marshal(BuildIdentity{StartedAt: "1970-01-01T00:00:00Z", Version: DevVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"version":"dev"`) {
+		t.Fatalf("version did not serialise: %s", data)
+	}
+}
+
+// runtime.status is the DTO agents read. The version must reach it, and the
+// fields that were already there must be undisturbed.
+func TestRuntimeStatusReportsTheBuildVersion(t *testing.T) {
+	s, _, _ := setup(t)
+	page := rpc(t, s, "operator", "runtime.status", map[string]any{}).(RuntimeStatusPage)
+	if page.Build.Version != Version {
+		t.Fatalf("runtime.status build.version = %q, want the running binary's %q", page.Build.Version, Version)
+	}
+	data, err := json.Marshal(page.Build)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if fields["version"] != Version {
+		t.Fatalf("wire build.version = %v, want %q: %s", fields["version"], Version, data)
+	}
+	for _, key := range []string{"binarySha256", "startedAt"} {
+		if _, present := fields[key]; !present {
+			t.Fatalf("adding version disturbed the existing shape: %s missing: %s", key, data)
+		}
+	}
+}
