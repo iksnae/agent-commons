@@ -439,11 +439,20 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+			var candidates []string
 			for id, other := range s.data.Sessions {
 				if other.Target == target && other.Role == v.Role && (other.Name == "" || other.Name == v.Name) {
-					v.ID = id
-					break
+					candidates = append(candidates, id)
 				}
+			}
+			switch len(candidates) {
+			case 0:
+				// no existing match; enroll proceeds to mint a new identity below
+			case 1:
+				v.ID = candidates[0]
+			default:
+				sort.Strings(candidates)
+				return fail(fmt.Sprintf("ambiguous target+role identity for enroll: %d candidates (%s); supply --id to select one", len(candidates), strings.Join(candidates, ", ")))
 			}
 		}
 		if _, ok := s.data.Sessions[v.ID]; ok {
