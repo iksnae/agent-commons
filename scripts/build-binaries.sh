@@ -38,8 +38,33 @@ for platform in darwin linux; do
   done
 done
 
+# The plugin tarball is unpacked wherever its user chooses. The per-platform
+# archives ship the source-tree manifests verbatim because `bundle install`
+# knows the destination and rewrites the command to the absolute path of the
+# binary it places; this tarball never learns that path, so its packaged copy
+# points at the wrapper instead, which resolves the binary at server start with
+# the same tiers the hook scripts use. Only this copy is rewritten: the source
+# tree keeps the bare command that `bundle install` validates.
+packaged="$build_dir/plugin/agent-commons"
+mkdir -p "$build_dir/plugin"
+cp -R "$build_dir/source/plugins/agent-commons" "$packaged"
+for manifest in "$packaged/mcp.json" "$packaged/.mcp.json"; do
+  sed -e 's|"command": "agent-commons"|"command": "sh"|' \
+    -e 's|"args": \["connect-mcp"\]|"args": ["${CLAUDE_PLUGIN_ROOT}/scripts/connect-mcp.sh"]|' \
+    "$manifest" > "$manifest.wrapped"
+  # A silent no-op substitution would ship the defect this rewrite exists to
+  # fix, so confirm both halves landed and no bare command survived.
+  if ! grep -q '"command": "sh"' "$manifest.wrapped" ||
+    ! grep -q '"args": \["\${CLAUDE_PLUGIN_ROOT}/scripts/connect-mcp.sh"\]' "$manifest.wrapped" ||
+    grep -q '"command": "agent-commons"' "$manifest.wrapped"; then
+    echo "build-binaries.sh: failed to point $manifest at the connect-mcp wrapper" >&2
+    exit 1
+  fi
+  mv "$manifest.wrapped" "$manifest"
+done
+test -x "$packaged/scripts/connect-mcp.sh"
 tar -czf "$build_dir/artifacts/agent-commons-plugin.tar.gz" \
-  -C "$build_dir/source/plugins" agent-commons
+  -C "$build_dir/plugin" agent-commons
 (
   cd "$build_dir/artifacts"
   shasum -a 256 agent-commons-darwin-amd64.tar.gz \
