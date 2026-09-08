@@ -74,6 +74,56 @@ definitions and work permissions stay within their existing boundaries unless
 explicitly shared or delegated. This is future product direction, not permission
 to enroll Hermes, adopt sessions or open cross-project access now.
 
+## Planned scope from an external harness review
+
+Four concepts were taken from a review of a third-party agent harness and its
+adjacent RL rollout body; RESEARCH.md pins both sources and records what was
+rejected. They are recorded here as planned scope so a later sequencing decision
+has something concrete behind it. None is approved, ordered or assigned, and each
+names what it would cost here and what it collides with. Every statement below
+about what Commons already enables sits downstream of G5, which remains open.
+
+Typed causal edges publish an explicit relationship between request identifiers:
+`continuation`, `subagent_call`, `subagent_return`, `compaction`, carried as a
+namespaced extension that unaware consumers ignore. `Delivery` today carries
+`TaskID`, `ContextID`, `ContextVersion` and `Status` but no edge type, so causal
+relationships between deliveries are reconstructed by convention. The status log
+below records the failure this would have made legible: the reverse request that
+reached Codex after restart, and the resumed Claude acknowledgement refused with
+`[reasoning_extraction]`. Collision: the interface freeze below fixes `Delivery`'s
+exported fields, so this is a schema-4 migration with a pre-upgrade snapshot on
+the pattern schema 3 already set, not an edit to the frozen list.
+
+A capability broker keeps credentials in a supervisor and gives the child only an
+opaque capability and a socket path, so the child never sees the secret.
+PRODUCTION.md names launcher and role credential isolation as open in three
+separate places, and the current mitigation filters the managed environment rather
+than withholding the credential. Collision: the existing bearer token is per-actor
+and durable, while a capability is per-invocation and disposable. Issue, bind,
+expire and revoke are new lifecycle state in `internal/core`, the package that owns
+all persistence and domain transitions.
+
+Idempotency attempts as a distinct dimension means one stable key identifies a
+logical call across every retry layer while a separate counter distinguishes
+attempts, with both header names reserved against user configuration.
+`messages.send` and `tasks.assign` already accept `idempotencyKey`, `Delivery`
+already carries `Attempts`, and `messages.retry` already demands explicit
+duplicate-effect acknowledgement. This may therefore be a semantics clarification
+of the existing `Attempts` field rather than new state. Which of the two it is has
+not been established; a reviewer should settle that before anyone builds it.
+
+Strict contract completeness sends every field explicitly including disabled ones,
+rejects partial or unknown configurations, and never falls back to the ambient
+process environment. Commons already holds this stance in parts through
+`sessions.capabilities`, and through HARNESS-SUPPORT.md on an advertised service
+that fails discovery returning an error instead of silently falling back. The
+addition is the completeness requirement itself. It addresses a finding already
+recorded in PRODUCTION.md: the standalone app-server starter loads native
+user/project configuration, unlike the managed execution policy. Collision: the
+same finding records that Codex 0.153.4 rejects app-server `--ignore-user-config`
+and `--ignore-rules`, so completeness cannot be obtained from that flag surface
+alone.
+
 ## Shared interfaces (freeze before parallel work)
 
 Module `agentcommons`; Go 1.26. The original dependency-free constraint was amended
