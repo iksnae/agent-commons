@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"agentcommons/internal/core"
-	"agentcommons/internal/transport"
 )
 
 type inboxReader func(context.Context) ([]core.Delivery, error)
@@ -117,15 +116,15 @@ func runWatch(ctx context.Context, args []string, out, errOut io.Writer) error {
 		ctx, cancel = context.WithTimeout(ctx, *timeout)
 		defer cancel()
 	}
+	// watch is human-facing and long-lived: an operator watching a service that
+	// is not running is the reported condition verbatim. Both dials go through
+	// rpcCall so a failure comes back classified, and run renders it once.
+	client := rpcClient{socket: *socket, token: token, state: *state}
 	if *wakeThread != "" {
-		raw, err := transport.Call(ctx, *socket, token, "sessions.capabilities", json.RawMessage(`{}`))
-		if err != nil {
-			return err
-		}
-		var identity struct {
+		identity, err := rpcCall[struct {
 			Identity string `json:"identity"`
-		}
-		if err = json.Unmarshal(raw, &identity); err != nil {
+		}](ctx, client, "sessions.capabilities", struct{}{})
+		if err != nil {
 			return err
 		}
 		if identity.Identity == "" || identity.Identity == "operator" {
@@ -146,16 +145,12 @@ func runWatch(ctx context.Context, args []string, out, errOut io.Writer) error {
 		var messages []core.Delivery
 		cursor := ""
 		for page := 0; page < 1000; page++ {
-			params, _ := json.Marshal(map[string]any{"cursor": cursor, "limit": 100, "unreadOnly": true})
-			raw, err := transport.Call(ctx, *socket, token, "inbox.page", params)
-			if err != nil {
-				return nil, err
-			}
-			var result struct {
+			result, err := rpcCall[struct {
 				Messages   []core.Delivery `json:"messages"`
 				NextCursor string          `json:"nextCursor"`
-			}
-			if err := json.Unmarshal(raw, &result); err != nil {
+			}](ctx, client, "inbox.page",
+				map[string]any{"cursor": cursor, "limit": 100, "unreadOnly": true})
+			if err != nil {
 				return nil, err
 			}
 			if len(result.Messages) > maxWatchMessages-len(messages) {

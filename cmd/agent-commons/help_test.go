@@ -65,7 +65,7 @@ func TestHelpDistinguishesInitFromEnroll(t *testing.T) {
 }
 
 // call and methods exist for agents and scripts, not for the operator reading
-// this screen; the marker is row text so the usage line inherits it too.
+// this screen; the marker is row text in the one catalog every rendering reads.
 func TestHelpMarksTheAgentFacingCommands(t *testing.T) {
 	help := renderHelp(t)
 	for _, want := range []string{
@@ -75,10 +75,6 @@ func TestHelpMarksTheAgentFacingCommands(t *testing.T) {
 		if !strings.Contains(help, want) {
 			t.Fatalf("help omits %q:\n%s", want, help)
 		}
-	}
-	usage := usageError().Error()
-	if !strings.Contains(usage, "call") || !strings.Contains(usage, "methods") {
-		t.Fatalf("usage lost a command the marker was appended to: %s", usage)
 	}
 }
 

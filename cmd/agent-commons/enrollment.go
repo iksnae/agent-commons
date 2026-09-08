@@ -225,7 +225,7 @@ func (connection enrollmentConnection) operatorClient() (rpcClient, error) {
 	if err != nil {
 		return rpcClient{}, err
 	}
-	return rpcClient{socket: connection.Config.Socket, token: operator}, nil
+	return rpcClient{socket: connection.Config.Socket, token: operator, state: connection.Config.State}, nil
 }
 
 // registeredIdentities returns the session IDs the service already knows, so

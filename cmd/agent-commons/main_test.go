@@ -13,7 +13,9 @@ import (
 )
 
 func TestCommandErrors(t *testing.T) {
-	for _, args := range [][]string{{}, {"unknown"}, {"mcp"}, {"discover", "--runtime", "invalid"}} {
+	// A bare invocation is deliberately absent: it prints help and exits 0.
+	// TestBareInvocationPrintsHelp owns that case.
+	for _, args := range [][]string{{"unknown"}, {"mcp"}, {"discover", "--runtime", "invalid"}} {
 		var out, errOut bytes.Buffer
 		if err := run(context.Background(), args, strings.NewReader(""), &out, &errOut); err == nil {
 			t.Fatalf("expected error for %v", args)

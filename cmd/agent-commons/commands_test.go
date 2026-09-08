@@ -4,42 +4,46 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-// The bare-argument usage line once listed seven commands while help listed
-// fifteen, so a caller reading it concluded check-in and doctor did not exist.
-// Both renderings now derive from commandSections; these tests fail if that
-// single source is bypassed or if it documents a command run does not dispatch.
-func TestUsageListsEveryDocumentedCommand(t *testing.T) {
-	usage := usageError().Error()
-	for _, name := range commandNames() {
-		if !strings.Contains(usage, name) {
-			t.Fatalf("usage omits documented command %q: %s", name, usage)
-		}
-	}
-	listed := strings.Split(strings.TrimPrefix(strings.Fields(usage)[2], "agent-commons"), "|")
-	if len(listed) != len(commandNames()) {
-		t.Fatalf("usage lists %d commands, help documents %d", len(listed), len(commandNames()))
-	}
-}
-
-func TestHelpAndUsageDocumentTheSameCommands(t *testing.T) {
+// The help screen and the catalog are the same list, and a bare invocation now
+// renders that screen rather than a second, drifting usage line. These tests
+// fail if the screen omits a catalogued command or if the catalog documents a
+// command run does not dispatch.
+func TestHelpDocumentsEveryCommand(t *testing.T) {
 	var out bytes.Buffer
 	if err := writeHelp(&out); err != nil {
 		t.Fatal(err)
 	}
-	usage := usageError().Error()
 	for _, name := range commandNames() {
 		if !bytes.Contains(out.Bytes(), []byte(name)) {
-			t.Fatalf("help omits %q that usage advertises", name)
+			t.Fatalf("help omits catalogued command %q", name)
 		}
 	}
-	if strings.Count(usage, "|") != len(commandNames())-1 {
-		t.Fatalf("usage separators disagree with the catalog: %s", usage)
+}
+
+// Typing the binary's name is a discovery gesture, not a mistake. A bare
+// invocation must therefore produce exactly what `help` produces, on stdout,
+// with no error: same bytes, same stream, same exit status.
+func TestBareInvocationPrintsHelp(t *testing.T) {
+	var bare, asked bytes.Buffer
+	if err := run(context.Background(), nil, strings.NewReader(""), &bare, io.Discard); err != nil {
+		t.Fatalf("bare invocation returned %v", err)
+	}
+	if err := run(context.Background(), []string{"help"}, strings.NewReader(""), &asked, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bare.Bytes(), asked.Bytes()) {
+		t.Fatalf("bare invocation wrote %q, help wrote %q", bare.String(), asked.String())
+	}
+	if bare.Len() == 0 {
+		t.Fatal("bare invocation wrote nothing")
 	}
 }
 

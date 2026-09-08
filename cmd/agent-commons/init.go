@@ -29,7 +29,23 @@ type projectDefaults struct {
 	State       string `json:"state"`
 }
 
+// serviceSpawn starts the detached service for a state directory. init takes
+// one rather than calling startDetached directly so a test can drive the
+// failure path without spawning a real service -- which, from a test binary,
+// means spawning the test binary.
+type serviceSpawn func(binary, state string) (*serviceStartup, error)
+
+// startService is the real spawn, and the only one main ever uses.
+func startService(binary, state string) (*serviceStartup, error) {
+	return startDetached(exec.Command(binary, "serve", "--state", state), state)
+}
+
+// runInit is the production entry point: the real spawn, always.
 func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
+	return runInitWith(ctx, args, out, errOut, startService)
+}
+
+func runInitWith(ctx context.Context, args []string, out, errOut io.Writer, spawn serviceSpawn) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(errOut)
 	target, _ := os.Getwd()
@@ -79,17 +95,20 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 	socket := filepath.Join(state, "service.sock")
+	var startup *serviceStartup
 	if !serviceReachable(socket) {
 		binary, err := os.Executable()
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(binary, "serve", "--state", state)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, io.Discard, io.Discard
-		if err := cmd.Start(); err != nil {
+		startup, err = spawn(binary, state)
+		if err != nil {
 			return fmt.Errorf("start service: %w", err)
 		}
-		_ = cmd.Process.Release()
+		// Removed on every path out of here, reached or not. A service that came
+		// up keeps writing into the unlinked file; one that failed has already
+		// been read by then.
+		defer startup.discard()
 	}
 	deadline := time.Now().Add(3 * time.Second)
 	for !serviceReachable(socket) && time.Now().Before(deadline) {
@@ -100,7 +119,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 		}
 	}
 	if !serviceReachable(socket) {
-		return errors.New("service did not become reachable; inspect the private state directory")
+		return unreachableAfterStart(startup)
 	}
 	// enrollAgent owns the connection-file guard: it can only be applied once
 	// the server has said which identity it really adopted. Do not re-check it
@@ -229,6 +248,23 @@ func describeFieldValue(value reflect.Value) string {
 		return strconv.Quote(value.String())
 	}
 	return fmt.Sprint(value.Interface())
+}
+
+// unreachableAfterStart explains a service that never came up. When the child
+// said why before exiting, that reason IS the explanation and the old advice to
+// go looking in the state directory is dropped: the directory did not contain
+// it, which is what made the original message a dead end. When there is nothing
+// captured -- the service was already running under someone else, or died
+// silently -- the message falls back to naming the state directory, which is
+// still the only place left to look.
+func unreachableAfterStart(startup *serviceStartup) error {
+	if startup == nil {
+		return errors.New("service did not become reachable; inspect the private state directory")
+	}
+	if diagnosis := startup.diagnose(); diagnosis != "" {
+		return fmt.Errorf("service did not become reachable: %s", diagnosis)
+	}
+	return errors.New("service did not become reachable and reported nothing; inspect the private state directory")
 }
 
 func serviceReachable(socket string) bool {

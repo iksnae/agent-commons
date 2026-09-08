@@ -8,6 +8,19 @@ checks carry a stable code such as `not_found`, `permission`, `authentication`,
 `busy` or `deadline`. The code is intentionally broad: raw socket errors, paths
 and credentials stay out of the report.
 
+Three further codes name why the local service could not be reached, and are
+decided by evidence rather than by matching text in an error message:
+
+- `service_absent` — no state directory, or no `operator.token` in it. The
+  service has never run here. Run `agent-commons init` in your project.
+- `service_stopped` — the state directory is populated and the socket path is
+  gone. `serve` removes its socket on SIGTERM, so this was a clean shutdown.
+- `service_stale` — the socket file is still there and refuses connections. The
+  service died without cleaning up. Starting it again removes the stale socket.
+
+These are additive values on the existing `code` field. A reader that does not
+know them still sees a failed check with a code, exactly as before.
+
 Both output forms carry all of that. `doctor` prints a summary for a person;
 `doctor --json` prints the machine-readable report, where the same values are
 the `ready`, `code` and `runtime` fields.

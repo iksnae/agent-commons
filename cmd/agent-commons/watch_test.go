@@ -107,3 +107,24 @@ func TestWatchOutputFailureAndDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The block run renders must appear once per invocation, not once per
+// --interval. That holds only because watchInbox returns the poller's error
+// instead of retrying past it, so the error reaches run exactly once. If it
+// ever retried, this reader would be called again and the error the operator
+// finally saw would be the deadline, not the reason.
+func TestWatchStopsAtTheFirstPollFailure(t *testing.T) {
+	unreachable := errors.New("service is not running")
+	calls := 0
+	err := watchInbox(context.Background(), 100*time.Millisecond, false,
+		func(context.Context) ([]core.Delivery, error) {
+			calls++
+			return nil, unreachable
+		}, io.Discard)
+	if calls != 1 {
+		t.Fatalf("poller ran %d times; a failing poll must not be retried", calls)
+	}
+	if !errors.Is(err, unreachable) {
+		t.Fatalf("watchInbox returned %v, not the poller's error", err)
+	}
+}
