@@ -64,6 +64,12 @@ cmp plugins/agent-commons/plugin.json "$check_dir/agent-commons/plugin.json"
 # `bundle install` validates and rewrites for the other route. Assert both forms
 # separately, and assert that nothing else in the manifest was touched: undoing
 # the intended rewrite must reproduce the source file byte for byte.
+# The source-tree assertion below is not the first line of defense and does not
+# claim to be. Converge the two routes by rewriting the source and the real
+# `bundle install` above refuses it at internal/installation/manifest.go:81,
+# before this section is reached. This is defense in depth: it names the cause
+# instead of leaving a generic installer refusal, it covers a source rewrite
+# made after packaging, and it survives changes to the bundle-install exercise.
 test -x "$check_dir/agent-commons/scripts/connect-mcp.sh" ||
   fail "the plugin tarball ships no executable connect-mcp.sh for its MCP command"
 for manifest in mcp.json .mcp.json; do

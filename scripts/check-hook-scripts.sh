@@ -41,6 +41,19 @@ STANDIN
 }
 standin "$root/agent-commons"
 
+# A stand-in that records argv but prints nothing. connect-mcp speaks JSON-RPC
+# over stdio, so with a silent binary any byte on stdout is the wrapper's own.
+silent_standin() {
+  cat > "$1" <<'STANDIN'
+#!/bin/sh
+set -eu
+: > "$HOOK_CHECK_ARGV"
+for arg in "$@"; do printf '%s\n' "$arg" >> "$HOOK_CHECK_ARGV"; done
+printf '%s\n' "$0" > "$HOOK_CHECK_INVOKED"
+STANDIN
+  chmod 755 "$1"
+}
+
 # A stand-in `claude` only; the hook reads its --version. Nothing named
 # agent-commons is reachable on this PATH.
 bare_path="$check_dir/path"
@@ -273,4 +286,29 @@ test "$status" -ne 0 || fail "connect-mcp.sh reported success with no binary fin
 test ! -f "$invoked" || fail "connect-mcp.sh invoked something with no binary findable"
 test -s "$check_dir/err.log" || fail "connect-mcp.sh failed without saying why"
 
-echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, configured-but-missing binary, check-in.sh chain, connect-mcp.sh chain."
+# 20. connect-mcp speaks JSON-RPC over stdio, so the wrapper must contribute
+#     nothing to stdout on any tier where it execs. Its diagnostics belong on
+#     stderr, which is what makes case 19's loud failure safe to prefer over the
+#     session hook's silent exit. A single echo added later would corrupt every
+#     MCP session and pass every case above, so pin the silence on all three
+#     tiers against stand-ins that print nothing of their own.
+silent_standin "$root/agent-commons"
+silent_standin "$full_path/agent-commons"
+silent_standin "$check_dir/silent-agent-commons"
+for tier in 1 2 3; do
+  case "$tier" in
+    1) run "$plugin/scripts/connect-mcp.sh" PATH="$bare_path:/usr/bin:/bin" \
+      CLAUDE_PLUGIN_ROOT="$plugin" AGENT_COMMONS_BINARY="$check_dir/silent-agent-commons" ;;
+    2) run "$plugin/scripts/connect-mcp.sh" PATH="$bare_path:/usr/bin:/bin" \
+      CLAUDE_PLUGIN_ROOT="$plugin" ;;
+    3) run "$orphan/scripts/connect-mcp.sh" PATH="$full_path:/usr/bin:/bin" ;;
+  esac
+  test "$status" -eq 0 || fail "connect-mcp.sh exited $status on tier $tier"
+  test -f "$invoked" || fail "connect-mcp.sh never reached a binary on tier $tier"
+  test ! -s "$check_dir/out.log" ||
+    fail "connect-mcp.sh wrote to the JSON-RPC stream on tier $tier: $(cat "$check_dir/out.log")"
+  test ! -s "$check_dir/err.log" ||
+    fail "connect-mcp.sh wrote stderr on a successful tier $tier: $(cat "$check_dir/err.log")"
+done
+
+echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, configured-but-missing binary, check-in.sh chain, connect-mcp.sh chain, connect-mcp.sh stdio silence."
