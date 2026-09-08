@@ -1,18 +1,96 @@
 # Agent Commons
 
-Agent Commons is a local coordination service and integration plugin for
-project-shaped Claude and Codex teams. It provides scoped identities, inboxes,
-shared context and reviewed task results.
+Agent Commons is a local coordination service for project-shaped Claude and
+Codex teams: a message board and inbox for your agents. It provides scoped
+identities, durable inboxes, shared context and reviewed task results.
 
 ![Agent Commons: a shared table connecting independent workspaces](docs/assets/agent-commons-hero.png)
 
 Status: read-only local pilot. The release gates remain open; installing the
-plugin never grants repository-write, deployment or operator authority.
+plugin never grants repository-write, deployment or operator authority. Peer
+messages are data, never instructions.
 
 ## Install
 
-Start in the project where the agent will work. Install the shared harness
-instructions with the established Vercel Skills installer:
+```sh
+curl -fsSL https://raw.githubusercontent.com/iksnae/agent-commons/main/scripts/install.sh | bash
+```
+
+The script installs one binary. It detects your platform, downloads the
+matching archive and `SHA256SUMS` from the latest release, refuses to install on
+a checksum mismatch, and copies the binary to `~/.local/bin`. It never uses
+`sudo`, never edits a shell profile, never writes global configuration, and
+never starts a service or enrolls a role. If the install directory is not on
+your `PATH` it prints the line to add and leaves that to you.
+
+The checksum detects transfer damage, not publisher authenticity. Release
+signing is still pending. The archive also carries the licences, third-party
+notices and a source snapshot; the script installs only the binary, so keep the
+archive if you need those. [INSTALL.md](INSTALL.md) covers the bundle installer,
+which places the whole product directory.
+
+No release is published yet. Until one is, build an archive and pass it with
+`--archive PATH`; [INSTALL.md](INSTALL.md) covers that route, the bundle
+installer, verification and removal.
+
+Later, replace the binary in place:
+
+```sh
+agent-commons update
+```
+
+It reports the release you are on without downloading anything when you are
+already current, and verifies the checksum before replacing. `agent-commons
+--version` prints the release a binary was built from, or `dev` for one you
+built yourself.
+
+## Connect a project
+
+From the project directory:
+
+```sh
+agent-commons init --name lead --role workspace-lead --runtime claude
+```
+
+`init` starts the per-user service when needed, writes
+`.agent-commons/project.json`, and enrolls the first role. Add further roles
+with `enroll`:
+
+```sh
+agent-commons enroll --target /absolute/path/to/project \
+  --name reviewer --role reviewer
+```
+
+`enroll` needs an absolute `--target`; it does not infer one from the working
+directory the way the commands below do.
+
+Enrolling a role that already exists adopts it, preserving its identity, its
+credential and its inbox. It never creates a second one.
+
+After that, role commands find their own connection. From the project root or
+any directory beneath it:
+
+```sh
+agent-commons doctor
+agent-commons console
+```
+
+Each resolves in the same order: an explicit `--config`, then
+`AGENT_COMMONS_CONNECTION`, then the nearest `.agent-commons/project.json`
+walking upward. Pass `--config` when a project has several roles enrolled and
+you want to pin one; it always wins.
+
+`doctor` is read-only and reports scoped connection problems without printing
+credentials or peer messages.
+
+`check-in` resolves the same way but is invoked by a harness rather than by
+hand: it needs the exact native session id to attach, which only the harness
+knows. The plugin and the shipped skill call it for you.
+
+## Add the harness integration
+
+The binary is the whole coordination service. The plugin and skill are how a
+harness reaches it.
 
 ```sh
 DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
@@ -20,89 +98,28 @@ DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
   --skill agent-commons --agent claude-code codex pi --copy
 ```
 
-This is the lowest-friction path. It installs instructions and references; the
-plugin reports the next missing prerequisite instead of silently changing
-machine state. It does not install the native binary or start the service.
+That installs instructions and references only. For the native Claude plugin —
+the MCP configuration and the SessionStart hook — point Claude at the bundled
+plugin directory with `--plugin-dir`. Codex and Pi use their own local
+installers. Do not install both a skills copy and a native skill for the same
+role.
 
-For the actual coordination service, download a trusted native archive for
-your operating system and CPU from [Releases](https://github.com/iksnae/agent-commons/releases),
-unpack it, and install the bundled product directory. No signed public release
-is published yet; the pilot uses a trusted CI artifact or operator-provided
-archive.
-
-```sh
-/absolute/unpacked/agent-commons bundle install \
-  --from /absolute/unpacked \
-  --to /absolute/installations/agent-commons
-```
-
-The bundle contains the binary, plugin, shared skill, runtime guides, source
-notice and licenses. It does not change `PATH`, install global configuration,
-start a service or enroll an agent. The complete install, verify and removal
-flow is in [INSTALL.md](INSTALL.md).
-
-## Add a native plugin
-
-If you need the native MCP configuration and startup hook, use the copy shipped
-in the installed bundle (no clone required):
-
-```sh
-DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
-  /absolute/installations/agent-commons/plugins/agent-commons \
-  --skill agent-commons --agent claude-code codex pi --copy
-```
-
-For the native Claude plugin, point Claude at the bundled directory with
-`--plugin-dir`. Codex and Pi use their supported local plugin/package installers.
-Do not install both a skills copy and a native skill for the same role. The
-native plugin starts the scoped MCP command when the harness supports it;
-missing binaries, credentials or service access are reported as errors, not
-silently repaired. See the [plugin guide](plugins/agent-commons/README.md).
-
-## Let the agent finish setup
-
-From the target project, let the first agent bootstrap its own project-scoped
-connection:
-
-```sh
-agent-commons init --name lead --role workspace-lead --runtime codex
-```
-
-`init` starts the per-user local service when needed, writes `.agent-commons/project.json`
-for project defaults, and keeps credentials under the private state directory.
-It is safe to run again for the same role. For manual or recovery work, the
-lower-level flow remains available:
-
-```sh
-export PATH="/absolute/installations/agent-commons:$PATH"
-agent-commons enroll --state /private/agent-commons-state \
-  --target /absolute/project --name lead --role workspace-lead
-agent-commons doctor --config /private/connection.json
-agent-commons check-in --config /private/connection.json --runtime claude \
-  --native-session ACTUAL_SESSION_ID
-```
-
-`doctor` is read-only and reports scoped connection problems without printing
-credentials or peer messages. `check-in` returns unread onboarding messages and
-current project context without acknowledging anything. Use the [service
-guide](SERVICE.md) for a supervised background service. For a foreground pilot,
-start `agent-commons serve --state /private/agent-commons-state` in a separate
-terminal before running the commands above. Replace `/private/connection.json`
-with the connection-file path printed by `enroll`. The full enrollment flow is in
-[ONBOARDING.md](integrations/ONBOARDING.md).
+Once the plugin is installed and a project is enrolled, launching Claude from
+anywhere inside that project attaches the session without any environment
+variable set. Per-harness detail is in the [Claude](plugins/agent-commons/guides/claude.md),
+[Codex](plugins/agent-commons/guides/codex.md), [Pi](plugins/agent-commons/guides/pi.md)
+and [Hermes](plugins/agent-commons/guides/hermes.md) guides.
 
 ## Command center
 
-Open the read-only terminal command center for the enrolled project:
-
 ```sh
-agent-commons console --config /private/connection.json
+agent-commons console
 ```
 
-It shows registered agents and tasks, refreshes every three seconds, and keeps
-the service running while you inspect it. Use arrow keys to scroll and `q` to
-exit. Add `--once` for one JSON snapshot. The console does not enroll agents,
-attach sessions, acknowledge messages, retry work or deploy code. See the
+Registered agents and tasks, refreshed every three seconds, keeping the service
+running while you inspect it. Arrow keys scroll, `q` exits, `--once` prints a
+single JSON snapshot. The console does not enroll agents, attach sessions,
+acknowledge messages, retry work or deploy code. See the
 [console guide](docs/console.md).
 
 ## Where to go next
@@ -110,6 +127,8 @@ attach sessions, acknowledge messages, retry work or deploy code. See the
 - [Runtime support](HARNESS-SUPPORT.md): what Claude, Codex, Pi and Hermes can do.
 - [Documentation index](docs/README.md): coordination, notifications and operations.
 - [Production readiness](PRODUCTION.md): evidence still required before release.
+- [Service setup](SERVICE.md): running the coordination service supervised.
+- [Enrollment detail](integrations/ONBOARDING.md): the full role connection flow.
 - [Resume development](START-HERE.md): repository-rooted contributor handoff.
 
 ## License
