@@ -5,6 +5,26 @@ bundle has no npm package or install-time download. Check `SHA256SUMS` for
 accidental damage; a checksum shipped beside an archive does not prove who made it.
 Signed public releases are still pending.
 
+## Install the CLI with the install script
+
+`scripts/install.sh` is the ordinary developer-CLI route. You run it; running it
+is the consent. It installs one binary and does nothing else.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/iksnae/agent-commons/main/scripts/install.sh | bash
+```
+
+It detects your platform, downloads the matching archive and `SHA256SUMS` from the
+latest GitHub release, refuses to install on a checksum mismatch, and copies the
+binary to `~/.local/bin`. Pass `--to DIR` for another directory and `--archive PATH`
+to install an archive you already have, which is the route to use before a release
+is published. It never uses `sudo`, never edits a shell profile, never writes global
+configuration, and never starts a service or enrolls a role. If the install
+directory is not on your `PATH` it prints the line to add and leaves the file to you.
+
+The checksum detects transfer damage, not publisher authenticity. Release signing
+is still pending, so treat a verified checksum as an intact download and no more.
+
 ## Install the shared skill with Vercel Skills
 
 Use the established [Vercel Skills CLI](https://github.com/vercel-labs/skills) for
