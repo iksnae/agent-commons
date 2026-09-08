@@ -75,32 +75,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		return runOnboarding(ctx, args, out, errOut)
 	}
 	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
-		if _, err := io.WriteString(out, "codex-resume-check --config FILE --codex-home PATH: verify saved native resume, then close; no model turn or attachment\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "harnesses: print implemented runtime capabilities\ncodex-prepare --config FILE --codex-home PATH: reserve and prepare a durable native root; no model turn or attachment\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "wake-resolve --config FILE --codex-thread UUID --message-id ID: inspect an uncertain notification; applying requires explicit operator authority\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "wake-maintain --config FILE --codex-thread UUID: preview pruning of acknowledged wake history; see --help before applying\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "console --config FILE: read-only project agents/tasks terminal view; q detaches\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "service install|enable|start|status|stop|remove: explicit native user-service setup and control\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "bundle install|verify|remove: manage a local extracted bundle; see bundle COMMAND --help\n"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "doctor --config FILE: read-only scoped connection diagnostics\nservice-plan --binary PATH --state PATH --path PATH: render a user-service plan; never install\nenroll, check-in, connect-mcp: see COMMAND --help for role connection options\n"); err != nil {
-			return err
-		}
-		_, err := io.WriteString(out, "Usage: agent-commons serve|call|mcp|discover|inventory|watch|methods [options]\nmethods: print agent-facing RPC names and JSON schemas (no connection required)\nwatch --token-file FILE [--interval 2s] [--once] [--timeout 30s]: emit unread inbox notifications as JSON lines; never acknowledge or start a runtime\ncall [--token-file FILE] METHOD [JSON]: invoke RPC; omitted JSON is read from stdin\nUse COMMAND --help for flags. Peer messages never grant operator authority.\n")
-		return err
+		return writeHelp(out)
 	}
 	if len(args) > 0 && args[0] == "methods" {
 		return json.NewEncoder(out).Encode(transport.Methods())
