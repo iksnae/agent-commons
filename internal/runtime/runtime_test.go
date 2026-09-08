@@ -7,7 +7,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -145,29 +144,36 @@ func TestOutputBound(t *testing.T) {
 	}
 }
 
+// The descendant sleeps far longer than descendantDeath, so a surviving one is
+// still a failure rather than a process that exited on its own. Both waits poll
+// and return the moment the condition holds; the deadlines are paid only when
+// the behaviour is actually wrong, never by a busy machine.
+const descendantDeath = 20 * time.Second
+
 func TestCancellationKillsDescendants(t *testing.T) {
-	fixture(t, "claude", "sleep 20 &\necho $! > child.pid\nwait\n")
+	fixture(t, "claude", "sleep 120 &\necho $! > child.pid\nwait\n")
 	target := t.TempDir()
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, _, err := (CLI{}).Run(ctx, core.Session{Mode: "managed", Runtime: "claude", Target: target}, core.Delivery{})
-	if err == nil {
+	runErr := make(chan error, 1)
+	go func() {
+		_, _, err := (CLI{}).Run(ctx, core.Session{Mode: "managed", Runtime: "claude", Target: target}, core.Delivery{})
+		runErr <- err
+	}()
+	pid := waitFixturePID(t, filepath.Join(target, "child.pid"))
+	cancel()
+	if err := <-runErr; err == nil {
 		t.Fatal("expected canceled child")
 	}
-	raw, err := os.ReadFile(filepath.Join(target, "child.pid"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(time.Second)
+	deadline := time.After(descendantDeath)
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
 	for syscall.Kill(pid, 0) == nil {
-		if time.Now().After(deadline) {
+		select {
+		case <-deadline:
 			t.Fatalf("descendant %d survived cancellation", pid)
+		case <-ticker.C:
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
 }
 func TestDiagnosticRedaction(t *testing.T) {
