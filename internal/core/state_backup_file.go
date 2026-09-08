@@ -45,7 +45,7 @@ func syncMatchingBackup(path string, expected []byte) error {
 		return err
 	}
 	if !bytes.Equal(data, expected) {
-		return errors.New("existing backup differs from pre-team state; not overwritten")
+		return errors.New("existing backup differs from the pre-migration state it names; not overwritten")
 	}
 	return f.Sync()
 }

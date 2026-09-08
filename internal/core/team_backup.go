@@ -2,14 +2,7 @@
 
 package core
 
-import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-)
+import "fmt"
 
 func (s *Service) backupBeforeTeams() error {
 	if s.data.SchemaVersion >= 2 {
@@ -27,22 +20,4 @@ func (s *Service) enableTeamWork(teamID string) error {
 	}
 	s.data.SchemaVersion = 3
 	return nil
-}
-
-func (s *Service) backupSchema(prefix string) error {
-	data, err := json.Marshal(s.data)
-	if err != nil {
-		return err
-	}
-	hash := sha256.Sum256(data)
-	path := filepath.Join(s.dir, prefix+hex.EncodeToString(hash[:])+".json")
-	if err = preserveStateBackup(path, data); err != nil {
-		return fmt.Errorf("pre-team backup failed; schema unchanged, inspect retained evidence: %w", err)
-	}
-	dir, err := os.Open(s.dir)
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-	return dir.Sync()
 }

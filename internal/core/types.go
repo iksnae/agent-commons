@@ -83,6 +83,9 @@ type Task struct {
 	Output   string   `json:"output,omitempty"`
 	Revision int      `json:"revision"`
 	Reviews  []Review `json:"reviews"`
+	// AbandonEvidence records the operator's stated reason when Status is
+	// "abandoned". It is never a verdict and never appears in Reviews.
+	AbandonEvidence string `json:"abandonEvidence,omitempty"`
 }
 type Context struct {
 	TeamID  string `json:"teamId,omitempty"`

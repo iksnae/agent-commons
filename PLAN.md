@@ -91,8 +91,10 @@ relationships between deliveries are reconstructed by convention. The status log
 below records the failure this would have made legible: the reverse request that
 reached Codex after restart, and the resumed Claude acknowledgement refused with
 `[reasoning_extraction]`. Collision: the interface freeze below fixes `Delivery`'s
-exported fields, so this is a schema-4 migration with a pre-upgrade snapshot on
-the pattern schema 3 already set, not an edit to the frozen list.
+exported fields, so this is a schema migration with a pre-upgrade snapshot on
+the pattern schema 3 already set, not an edit to the frozen list. It takes the
+next free schema number at the time it merges; schema 4 is already taken by task
+abandonment, and numbers are never shared between features.
 
 A capability broker keeps credentials in a supervisor and gives the child only an
 opaque capability and a socket path, so the child never sees the secret.
@@ -180,6 +182,51 @@ Core RPC methods with JSON params:
   status, so reading an inbox never removes work from the managed execution queue.
 - `tasks.accept`: {id}; assigning lead/operator only, requires submitted output,
   reviewer approval and redTeam approval if configured. Never means merged/shipped.
+- `tasks.abandon`: operator-only {id,evidence}; evidence nonempty after trimming
+  and at most 8KiB, matching `tasks.review` and `inbox.handle`. Sets status
+  `abandoned` from any non-terminal status. It exists because a submitted result
+  carrying a rejection at the current revision advances only when its author
+  resubmits, so a task whose author will never act again pins every participant
+  in an unresolved obligation with no supported exit.
+  Retains `Output`, `Revision` and every `Reviews` entry unchanged, and records
+  the operator's reason in the new `Task.AbandonEvidence` field, which is never a
+  verdict and never joins `Reviews`. Enqueues nothing, is refused from `accepted`
+  and from `abandoned`, and is not reversible: `tasks.submit`, `tasks.review` and
+  `tasks.accept` all refuse an abandoned task, so no sequence reaches `accepted`
+  through it. Abandonment records that work stopped, never that it passed.
+  Unlike the other task methods it is not blocked when a team participant left,
+  because it is the operator coordination that gate demands.
+  The first successful abandonment advances the state schema to 4 after taking a
+  pre-migration snapshot; see the schema note below.
+- `accepted` and `abandoned` are the two terminal task statuses. Sites reasoning
+  about terminality agree through `core.terminalTaskStatus`: `sessions.policy`
+  refuses to restrict an identity participating in a non-terminal task, and
+  `tasks.submit` refuses a terminal task. The acceptance predicate deliberately
+  does not use that helper — it still tests `accepted` alone.
+- No delivery carrying an abandoned task's ID may run, whatever its kind.
+  `core.taskAbandoned` is the single predicate; `deliveryRunnable` and
+  `messages.retry` both call it so the queue and the retry gate cannot drift.
+  For task work this stops a claim moving the task back to `working`; for the
+  result reporting it, this stops a managed session spending a paid runtime turn
+  on terminated work. Acceptance is excluded from that predicate, because result
+  deliveries carry the ID of tasks that legitimately reach `accepted`.
+  Refusing runnability withholds nothing: runnability governs only `Claim`,
+  while inbox reads gate on `deliveryAccess`, so the result stays pending and
+  readable with its text and output intact. Delivery text is never edited to
+  signal abandonment — the lead resolves status through `tasks.get`.
+  `RuntimeQueueStatus` counts this work as `waitingAbandoned`, separate from
+  `waitingTeam`, because no membership change will ever release it.
+- Durable schema 4 is taken lazily, on the first successful abandonment only.
+  A refused abandonment writes no snapshot and advances no number, and a
+  directory that never abandons anything stays on its existing schema and
+  remains readable by an older binary. The bump is what makes a downgrade safe:
+  an older binary tests `Status == "accepted"` alone where this one tests
+  terminality, so it would let an abandoned task be resubmitted and accepted.
+  That binary already refuses a schema it does not know, so raising the number
+  arms a refusal it shipped with. Strict field decoding is not a substitute —
+  it would have to be present in the old binary, and `abandoned` is a new value
+  of a known field, which field strictness never inspects. Schema numbers follow
+  merge order; abandonment takes 4.
 - `messages.retry`: operator-only {messageId}; failed/interrupted only,
   explicit duplicate-effect acknowledgement {acknowledgeDuplicateRisk:true}.
 
@@ -188,7 +235,7 @@ managed session; one in flight per session. `Finish` atomically records output,
 updates runtime session ID, and creates one result message addressed to original
 sender. Result messages do not auto-reply, preventing endless acknowledgement loops.
 Successful task run means `submitted`, not `accepted`. Failures preserve error and
-never masquerade as results. Startup marks abandoned in-flight delivery interrupted;
+never masquerade as results. Startup marks stranded in-flight delivery interrupted;
 does not replay uncertain effects. Queued work survives restart. Atomic durable
 writes and single-process lock required. Snapshot copies must not expose mutable
 internal maps/slices. Validate target exists; IDs cannot be filesystem traversal.

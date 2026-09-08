@@ -9,21 +9,25 @@ import (
 )
 
 type RuntimeQueueStatus struct {
-	Identity      string `json:"identity"`
-	Runtime       string `json:"runtime"`
-	Mode          string `json:"mode"`
-	Busy          bool   `json:"busy"`
-	NativeBound   bool   `json:"nativeBound"`
-	Ready         int    `json:"ready"`
-	WaitingTeam   int    `json:"waitingTeam"`
-	BlockedPolicy int    `json:"blockedPolicy"`
-	ManualPending int    `json:"manualPending"`
-	Running       int    `json:"running"`
-	Interrupted   int    `json:"interrupted"`
-	Failed        int    `json:"failed"`
-	Canceled      int    `json:"canceled"`
-	Acknowledged  int    `json:"acknowledged"`
-	Completed     int    `json:"completed"`
+	Identity    string `json:"identity"`
+	Runtime     string `json:"runtime"`
+	Mode        string `json:"mode"`
+	Busy        bool   `json:"busy"`
+	NativeBound bool   `json:"nativeBound"`
+	Ready       int    `json:"ready"`
+	WaitingTeam int    `json:"waitingTeam"`
+	// WaitingAbandoned counts pending work for tasks the operator terminated.
+	// It is separate from WaitingTeam because that name promises a membership
+	// change could release the work, and for an abandoned task none ever will.
+	WaitingAbandoned int `json:"waitingAbandoned"`
+	BlockedPolicy    int `json:"blockedPolicy"`
+	ManualPending    int `json:"manualPending"`
+	Running          int `json:"running"`
+	Interrupted      int `json:"interrupted"`
+	Failed           int `json:"failed"`
+	Canceled         int `json:"canceled"`
+	Acknowledged     int `json:"acknowledged"`
+	Completed        int `json:"completed"`
 }
 
 type RuntimeStatusPage struct {
@@ -83,7 +87,11 @@ func (s *Service) runtimeQueue(session Session) RuntimeQueueStatus {
 		}
 		switch d.Status {
 		case "pending":
-			if !s.deliveryRunnable(d) {
+			// Dispatch on the cause, not on runnability alone: both reasons
+			// stop a claim, but only one of them can ever be undone.
+			if s.taskAbandoned(d) {
+				status.WaitingAbandoned++
+			} else if !s.deliveryRunnable(d) {
 				status.WaitingTeam++
 			} else if d.Kind == "task" && session.Policy != "workflow" {
 				status.BlockedPolicy++

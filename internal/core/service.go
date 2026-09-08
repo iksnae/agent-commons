@@ -98,7 +98,7 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, errors.New("negative state schema version")
 	}
-	if s.data.SchemaVersion > 3 {
+	if s.data.SchemaVersion > 4 {
 		s.Close()
 		return nil, errors.New("state schema newer than this binary")
 	}
@@ -385,6 +385,9 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	if strings.HasPrefix(method, "board.") {
 		return s.board(actor, method, p)
 	}
+	if method == "tasks.abandon" {
+		return s.abandon(actor, p)
+	}
 	switch method {
 	case "runtime.status":
 		return s.runtimeStatus(actor, p, time.Now())
@@ -405,7 +408,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		}
 		if p.Policy == "coordination" {
 			for _, t := range s.data.Tasks {
-				if t.Status != "accepted" && (t.Lead == v.ID || t.Author == v.ID || t.Reviewer == v.ID || t.RedTeam == v.ID) {
+				if !terminalTaskStatus(t.Status) && (t.Lead == v.ID || t.Author == v.ID || t.Reviewer == v.ID || t.RedTeam == v.ID) {
 					return fail("cannot restrict an identity participating in an unresolved task")
 				}
 			}
@@ -689,6 +692,9 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				if d.Status != "failed" && d.Status != "interrupted" {
 					return fail("only failed or interrupted deliveries can retry")
 				}
+				if s.taskAbandoned(*d) {
+					return fail("abandoned task cannot be reopened by delivery retry")
+				}
 				if d.Kind == "task" && (s.data.Tasks[d.TaskID].Status == "submitted" || s.data.Tasks[d.TaskID].Status == "accepted") {
 					return fail("submitted task requires explicit new revision, not delivery retry")
 				}
@@ -751,8 +757,8 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			if actor != t.Author {
 				return fail("task author required")
 			}
-			if t.Status == "accepted" || t.Revision != p.ExpectedRevision || strings.TrimSpace(p.Output) == "" {
-				return fail("unaccepted task, matching revision and output required")
+			if terminalTaskStatus(t.Status) || t.Revision != p.ExpectedRevision || strings.TrimSpace(p.Output) == "" {
+				return fail("non-terminal task, matching revision and output required")
 			}
 			t = s.submit(t, p.Output)
 			for i := range s.data.Deliveries {
@@ -904,7 +910,7 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 			v := s.data.Sessions[d.To]
 			v.Busy = false
 			if !s.deliveryRunnable(*d) {
-				runErr = errors.Join(errors.New("team access changed during execution; result withheld"), runErr)
+				runErr = errors.Join(errors.New("task abandoned or team access changed during execution; result withheld"), runErr)
 				output = ""
 			}
 			if runtimeID != "" && v.RuntimeSessionID != "" && runtimeID != v.RuntimeSessionID {

@@ -60,6 +60,41 @@ func TestRuntimeStatusScopesCountsWithoutPrivateContents(t *testing.T) {
 	}
 }
 
+// Work stopped by abandonment must not be reported as waiting on a team, which
+// would tell the operator a membership change could release it.
+func TestRuntimeStatusSeparatesAbandonedWorkFromTeamWaiting(t *testing.T) {
+	s, _, target := setup(t)
+	joinWorkTeam(t, s, target, "product", "lead", "builder", "reviewer", "red")
+	task := rpc(t, s, "lead", "tasks.assign", teamAssignment()).(Task)
+	status := func() RuntimeQueueStatus {
+		page := rpc(t, s, "operator", "runtime.status", map[string]any{"sessionId": "builder"}).(RuntimeStatusPage)
+		if len(page.Sessions) != 1 {
+			t.Fatal("expected exactly one identity")
+		}
+		return page.Sessions[0]
+	}
+	if got := status(); got.Ready != 1 || got.WaitingAbandoned != 0 {
+		t.Fatalf("assigned work not ready: %+v", got)
+	}
+	rpc(t, s, "operator", "tasks.abandon", map[string]any{"id": task.ID, "evidence": "Experiment identity will never resubmit."})
+	got := status()
+	if got.WaitingAbandoned != 1 {
+		t.Fatalf("abandoned work not counted as abandoned: %+v", got)
+	}
+	if got.WaitingTeam != 0 {
+		t.Fatalf("abandoned work reported as waiting on a team: %+v", got)
+	}
+	if got.Ready != 0 || got.BlockedPolicy != 0 || got.ManualPending != 0 {
+		t.Fatalf("abandoned work still counted as actionable: %+v", got)
+	}
+	// The team cause must still be reported under its own name.
+	other := rpc(t, s, "lead", "tasks.assign", map[string]any{"teamId": "product", "to": "builder", "title": "Second", "text": "More work", "criteria": "Evidence", "reviewer": "reviewer", "redTeam": "red", "idempotencyKey": "second"}).(Task)
+	rpc(t, s, "reviewer", "teams.leave", map[string]any{"id": "product"})
+	if got := status(); got.WaitingTeam != 1 || got.WaitingAbandoned != 1 {
+		t.Fatalf("the two causes did not stay separable: %+v (task %s)", got, other.ID)
+	}
+}
+
 func TestRuntimeStatusPaginationCannotEscapeIdentityScope(t *testing.T) {
 	s, _, _ := setup(t)
 	seen := map[string]bool{}
