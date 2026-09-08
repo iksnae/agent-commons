@@ -426,6 +426,25 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if !checkID(v.ID) || v.ID == "operator" {
 			return fail("invalid session ID")
 		}
+		if method == "sessions.enroll" {
+			// Resolve server-side, before ID equality is checked: a legacy
+			// operator-registered session (Name == "") or an already-named
+			// session for this exact target+role never matches the client's
+			// freshly derived ID, so without this lookup enroll would mint a
+			// second identity for a role that already exists. Route a match
+			// into the adopt branch below by reusing its existing ID, so the
+			// existing token is preserved rather than reissued.
+			target, err := canonicalTarget(v.Target)
+			if err != nil {
+				return nil, err
+			}
+			for id, other := range s.data.Sessions {
+				if other.Target == target && other.Role == v.Role && (other.Name == "" || other.Name == v.Name) {
+					v.ID = id
+					break
+				}
+			}
+		}
 		if _, ok := s.data.Sessions[v.ID]; ok {
 			if method == "sessions.enroll" {
 				existing := s.data.Sessions[v.ID]

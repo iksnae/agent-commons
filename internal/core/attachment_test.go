@@ -57,6 +57,19 @@ func TestEnrollmentIdempotencyAndIdentityKey(t *testing.T) {
 		t.Fatal("credential changed")
 	}
 	p.ID = "duplicate"
-	denied(t, s, "operator", "sessions.enroll", p)
+	// A fresh client-derived ID for the same target+role+name identity must
+	// resolve to the existing session and reuse its token, not mint a
+	// second identity nor get rejected as an unrelated collision.
+	c := rpc(t, s, "operator", "sessions.enroll", p).(map[string]any)
+	adopted := c["session"].(Session)
+	if adopted.ID != "stable" {
+		t.Fatalf("expected re-enrollment under a different derived ID to resolve to the existing session, got %q", adopted.ID)
+	}
+	if c["token"] != a["token"] {
+		t.Fatal("credential changed on resolved re-enrollment")
+	}
+	if _, ok := s.data.Sessions["duplicate"]; ok {
+		t.Fatal("enroll must not mint a second session for an identity that already exists")
+	}
 	denied(t, s, "lead", "sessions.enroll", p)
 }
