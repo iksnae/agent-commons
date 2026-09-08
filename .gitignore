@@ -8,3 +8,5 @@
 *.token
 /dist/
 .DS_Store
+/.certification/
+/.claude/worktrees/

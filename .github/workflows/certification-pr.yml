@@ -1,0 +1,41 @@
+name: Certification PR Review
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Install certify
+        run: go install github.com/iksnae/code-certification/cmd/certify@v0.12.0
+
+      - name: Scan code units
+        run: certify scan
+
+      - name: Run certification
+        run: certify certify
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      - name: Generate report
+        run: certify report --format json > certification-report.json
+
+      - name: Comment on PR
+        if: always()
+        run: certify review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
