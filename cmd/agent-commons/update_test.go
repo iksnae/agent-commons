@@ -370,3 +370,41 @@ func TestRunningExecutableSurvivesBeingRenamed(t *testing.T) {
 		t.Fatalf("helper did not run to completion: %s", output.String())
 	}
 }
+
+// A direct write over the live target passes every other test in this file:
+// the bytes end up correct either way. What a running program needs is that its
+// own open image is never the file being written. Hold a handle across the
+// update, exactly as a running process holds one: a rename leaves this handle
+// on the old file, while an in-place write truncates the same inode and the
+// handle would read the replacement — or, mid-write, half of it.
+func TestUpdateRenamesOverTheTargetRatherThanWritingIntoIt(t *testing.T) {
+	archive := releaseArchive(t, "agent-commons-"+testPlatform+"/agent-commons", newBinary)
+	releases := &fakeReleases{tag: "v0.0.2", archive: archive, sums: sumsFor(archive), published: true}
+	source := releases.start(t)
+	target := installedBinary(t)
+
+	running, err := os.Open(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer running.Close()
+
+	if err := performUpdate(context.Background(), request(source, "v0.0.1", target), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	held, err := io.ReadAll(running)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(held) != oldBinary {
+		t.Fatalf("the target was written in place: a handle opened before the update now reads %q, "+
+			"so a running process would see its own image change under it", held)
+	}
+	replaced, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(replaced) != newBinary {
+		t.Fatalf("the path does not hold the new binary: %q", replaced)
+	}
+}

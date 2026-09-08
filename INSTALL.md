@@ -138,7 +138,9 @@ it over the top. A mismatch replaces nothing.
 
 It does not compare version numbers. GitHub decides which release is latest; this
 command reports what that release is and installs it, rather than claiming a release
-is newer than yours.
+is newer than yours. A binary reporting `dev` matches no tag, so running this command
+on a locally built binary says the build carries no release stamp and then overwrites
+it with the published release. Keep a build you still need somewhere else first.
 
 The checksum detects transfer damage, not publisher authenticity. Release signing is
 still pending, so treat a verified checksum as an intact download and no more.

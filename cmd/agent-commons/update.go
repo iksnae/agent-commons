@@ -111,8 +111,15 @@ func performUpdate(ctx context.Context, request updateRequest, out io.Writer) er
 
 // replaceBinary writes the new binary beside the target and renames it over.
 // The target is either the old binary or the whole new one; a half-written file
-// is never left at that path. TestRunningExecutableSurvivesBeingRenamed proves
-// the running program tolerates the rename rather than assuming it.
+// is never left at that path, and a process already running from it keeps its
+// own image rather than watching it change underneath.
+//
+// Two tests hold this, because the bytes end up in the right place either way
+// and correct output alone would not notice a regression to a direct write:
+// TestUpdateRenamesOverTheTargetRatherThanWritingIntoIt fails if this function
+// writes into the target instead of renaming over it, and
+// TestRunningExecutableSurvivesBeingRenamed proves the platform permits
+// renaming a running executable rather than trusting that it does.
 func replaceBinary(staged *os.File, target string, binary []byte) error {
 	mode := fs.FileMode(0755)
 	if info, err := os.Stat(target); err == nil {

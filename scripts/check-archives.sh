@@ -35,11 +35,10 @@ for platform in darwin linux; do
       go build -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X main.version=$version" \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
+    # Checks that must run the shipped binary, so only for this host.
     if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
       # The shipped binary must report the version it was stamped with.
       test "$("$archive/agent-commons" --version)" = "agent-commons $version"
-    fi
-    if [[ "$platform" == "$(go env GOOS)" && "$arch" == "$(go env GOARCH)" ]]; then
       bash scripts/check-bundle-install.sh "$archive" "$check_dir"
     fi
   done
