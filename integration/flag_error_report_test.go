@@ -55,8 +55,14 @@ func TestFlagErrorsAreReportedOnceByTheBuiltBinary(t *testing.T) {
 			// The duplicate is removed by suppressing the second print, not by
 			// silencing flag. flag's half carries the usage listing, which is
 			// the half that tells the operator which flags do exist.
-			if !strings.Contains(stderr, "Usage of ") {
-				t.Fatalf("%s stderr lost the usage listing:\n%s", name, stderr)
+			//
+			// Naming the header rather than matching any listing is what keeps
+			// this row covering the FlagSet it was written for: every one of
+			// these headers is its argv, so a command that fell through to the
+			// shared FlagSet in main.go would answer under the wrong name here
+			// instead of passing on a listing that no longer belongs to it.
+			if header := "Usage of " + name + ":"; !strings.Contains(stderr, header) {
+				t.Fatalf("%s stderr has no %q listing:\n%s", name, header, stderr)
 			}
 			if stdout != "" {
 				t.Fatalf("%s wrote to stdout: %q", name, stdout)
@@ -68,13 +74,34 @@ func TestFlagErrorsAreReportedOnceByTheBuiltBinary(t *testing.T) {
 	// same marker. flag has already written the usage listing an operator asked
 	// for; "flag: help requested" underneath it is the boundary talking about
 	// its own control flow.
+	//
+	// "Alone" is the load-bearing word, and asserting the sentinel is absent
+	// does not say it. parseFlags returning nil for ErrHelp -- the obvious later
+	// "help is not an error" cleanup -- also removes the sentinel, and then the
+	// command runs on: doctor prints the listing and its own resolution failure
+	// underneath, and update would begin a self-update. So this asserts the
+	// shape of the whole stream instead. flag indents every line PrintDefaults
+	// writes; anything a command printed afterwards starts at column 0.
 	t.Run("help requested prints the usage listing alone", func(t *testing.T) {
-		_, stderr, _ := runCommons(t, binary, "doctor", "-h")
-		if !strings.Contains(stderr, "Usage of doctor:") {
-			t.Fatalf("doctor -h lost the usage listing:\n%s", stderr)
+		stdout, stderr, code := runCommons(t, binary, "doctor", "-h")
+		lines := strings.Split(strings.TrimRight(stderr, "\n"), "\n")
+		if lines[0] != "Usage of doctor:" {
+			t.Fatalf("doctor -h did not open with the usage listing:\n%s", stderr)
 		}
-		if strings.Contains(stderr, "flag: help requested") {
-			t.Fatalf("doctor -h reports flag's sentinel to the operator:\n%s", stderr)
+		for _, line := range lines[1:] {
+			if line == "" || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+				continue
+			}
+			t.Fatalf("doctor -h printed %q after the usage listing:\n%s", line, stderr)
+		}
+		if stdout != "" {
+			t.Fatalf("doctor -h wrote to stdout: %q", stdout)
+		}
+		// Marking the error changes what is printed and nothing else. Both
+		// flag_parse.go and main.go state that the exit status is unchanged;
+		// this is the only assertion standing behind it.
+		if code != 1 {
+			t.Fatalf("doctor -h exited %d, want 1", code)
 		}
 	})
 }

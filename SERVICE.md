@@ -66,3 +66,27 @@ back to their original vacant paths, then explicitly enable and start the job.
 
 Upgrade and automatic rollback are still open. Retain the old binary and a
 matching state backup until migration has been tested.
+
+## Known limit: the service's own stderr
+
+`agent-commons init` starts the per-user service when none is running. It
+captures that process's stderr to a private file in the state directory so a
+failed startup can say why. On success the file is unlinked immediately, but the
+running service keeps writing to it: the coordination service logs one line per
+authenticated RPC (actor and method only — no parameters, content or
+credentials).
+
+The file has no directory entry while this happens, so it is invisible to `ls`
+and `du`, occupies roughly 64 bytes per RPC — about 61 MiB per million calls —
+and its storage is reclaimed in full when the service exits. If a long-lived
+service makes that growth matter before it next restarts, restart it to reclaim
+the space.
+
+A supervised job has no unlinked file, but the lines do not stop. The generated
+launchd plist and systemd unit name no stderr destination, and `service install`
+and `service start` have no flag that sets one, so the output goes to whichever
+sink the supervisor uses by default — journald under systemd, the system log
+under launchd — at that same line per RPC for as long as the service runs.
+Rotation and retention there belong to the supervisor, not to this tool. A
+service you start yourself with `serve` writes those lines to whatever stderr
+you gave it.

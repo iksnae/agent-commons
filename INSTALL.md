@@ -186,21 +186,3 @@ sessions portable across releases.
 The [service commands](SERVICE.md) install and control that configuration explicitly.
 Role startup hooks, login/reboot validation and upgrade automation remain open
 in [the beta checklist](BETA.md). Bundle installation does not close those gates.
-
-## Known limit: the service's own stderr
-
-`agent-commons init` starts the per-user service when none is running. It
-captures that process's stderr to a private file in the state directory so a
-failed startup can say why. On success the file is unlinked immediately, but the
-running service keeps writing to it: the coordination service logs one line per
-authenticated RPC (actor and method only — no parameters, content or
-credentials).
-
-The file has no directory entry while this happens, so it is invisible to `ls`
-and `du`, occupies roughly 64 bytes per RPC — about 61 MiB per million calls —
-and its storage is reclaimed in full when the service exits. A service you start
-yourself with `serve`, or one an installed launchd/systemd job starts, is
-unaffected; its stderr is wherever you pointed it.
-
-If a long-lived service makes that growth matter before it next restarts,
-restart it to reclaim the space.
