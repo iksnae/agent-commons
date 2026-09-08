@@ -28,6 +28,11 @@ type fixture struct {
 // Every listed method must therefore leave s.data byte-identical. Methods absent
 // from the map are routed through mutate and are safe by construction, so they
 // are deliberately not exercised here.
+//
+// State is compared through json.Marshal(s.data), the same representation mutate
+// snapshots at service.go:196. So this test's blind spot -- state not visible
+// through JSON -- coincides exactly with mutate's rollback blind spot, and it
+// cannot miss a write that rollback would have restored.
 func TestReadOnlyMethodsDoNotMutateState(t *testing.T) {
 	if len(readOnlyMethods) == 0 {
 		t.Fatal("readOnlyMethods is empty; this test would assert nothing")
@@ -42,7 +47,7 @@ func TestReadOnlyMethodsDoNotMutateState(t *testing.T) {
 	executed := map[string]bool{}
 
 	for method := range readOnlyMethods {
-		for _, actor := range []string{"operator", "builder"} {
+		for _, actor := range []string{"operator", "builder", "reviewer"} {
 			raw, err := json.Marshal(provokingParams(method, actor, f))
 			if err != nil {
 				t.Fatal(err)
@@ -132,6 +137,11 @@ func populate(t *testing.T, s *Service, target string) fixture {
 	rpc(t, s, "operator", "teams.create", map[string]any{"id": f.teamID, "target": f.target, "title": "Team One", "text": "Team brief."})
 	rpc(t, s, "operator", "teams.invite", map[string]any{"id": f.teamID, "target": f.target, "to": "builder"})
 	rpc(t, s, "builder", "teams.join", map[string]any{"id": f.teamID})
+	// reviewer is invited but deliberately left unjoined. A membership write
+	// the fixture already performed is idempotent by the time the loop runs,
+	// so teams.join would pass byte-equality on a no-op; the unconsumed
+	// invitation keeps a real write available to provoke.
+	rpc(t, s, "operator", "teams.invite", map[string]any{"id": f.teamID, "target": f.target, "to": "reviewer"})
 	post := rpc(t, s, "lead", "board.post", map[string]any{"topic": "technique", "title": "Post One", "text": "Board body", "evidence": "live probe", "idempotencyKey": "populate-board"}).(BoardPost)
 	f.postID = post.ID
 	send(t, s, "lead", "builder", "populate-one")
