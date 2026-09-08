@@ -15,14 +15,14 @@ import (
 func runLaunchContext(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
 	flags := flag.NewFlagSet("launch-context", flag.ContinueOnError)
 	flags.SetOutput(errOut)
-	config := flags.String("config", "", "explicit private enrolled-role connection")
+	config := flags.String("config", "", "explicit private enrolled-role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search from the launch directory")
 	agentType := flags.String("agent-type", "", "exact Claude --agent name; empty for default primary session")
 	version := flags.String("claude-version", "", "output of the launching Claude binary's --version")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *config == "" || flags.NArg() != 0 {
-		return fmt.Errorf("launch-context requires --config FILE")
+	if flags.NArg() != 0 {
+		return fmt.Errorf("launch-context takes no positional arguments")
 	}
 	if err := checkClaudeHookVersion(*version); err != nil {
 		return err
@@ -34,7 +34,11 @@ func runLaunchContext(ctx context.Context, args []string, in io.Reader, out, err
 	if event.AgentType != *agentType {
 		return fmt.Errorf("launch agent type differs from explicit role binding")
 	}
-	connection, err := openProjectConnection(*config)
+	resolvedConfig, err := resolveConnectionConfigPath(*config, event.Directory)
+	if err != nil {
+		return err
+	}
+	connection, err := openProjectConnection(resolvedConfig)
 	if err != nil {
 		return err
 	}

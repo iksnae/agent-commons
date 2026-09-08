@@ -99,6 +99,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	socket := fs.String("socket", "", "Unix socket (default STATE/service.sock)")
 	tokenFile := fs.String("token-file", "", "private credential file; required for MCP")
 	target := fs.String("target", ".", "target repository for discovery or inventory")
+	// Deliberately narrower than harness.Catalog()/runtimeVocabulary(): only
+	// claude and codex have DiscoverX implemented below; pi and hermes support
+	// check-in but not --target discovery yet.
 	runtimeName := fs.String("runtime", "claude", "runtime for discovery: claude or codex")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err

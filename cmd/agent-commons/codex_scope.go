@@ -22,15 +22,23 @@ type codexRoleScope struct {
 func parseCodexRoleScope(ctx context.Context, command string, args []string, errOut io.Writer) (codexRoleScope, error) {
 	f := flag.NewFlagSet(command, flag.ContinueOnError)
 	f.SetOutput(errOut)
-	config := f.String("config", "", "private enrolled role connection")
+	config := f.String("config", "", "private enrolled role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	home := f.String("codex-home", "", "explicit private Codex configuration/session directory")
 	if err := f.Parse(args); err != nil {
 		return codexRoleScope{}, err
 	}
-	if *config == "" || !filepath.IsAbs(*home) || f.NArg() != 0 {
-		return codexRoleScope{}, fmt.Errorf("%s requires --config and absolute --codex-home", command)
+	if !filepath.IsAbs(*home) || f.NArg() != 0 {
+		return codexRoleScope{}, fmt.Errorf("%s requires absolute --codex-home", command)
 	}
-	return verifyCodexRoleScope(ctx, *config, *home)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return codexRoleScope{}, err
+	}
+	resolvedConfig, err := resolveConnectionConfigPath(*config, cwd)
+	if err != nil {
+		return codexRoleScope{}, err
+	}
+	return verifyCodexRoleScope(ctx, resolvedConfig, *home)
 }
 
 func verifyCodexRoleScope(ctx context.Context, config, home string) (codexRoleScope, error) {
