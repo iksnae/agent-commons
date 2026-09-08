@@ -198,4 +198,16 @@ test "$(invoked_path)" = "$full_path/agent-commons" ||
   fail "check-in.sh ran $(invoked_path) from a non-executable derived path"
 rm -f "$check_dir/orphan/agent-commons"
 
-echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, check-in.sh chain."
+# 12. Silence is for "no project here", not for "the operator configured
+#     something that is broken". With AGENT_COMMONS_CONNECTION set and no
+#     binary findable, the intent is unambiguous and the hook must say so.
+run "$orphan/scripts/claude-session-start.sh" PATH="$bare_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$orphan" AGENT_COMMONS_CONNECTION=/private/role.json
+test "$status" -ne 0 || fail "a configured connection with no binary exited 0"
+test "$status" -ne 2 || fail "the hook used exit 2, which blocks the launch"
+test ! -f "$invoked" || fail "hook invoked something with no binary findable"
+grep -q 'AGENT_COMMONS_CONNECTION' "$check_dir/err.log" ||
+  fail "the hook did not say why it could not check in: $(cat "$check_dir/err.log")"
+test ! -s "$check_dir/out.log" || fail "the hook wrote diagnostics to stdout"
+
+echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, configured-but-missing binary, check-in.sh chain."

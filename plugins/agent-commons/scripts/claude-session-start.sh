@@ -13,8 +13,15 @@ if [ -z "$binary" ]; then
     binary=$installed
   elif command -v agent-commons >/dev/null 2>&1; then
     binary=agent-commons
+  elif [ -n "${AGENT_COMMONS_CONNECTION:-}" ]; then
+    # The operator named a connection, so they meant this launch to check in.
+    # Report the missing binary rather than swallowing their intent. Never
+    # exit 2: Claude Code treats 2 as blocking and this must not stop a launch.
+    echo 'agent-commons: AGENT_COMMONS_CONNECTION is set but no agent-commons binary was found (AGENT_COMMONS_BINARY, $CLAUDE_PLUGIN_ROOT/../../agent-commons, PATH)' >&2
+    exit 127
   else
-    # The plugin can be present without the binary. Nothing to do; stay quiet.
+    # The plugin can be present without the binary, and most launches are in
+    # projects that were never enrolled. Nothing to do; stay quiet.
     exit 0
   fi
 fi
