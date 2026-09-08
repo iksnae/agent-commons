@@ -62,6 +62,16 @@ func enrollAgent(ctx context.Context, options onboardingOptions, out io.Writer) 
 	// otherwise succeed. `enroll` discards the label entirely (onboarding.go)
 	// and must not acquire a new failure mode on its account. An unreadable
 	// registry leaves the label "unknown".
+	//
+	// That downgrade has no test yet, and it is not one that can only be argued
+	// from the shape of the code: rpcCall reaches the service through
+	// transport.Call over a unix socket whose path derives from --state, and
+	// the method name travels on the wire. A test can stand up its own listener
+	// at a fake state directory's service.sock with operator.token beside it,
+	// fail sessions.list, and forward everything else to a real service — a
+	// transient list failure with a successful enroll, stdlib only, no
+	// injection point in production code. Untested, with a known route to a
+	// test.
 	registered, snapshotErr := connection.registeredIdentities(ctx)
 	adopted, credential, err := connection.enrollIdentity(ctx, options.Team)
 	if err != nil {

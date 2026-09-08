@@ -105,6 +105,19 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 	// the server has said which identity it really adopted. Do not re-check it
 	// here against the pre-RPC guess — that is what stopped init re-pointing a
 	// project at any adopted identity.
+	//
+	// This is NOT transactional with the manifest write below. Once enrollAgent
+	// returns, a session has been minted or adopted and a connection file
+	// exists; every step after this point can still fail and leave that
+	// identity behind with no manifest and no report naming it. A target that
+	// is readable and traversable but not writable reaches exactly that state:
+	// MkdirAll(projectDir) fails and one session has been minted. That is the
+	// stray-identity class the operator's original incident came from. It
+	// predates this change, which neither widens nor closes the window.
+	// Closing it means either enrolling after the manifest is written or
+	// unwinding the enrollment on failure; both are decisions beyond this fix,
+	// and TestInitFailureLeavesRecordedDefaultsIntact deliberately does not
+	// claim otherwise.
 	options := onboardingOptions{Command: "enroll", State: state, Name: name, Role: role, Team: team, Target: target}
 	enrolled, err := enrollAgent(ctx, options, io.Discard)
 	if err != nil {
@@ -163,6 +176,15 @@ func reviewProjectDefaults(manifest string, defaults projectDefaults) (string, e
 	return "replaced existing project defaults: " + difference, nil
 }
 
+// projectDefaults must stay comparable field by field. The walk below tests
+// equality through reflect.Value.Interface(), which is a RUNTIME comparison: it
+// replaced a compile-time `previous == defaults`, so a field whose type is not
+// comparable — a slice, a map, a func — would no longer fail the build, it
+// would panic inside init. This anchor restores the build failure at the point
+// such a field is added. Delete it only by making the walk handle the field
+// type it fails on, never by making it compile.
+var _ = projectDefaults{} == projectDefaults{}
+
 // describeProjectDefaultsDifference reports every field in which two manifests
 // differ, as `field "old" -> "new"`. Detecting the difference and describing it
 // are the same walk over the same fields, so the warning can never fire while
@@ -170,6 +192,11 @@ func reviewProjectDefaults(manifest string, defaults projectDefaults) (string, e
 // once. Two lists kept in step by hand is exactly the drift that put this
 // command in the state it was in; an empty result means identical, field for
 // field, which is what the caller treats as "nothing to warn about".
+//
+// That automatic coverage is the reason for the anchor above: it invites new
+// fields, and the trade taken for it was compile-time safety for runtime
+// reflection. Every field is comparable today, so the panic is latent, but the
+// invitation and the hazard belong in the same place.
 func describeProjectDefaultsDifference(previous, next projectDefaults) string {
 	fields := reflect.TypeOf(projectDefaults{})
 	before, after := reflect.ValueOf(previous), reflect.ValueOf(next)

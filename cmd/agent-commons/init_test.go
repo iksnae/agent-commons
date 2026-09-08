@@ -185,13 +185,25 @@ func TestInitWarningNamesTheDifferenceItFiredOn(t *testing.T) {
 	}
 }
 
-// TestInitFailureLeavesRecordedDefaultsIntact preserves, under warn-and-
-// proceed, the ordering the refusing draft made obvious: init reads the
-// recorded defaults before it creates, enrolls or starts anything, and it
-// rewrites them only once the enrollment has actually succeeded. A run that
-// fails in between must leave the project exactly as it found it and must not
-// announce a replacement that never happened — a warning naming defaults that
-// are still on disk is worse than no warning at all.
+// TestInitFailureLeavesRecordedDefaultsIntact covers the recorded defaults and
+// the announcement about them, and nothing wider. init reads the manifest
+// before it creates, enrolls or starts anything, and rewrites it only once the
+// enrollment has succeeded, so a run that fails in between leaves the recorded
+// defaults byte-identical and says nothing about a replacement that never
+// happened — a warning naming defaults still on disk is worse than none.
+//
+// It does NOT show that such a run leaves the project as it found it, and no
+// test here does. Enrollment is not transactional with the manifest write: a
+// failure after enrollAgent returns and before WriteFile completes leaves a
+// minted session and a connection file behind with no manifest and no report
+// naming them, which is the stray-identity class the operator's original
+// incident came from. A target that is readable and traversable but not
+// writable reaches exactly that state. It predates this change and this change
+// does not widen it; see the note at the enrollAgent call in init.go.
+//
+// The failure injected below is the earliest one after the read, so it proves
+// the least while still exercising the ordering truthfully. The interesting
+// case is enrollAgent itself failing, and nothing here reaches it.
 func TestInitFailureLeavesRecordedDefaultsIntact(t *testing.T) {
 	state := onboardingService(t)
 	target := t.TempDir()
