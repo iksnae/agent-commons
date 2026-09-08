@@ -15,14 +15,22 @@ import (
 func runConnectedMCP(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
 	flags := flag.NewFlagSet("connect-mcp", flag.ContinueOnError)
 	flags.SetOutput(errOut)
-	config := flags.String("config", os.Getenv("AGENT_COMMONS_CONNECTION"), "private project-role connection file")
+	config := flags.String("config", "", "private project-role connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *config == "" || flags.NArg() != 0 {
-		return errors.New("connect-mcp requires --config or AGENT_COMMONS_CONNECTION")
+	if flags.NArg() != 0 {
+		return errors.New("connect-mcp takes no positional arguments")
 	}
-	connection, err := openProjectConnection(*config)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	resolvedConfig, err := resolveConnectionConfigPath(*config, cwd)
+	if err != nil {
+		return err
+	}
+	connection, err := openProjectConnection(resolvedConfig)
 	if err != nil {
 		return err
 	}

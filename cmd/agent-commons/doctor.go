@@ -64,17 +64,25 @@ func healthErrorCode(err error) string {
 func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(errOut)
-	config := fs.String("config", "", "private enrolled connection file (required)")
+	config := fs.String("config", "", "private enrolled connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	timeout := fs.Duration("timeout", 5*time.Second, "total diagnostic deadline")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *config == "" || fs.NArg() != 0 || *timeout <= 0 || *timeout > time.Minute {
-		return errors.New("doctor requires --config and a timeout greater than zero, at most 1m")
+	if fs.NArg() != 0 || *timeout <= 0 || *timeout > time.Minute {
+		return errors.New("doctor requires a timeout greater than zero, at most 1m, and no positional arguments")
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	resolvedConfig, err := resolveConnectionConfigPath(*config, cwd)
+	if err != nil {
+		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
-	report := diagnoseConnection(ctx, *config)
+	report := diagnoseConnection(ctx, resolvedConfig)
 	if err := json.NewEncoder(out).Encode(report); err != nil {
 		return err
 	}

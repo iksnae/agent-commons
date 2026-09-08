@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"time"
 
@@ -20,15 +21,23 @@ import (
 func runConsole(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
 	flags := flag.NewFlagSet("console", flag.ContinueOnError)
 	flags.SetOutput(errOut)
-	config := flags.String("config", "", "explicit private role connection file; never falls back to operator")
+	config := flags.String("config", "", "explicit private role connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search; never falls back to operator")
 	once := flags.Bool("once", false, "print one JSON snapshot; automatic when input or output is not a terminal")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *config == "" || flags.NArg() != 0 {
-		return fmt.Errorf("console requires --config FILE")
+	if flags.NArg() != 0 {
+		return fmt.Errorf("console takes no positional arguments")
 	}
-	connection, err := openProjectConnection(*config)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	resolvedConfig, err := resolveConnectionConfigPath(*config, cwd)
+	if err != nil {
+		return err
+	}
+	connection, err := openProjectConnection(resolvedConfig)
 	if err != nil {
 		return err
 	}

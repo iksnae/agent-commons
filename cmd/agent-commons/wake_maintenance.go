@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"time"
 )
 
@@ -21,19 +22,27 @@ type wakeMaintenanceReport struct {
 func runWakeMaintenance(ctx context.Context, args []string, out, errOut io.Writer) error {
 	flags := flag.NewFlagSet("wake-maintain", flag.ContinueOnError)
 	flags.SetOutput(errOut)
-	config := flags.String("config", "", "private enrolled-role connection")
+	config := flags.String("config", "", "private enrolled-role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	thread := flags.String("codex-thread", "", "exact thread UUID whose wake history is maintained")
 	apply := flags.Bool("apply", false, "apply pruning after saving a private backup; default previews")
 	risk := flags.Bool("acknowledge-replay-risk", false, "acknowledge that restoring older inbox state can repeat pruned notifications")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *config == "" || *thread == "" || flags.NArg() != 0 || *apply != *risk {
-		return errors.New("wake-maintain requires --config FILE --codex-thread UUID; applying requires both --apply and --acknowledge-replay-risk")
+	if *thread == "" || flags.NArg() != 0 || *apply != *risk {
+		return errors.New("wake-maintain requires --codex-thread UUID; applying requires both --apply and --acknowledge-replay-risk")
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	resolvedConfig, err := resolveConnectionConfigPath(*config, cwd)
+	if err != nil {
+		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	w, connection, err := openScopedWake(ctx, *config, *thread)
+	w, connection, err := openScopedWake(ctx, resolvedConfig, *thread)
 	if err != nil {
 		return err
 	}

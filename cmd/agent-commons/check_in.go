@@ -60,8 +60,16 @@ func checkInAgent(ctx context.Context, options onboardingOptions, streams comman
 }
 
 func resolveCheckIn(options onboardingOptions) (onboardingOptions, error) {
-	if options.Config == "" || !harness.CanAttach(options.Runtime) {
-		return options, errors.New("check-in requires --config and a supported --runtime; see agent-commons harnesses")
+	if !harness.CanAttach(options.Runtime) {
+		return options, errors.New("check-in requires a supported --runtime; see agent-commons harnesses")
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return options, err
+	}
+	options.Config, err = resolveConnectionConfigPath(options.Config, cwd)
+	if err != nil {
+		return options, err
 	}
 	if options.NativeSession == "" && options.Runtime == "codex" {
 		options.NativeSession = os.Getenv("CODEX_THREAD_ID")
