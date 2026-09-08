@@ -19,7 +19,7 @@ import (
 func TestEnrollRefusesToOverwriteDifferingConfigWithoutWriting(t *testing.T) {
 	state := onboardingService(t)
 	target := t.TempDir()
-	args := []string{"enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
+	args := []string{"enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
 
 	var enrolled struct {
 		Config string `json:"config"`

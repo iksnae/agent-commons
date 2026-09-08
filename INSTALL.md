@@ -97,6 +97,9 @@ Because nothing is added to PATH, the installed copies of the plugin's MCP
 manifests name the binary this install placed instead of a bare command. The
 bundle you unpacked is not modified.
 
+`install`, `verify` and `remove` all print a summary. Add `--json` to any of
+them for the machine-readable receipt instead.
+
 Keep service state and connection files outside the installation directory.
 Do not store notes or credentials in it. A failed copy is retained for inspection
 and reported as an incomplete installation, never as success.

@@ -59,7 +59,7 @@ func onboardingCommand(t *testing.T, args ...string) []byte {
 func TestEnrollmentPreservesIdentityAndCredential(t *testing.T) {
 	state := onboardingService(t)
 	target := t.TempDir()
-	args := []string{"enroll", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
+	args := []string{"enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead"}
 	first := onboardingCommand(t, args...)
 	second := onboardingCommand(t, args...)
 	if !bytes.Equal(first, second) {
@@ -86,7 +86,7 @@ func TestEnrollmentPreservesIdentityAndCredential(t *testing.T) {
 
 func TestCheckInRecoversWelcomeWithoutAcknowledging(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}

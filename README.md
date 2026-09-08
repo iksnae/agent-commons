@@ -83,6 +83,10 @@ you want to pin one; it always wins.
 `doctor` is read-only and reports scoped connection problems without printing
 credentials or peer messages.
 
+`init`, `enroll`, `doctor` and `bundle` print a summary for you to read. Add
+`--json` to any of them for the machine-readable report a script wants; it is
+the document those commands printed by default before v0.0.3.
+
 `check-in` resolves the same way but is invoked by a harness rather than by
 hand: it needs the exact native session id to attach, which only the harness
 knows. The plugin and the shipped skill call it for you.

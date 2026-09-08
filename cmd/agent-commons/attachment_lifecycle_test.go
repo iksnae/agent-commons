@@ -27,7 +27,7 @@ func TestWatcherArgumentsPreserveRuntimeSelection(t *testing.T) {
 
 func TestCanceledHoldReleasesAttachment(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}
@@ -57,7 +57,7 @@ func TestCanceledHoldReleasesAttachment(t *testing.T) {
 
 func TestFailedCheckInCleanupReleasesOnlyNewLease(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}
@@ -82,7 +82,7 @@ func TestFailedCheckInCleanupReleasesOnlyNewLease(t *testing.T) {
 
 func TestFailedCheckInCleanupPreservesReusedLease(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}
@@ -123,7 +123,7 @@ func TestLeaseRenewalReportsConnectionFailure(t *testing.T) {
 
 func TestRenewalUpdatesEpochBeforeRelease(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}

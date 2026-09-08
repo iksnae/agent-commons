@@ -20,7 +20,7 @@ func TestConnectedMCPRequiresExplicitRoleConfig(t *testing.T) {
 
 func TestConnectedMCPUsesEnrolledRole(t *testing.T) {
 	state := onboardingService(t)
-	data := onboardingCommand(t, "enroll", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	data := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
 	var result struct {
 		Config string `json:"config"`
 	}

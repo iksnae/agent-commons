@@ -34,6 +34,11 @@ const (
 type enrollmentResult struct {
 	Identity string
 	Config   string
+	// Target is the resolved project directory the identity is bound to. It is
+	// carried here because the report is written by the CALLER now: enrollAgent
+	// performs an enrollment and says what it settled on, and the command
+	// decides whether that becomes a JSON document or a human summary.
+	Target string
 	// IdentityStatus is "adopted", "created", or "unknown" when the registry
 	// could not be read. It is a display label and NOTHING may branch on it.
 	// It is derived by comparing the settled identity against a registry
@@ -46,7 +51,7 @@ type enrollmentResult struct {
 	IdentityStatus string
 }
 
-func enrollAgent(ctx context.Context, options onboardingOptions, out io.Writer) (enrollmentResult, error) {
+func enrollAgent(ctx context.Context, options onboardingOptions) (enrollmentResult, error) {
 	connection, err := prepareEnrollment(options)
 	if err != nil {
 		return enrollmentResult{}, err
@@ -107,12 +112,19 @@ func enrollAgent(ctx context.Context, options onboardingOptions, out io.Writer) 
 			status = identityStatusAdopted
 		}
 	}
-	result := enrollmentResult{
+	return enrollmentResult{
 		Identity: connection.Config.Identity, Config: connection.Path,
-		IdentityStatus: status,
-	}
-	return result, json.NewEncoder(out).Encode(map[string]string{
-		"identity": connection.Config.Identity, "config": connection.Path, "target": connection.Config.Target,
+		Target: connection.Config.Target, IdentityStatus: status,
+	}, nil
+}
+
+// writeEnrollmentDocument is enroll's machine contract, unchanged: the same
+// three keys, in the same encoding. It lives beside the enrollment rather than
+// in the renderers, because it is the shape a parser depends on, not a
+// presentation choice.
+func writeEnrollmentDocument(out io.Writer, enrolled enrollmentResult) error {
+	return json.NewEncoder(out).Encode(map[string]string{
+		"identity": enrolled.Identity, "config": enrolled.Config, "target": enrolled.Target,
 	})
 }
 

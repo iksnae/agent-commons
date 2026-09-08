@@ -56,8 +56,9 @@ a checklist item passes.
 ## Read-only diagnostics
 
 `agent-commons doctor --config /private/connection.json` checks private connection
-files, credential/identity binding, inbox access and board access. It emits a
-bounded JSON report and exits nonzero on failure. It does not attach a session,
+files, credential/identity binding, inbox access and board access. It prints a
+bounded summary naming every check, or that same report as JSON with `--json`,
+and exits nonzero on failure. It does not attach a session,
 acknowledge messages, start a model or print peer messages and credentials.
 `ready: true` means those connection checks passed, not that the product is ready.
 

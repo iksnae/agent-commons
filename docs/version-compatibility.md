@@ -26,6 +26,26 @@ do not copy a connection file between projects or roles. RPC and MCP clients
 must negotiate capabilities and use the advertised method contract. A missing
 capability means that feature is unavailable, not that it should be guessed.
 
+## Command output (breaking change in v0.0.3)
+
+`init`, `enroll`, `doctor` and `bundle` now print a human summary by default.
+They printed a JSON document before. Pass `--json` to any of those four to get
+that document back; it is unchanged, field for field. If a script reads their
+stdout, add `--json` to the invocation before upgrading past v0.0.2.
+
+`check-in` did not change and has no `--json` flag. Its stdout is still exactly
+one JSON document and nothing else, because harnesses parse it whole and
+`--hold` streams arrivals onto the same stream. It now writes a short human
+header to stderr, which callers that only read stdout never see.
+
+`update` gained no flag. It printed prose before and prints prose now. Every
+other command — `call`, `watch`, `methods`, `connect-mcp`, `harnesses`,
+`discover`, `inventory`, `launch-context`, `service`, `wake-*` and `codex-*` —
+is unchanged.
+
+Colour appears only on a terminal. A pipe, a redirect and `NO_COLOR` all get
+plain text. Label columns are padded either way.
+
 ## Plugins and native adapters
 
 The Claude, Codex, Pi and Hermes integration bundles are versioned with the

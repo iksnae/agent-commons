@@ -49,6 +49,12 @@ func checkInAgent(ctx context.Context, options onboardingOptions, streams comman
 		connection.releaseIfNew(attachment)
 		return err
 	}
+	// The header is for the human caller documented at
+	// plugins/agent-commons/scripts/check-in.sh. Its failure is deliberately
+	// not this command's failure: a harness may hand check-in a closed or
+	// unusable stderr, and a check-in that already attached and read must not
+	// be reported as failed because a courtesy line could not be printed.
+	_ = writeCheckInHeader(streams.Errors, connection.config, attachment)
 	if err = json.NewEncoder(streams.Output).Encode(snapshot); err != nil {
 		connection.releaseIfNew(attachment)
 		return err

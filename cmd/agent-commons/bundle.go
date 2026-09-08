@@ -21,6 +21,10 @@ func runBundle(args []string, out, errOut io.Writer) error {
 	source := fs.String("from", "", "extracted native archive directory")
 	target := fs.String("to", "", "absolute dedicated installation directory")
 	stopped := fs.Bool("confirm-stopped", false, "confirm all services using this installation have been stopped before removal")
+	// One flag on the one FlagSet: --json means the same thing for install,
+	// verify and remove, and is not something a caller has to look up per
+	// subcommand.
+	asJSON := fs.Bool("json", false, jsonFlagUsage)
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -59,5 +63,8 @@ func runBundle(args []string, out, errOut io.Writer) error {
 	default:
 		return errors.New("bundle operation must be install, verify or remove")
 	}
-	return json.NewEncoder(out).Encode(result)
+	if *asJSON {
+		return json.NewEncoder(out).Encode(result)
+	}
+	return writeBundleSummary(out, result)
 }
