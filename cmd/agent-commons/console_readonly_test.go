@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
 func TestConsoleDoesNotAttachAcknowledgeOrExposeCredentials(t *testing.T) {
 	state := onboardingService(t)
-	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", t.TempDir(), "--name", "lead", "--role", "lead")
+	target := t.TempDir()
+	enrolled := onboardingCommand(t, "enroll", "--json", "--state", state, "--target", target, "--name", "lead", "--role", "lead")
 	var enrollment struct {
 		Config string `json:"config"`
 	}
@@ -33,6 +36,35 @@ func TestConsoleDoesNotAttachAcknowledgeOrExposeCredentials(t *testing.T) {
 	result := onboardingCommand(t, "console", "--config", enrollment.Config, "--once")
 	if !json.Valid(result) || bytes.Contains(result, []byte(connection.client.token)) {
 		t.Fatal("invalid/credential-bearing snapshot")
+	}
+	// Absence of the bearer token is too narrow a check on its own: it stays
+	// true while the document silently widens to carry, say, a lease ID or a
+	// session's instructions. Assert the whole emitted key set instead, so any
+	// new key has to be added here deliberately.
+	if keys := consoleDocumentKeys(t, json.RawMessage(result)); !reflect.DeepEqual(keys, []string{"Agents", "Scope", "Tasks"}) {
+		t.Fatalf("console emitted keys beyond its contract: %q", keys)
+	}
+	// Scope's key is asserted above and its format by the golden, but neither
+	// pins where the value comes from: both stay green while production emits
+	// an empty Scope for every project. Compare against the enrolled --target
+	// itself, resolved the way enrollment resolves it, so the assertion does
+	// not read back the same connection field the console reads.
+	var document struct {
+		Scope string
+	}
+	if err := json.Unmarshal(result, &document); err != nil {
+		t.Fatal(err)
+	}
+	enrolledTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emittedScope, err := filepath.EvalSymlinks(document.Scope)
+	if err != nil {
+		t.Fatalf("console scope %q is not the enrolled project: %v", document.Scope, err)
+	}
+	if emittedScope != enrolledTarget {
+		t.Fatalf("console scope %q is not the enrolled project %q", document.Scope, target)
 	}
 	if !bytes.Equal(registry, read("sessions.list")) || !bytes.Equal(inbox, read("inbox.page")) {
 		t.Fatal("console changed attachment or inbox")
