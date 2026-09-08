@@ -7,3 +7,4 @@
 /WAKEUP.md
 *.token
 /dist/
+.DS_Store
