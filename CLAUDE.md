@@ -61,12 +61,24 @@ Four-layer split; dependencies point inward toward `internal/core`.
 - `internal/supervision`, `internal/installation`, `internal/codexlaunch`,
   `internal/codexrpc` — launchd/systemd process plans, bundle install/remove
   receipts, and Codex session preparation/resume/lease handling.
-- `internal/console` — Bubble Tea read-only terminal UI. Charm dependencies are
-  approved here and only here; UI state must not own coordination state.
-- `cmd/agent-commons` — CLI orchestration only. `main.go` dispatches subcommands
-  (`serve`, `call`, `mcp`, `init`, `enroll`, `check-in`, `doctor`, `console`,
-  `service`, `bundle`, `wake-*`, `codex-*`, `discover`, `inventory`, `watch`,
-  `methods`, `harnesses`). Keep orchestration out of the layers above.
+- `internal/console` — Bubble Tea read-only terminal UI. UI state must not own
+  coordination state.
+- `cmd/agent-commons` — CLI orchestration and one-shot human rendering.
+  `main.go` dispatches subcommands (`serve`, `call`, `mcp`, `init`, `enroll`,
+  `check-in`, `doctor`, `console`, `service`, `bundle`, `wake-*`, `codex-*`,
+  `discover`, `inventory`, `watch`, `methods`, `harnesses`);
+  `presentation.go` owns the palette, the NO_COLOR/TTY policy and the report
+  block every command writes to a person. Keep orchestration out of the layers
+  above.
+
+Charm is confined to the terminal presentation layer, which spans two sites:
+`internal/console` (the interactive TUI) and the presentation files of
+`cmd/agent-commons` (`presentation.go`, and `console.go`'s terminal wiring).
+Charm must not appear in `internal/core`, `internal/transport`,
+`internal/runtime`, `internal/supervision`, `internal/installation`,
+`internal/codexlaunch` or `internal/codexrpc`, and within `cmd/agent-commons`
+it must not spread into command orchestration files — a command needing styled
+output takes it from `presentation.go` rather than importing lipgloss itself.
 
 Cross-cutting invariants enforced by tests: target isolation, idempotent sends,
 immutable context versions, reviewer independence and no self-review,
