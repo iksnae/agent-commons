@@ -102,4 +102,108 @@ fi
 grep -q 'error:' "$check_dir/absent.log"
 test ! -e "$check_dir/bin-absent"
 
-echo "Installer verified: verified archive, checksum mismatch, unchecked archive, escaping members, missing archive."
+# Installing over a binary that is CURRENTLY RUNNING from the destination path.
+# Every case above installs into an empty directory, which is why they all
+# passed while the real upgrade path was broken: writing onto a running
+# executable in place invalidates its image and macOS kills the process with
+# SIGKILL (exit 137). The install must replace the directory entry by renaming
+# a staged file over it, so a process already running keeps the file it started
+# from. cmd/agent-commons/update.go holds the same property for `update`.
+#
+# The previous install has to be a compiled binary, and neither shortcut works:
+# a shell script is re-read from its path, so a running one picks up the new
+# file even when the install is atomic, and a copy of an Apple platform binary
+# such as /bin/sleep is killed on sight whatever the installer did. Both report
+# on macOS rather than on this script. So build one; it needs no dependencies
+# and `just check` already requires the Go toolchain.
+mkdir -p "$check_dir/previous-src"
+cat > "$check_dir/previous-src/go.mod" <<'MOD'
+module previousinstall
+
+go 1.26
+MOD
+cat > "$check_dir/previous-src/main.go" <<'GO'
+// The binary a previous install left at the destination, still running.
+package main
+
+import "time"
+
+func main() { time.Sleep(10 * time.Minute) }
+GO
+(cd "$check_dir/previous-src" && go build -o "$check_dir/previous-install" .)
+
+live_dest="$check_dir/bin-live"
+mkdir -p "$live_dest"
+cp "$check_dir/previous-install" "$live_dest/agent-commons"
+chmod 755 "$live_dest/agent-commons"
+"$live_dest/agent-commons" &
+live_pid=$!
+# Keep job control from reporting this script's own cleanup kill as a failure.
+disown "$live_pid" 2> /dev/null || true
+trap 'kill "$live_pid" 2> /dev/null || true; rm -rf "$check_dir"' EXIT
+# Hold the file the running process was started from, the same way
+# TestUpdateRenamesOverTheTargetRatherThanWritingIntoIt holds its handle.
+exec 9< "$live_dest/agent-commons"
+before_inode="$(ls -i "$live_dest/agent-commons" | awk '{print $1}')"
+
+HOME="$home" PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+  bash scripts/install.sh --archive "$check_dir/release/$name.tar.gz" --to "$live_dest" \
+  > "$check_dir/live.log" 2>&1
+
+# The newly installed file is at the destination and executes.
+test "$("$live_dest/agent-commons")" = "stand-in agent-commons"
+# The held handle still reads the file the running process started from. An
+# install that writes into the existing file reads the installed bytes here.
+if ! cmp -s /dev/fd/9 "$check_dir/previous-install"; then
+  echo "install wrote into the file a running process was started from" >&2
+  exit 1
+fi
+exec 9<&-
+# The path carries a different file than before, not the same file rewritten.
+after_inode="$(ls -i "$live_dest/agent-commons" | awk '{print $1}')"
+if [ "$before_inode" = "$after_inode" ]; then
+  echo "install reused the inode at $live_dest/agent-commons instead of renaming over it" >&2
+  exit 1
+fi
+# The process started before the install is still running, not a killed corpse.
+live_state="$(ps -o state= -p "$live_pid" 2> /dev/null | tr -d ' ')"
+case "$live_state" in
+  ""|Z*)
+    echo "the process running from the destination path did not survive the install ($live_state)" >&2
+    exit 1 ;;
+esac
+kill "$live_pid" 2> /dev/null || true
+# The destination holds the installed binary only; no staged file was left.
+test "$(ls -A "$live_dest")" = "agent-commons"
+
+# A staged file abandoned by an interrupted earlier run neither blocks the next
+# install nor is mistaken for one.
+stale_dest="$check_dir/bin-stale"
+mkdir -p "$stale_dest"
+printf 'half a binary' > "$stale_dest/.agent-commons-install.LEFTOVER"
+HOME="$home" bash scripts/install.sh --archive "$check_dir/release/$name.tar.gz" \
+  --to "$stale_dest" > "$check_dir/stale.log" 2>&1
+test "$("$stale_dest/agent-commons")" = "stand-in agent-commons"
+test "$(ls -A "$stale_dest" | grep -c '^\.agent-commons-install\.')" = "1"
+test "$(cat "$stale_dest/.agent-commons-install.LEFTOVER")" = "half a binary"
+
+# A destination that cannot be staged into fails before anything is replaced:
+# the operator's existing binary survives intact and no partial file is left.
+locked_dest="$check_dir/bin-locked"
+mkdir -p "$locked_dest"
+printf '#!/bin/sh\necho operator binary\n' > "$locked_dest/agent-commons"
+chmod 755 "$locked_dest/agent-commons"
+chmod 555 "$locked_dest"
+if HOME="$home" bash scripts/install.sh --archive "$check_dir/release/$name.tar.gz" \
+  --to "$locked_dest" > "$check_dir/locked.log" 2>&1; then
+  chmod 755 "$locked_dest"
+  echo "installer reported success on a destination it cannot write" >&2
+  cat "$check_dir/locked.log" >&2
+  exit 1
+fi
+chmod 755 "$locked_dest"
+grep -q 'error:' "$check_dir/locked.log"
+test "$("$locked_dest/agent-commons")" = "operator binary"
+test "$(ls -A "$locked_dest")" = "agent-commons"
+
+echo "Installer verified: verified archive, checksum mismatch, unchecked archive, escaping members, missing archive, install over a running binary, stale staged file, unwritable destination."

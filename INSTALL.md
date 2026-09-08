@@ -160,6 +160,14 @@ the old binary until it is restarted, and this command does not restart it.
 This route updates one binary. It does not update the bundle, the plugin, or the
 installed skill.
 
+`update` first shipped in `v0.0.1`, so a binary installed before that tag does not
+have the command and cannot use it to reach `v0.0.1`. Run `scripts/install.sh` for
+that first step. The script replaces the installed file the same way this command
+does — it stages the new binary inside the install directory and renames it over
+the old one — so a process already running from that path keeps the file it started
+from rather than having its image overwritten underneath it. As with `update`, a
+running service keeps the old binary until you restart it.
+
 ## Upgrade and service setup
 
 Install a new version into a separate directory. Verify it, back up service state,
