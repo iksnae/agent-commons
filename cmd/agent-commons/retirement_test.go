@@ -182,6 +182,15 @@ func TestReinstateCommandRestoresTheIdentityWithoutPrintingItsCredential(t *test
 	if credentialShape.MatchString(string(mustMarshal(t, document))) {
 		t.Fatalf("reinstate report carries something shaped like a credential: %+v", document)
 	}
+	// Withholding the credential is only honest if the report says what that
+	// costs. "The file was not changed" is true and useless on its own; the
+	// operator needs to know the identity cannot connect until they fix it, and
+	// which command does hand them the new credential.
+	for _, required := range []string{"cannot connect", "by hand", "sessions.reinstate"} {
+		if !strings.Contains(document["notice"], required) {
+			t.Fatalf("reinstate notice omits %q, so it states the fact without the consequence: %q", required, document["notice"])
+		}
+	}
 	if !listed(struct{}{})[enrolled.config.Identity] {
 		t.Fatal("reinstated identity is missing from the default listing")
 	}

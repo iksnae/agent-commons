@@ -148,11 +148,22 @@ New(directory string) (*Service, error)
 `operator` is reserved. Token returns internal credentials, never exposed by RPC.
 Session fields: ID, Target (absolute directory), Team, Role, Runtime (`claude`,
 `codex`, `pi`, `hermes`, `manual`), Mode (`managed`, `manual`), RuntimeSessionID, Instructions,
-Busy bool, RetiredAt, RetiredReason. JSON fields camelCase. Credentials are
-omitted from every public DTO. RetiredAt and RetiredReason are the session
-retirement amendment to this frozen list: a deliberate contract change, not an
-incidental one. RetiredAt is an RFC3339Nano timestamp rather than a bool because
-the audit trail is the reason retirement tombstones instead of deleting.
+Busy bool, RetiredAt, RetiredReason, Retirements. JSON fields camelCase.
+Credentials are omitted from every public DTO. RetiredAt, RetiredReason and
+Retirements are the session retirement amendment to this frozen list: a
+deliberate contract change, not an incidental one. RetiredAt is an RFC3339Nano
+timestamp rather than a bool because the audit trail is the reason retirement
+tombstones instead of deleting. Retirements is an append-only `[]Retirement`
+(`At`, `Reason`, `ReinstatedAt`, `ReinstatedReason`) recording every withdrawal
+and return; RetiredAt/RetiredReason are current state and every rule reads
+those, while the ledger decides nothing, the same split Task draws between
+Status/Output/Revision and Reviews. It exists because reinstatement clears the
+current-state fields, and a contract reading "nothing is erased" cannot have
+reinstatement erase the retirement. Retirements is OPERATOR-ONLY: it is stripped
+from every Session handed to any other actor, and from `Sessions()`, through the
+single `core.sessionView` helper, because a reinstated identity is listed to its
+peers again. `omitempty` keeps the `[]Session` wire shape unchanged for clients
+that never see it. Both retirement evidence bounds govern stored bytes.
 Delivery fields: ID, From, To, Text, Kind (`message`, `task`, `result`), TaskID,
 ContextID, ContextVersion int, Status, Attempts int, Output, Error, CreatedAt.
 Session and Delivery exported Go fields named exactly above.
@@ -217,7 +228,18 @@ Core RPC methods with JSON params:
   returned intact with its acknowledgement flags as they were, board posts and
   task history untouched. Team memberships stay `revoked`: re-invitation is its
   own act. Onboarding messages are not re-sent, because `welcome` is idempotent
-  on its onboarding key.
+  on its onboarding key. It closes the open `Retirements` entry with its own
+  timestamp and evidence before clearing current state, so the evidence it
+  demands is persisted like every other evidence-bearing method here rather than
+  demanded and discarded. `validateRetirement` refuses to load state whose
+  ledger and current state disagree: a retired identity must have exactly one
+  open entry matching its `RetiredAt`/`RetiredReason`, and a live one none.
+  Credential lifecycle stays out of scope. `sessions.reinstate` returns the new
+  credential in its response, so `agent-commons call sessions.reinstate` yields
+  it; the `reinstate` subcommand deliberately does not print it and writes no
+  file, so the enrollment credential file stays stale and the operator replaces
+  it by hand or the identity cannot connect. Where that boundary belongs is an
+  open decision, recorded in gates/core.md and docs/coordination.md.
 - Durable schema 5 is taken lazily, on the first successful retirement only. A
   refused retirement writes no snapshot and advances no number. The bump is what
   makes a downgrade safe: an older binary has no notion of `RetiredAt`, so it

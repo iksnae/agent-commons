@@ -250,7 +250,9 @@ func (s *Service) Sessions() []Session {
 	defer s.mu.Unlock()
 	out := []Session{}
 	for _, v := range s.data.Sessions {
-		out = append(out, v)
+		// The supervisor is not the operator: it polls for runnable work and
+		// has no business carrying operator evidence toward a runtime prompt.
+		out = append(out, sessionView("", v))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
@@ -449,7 +451,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		}
 		v.Policy = p.Policy
 		s.data.Sessions[v.ID] = v
-		return v, nil
+		return sessionView(actor, v), nil
 	case "sessions.register", "sessions.enroll":
 		if actor != "operator" {
 			return fail("operator required")
@@ -515,9 +517,17 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			if method == "sessions.enroll" {
 				existing := s.data.Sessions[v.ID]
 				// A client-supplied --id can land on a tombstone the candidate
-				// scan above never considered, because that scan matches on
-				// target+role+name. Adoption here would hand back an empty
-				// token and call it an enrollment.
+				// scan above never classified, because that scan matches on
+				// target + role + name: an --id naming a retired record of a
+				// DIFFERENT role reaches here unclassified.
+				//
+				// This does not change the OUTCOME. The conflict check below is
+				// the exact complement of that scan, so anything reaching here
+				// unclassified fails it anyway. What it changes is what the
+				// operator is told: "enrollment conflicts with existing
+				// identity" does not say the identity is retired or how to get
+				// it back, and this does. Pinned by
+				// TestEnrollWithAnExplicitIdNamesTheRetirementItLandedOn.
 				if existing.RetiredAt != "" {
 					return nil, retiredEnrollmentRefusal(existing)
 				}
@@ -538,7 +548,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 					s.data.Sessions[existing.ID] = existing
 				}
 				s.welcome(existing)
-				return map[string]any{"session": existing, "token": s.data.Tokens[v.ID]}, nil
+				return map[string]any{"session": sessionView(actor, existing), "token": s.data.Tokens[v.ID]}, nil
 			}
 			return fail("session already registered")
 		}
@@ -572,7 +582,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if method == "sessions.enroll" {
 			s.welcome(v)
 		}
-		return map[string]any{"session": v, "token": tok}, nil
+		return map[string]any{"session": sessionView(actor, v), "token": tok}, nil
 	case "sessions.list":
 		// Retired identities are excluded by default because a registry full of
 		// withdrawn roles is the pain retirement exists to relieve. They stay
@@ -586,7 +596,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				continue
 			}
 			if s.scoped(actor, v.Target) {
-				out = append(out, v)
+				out = append(out, sessionView(actor, v))
 			}
 		}
 		sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

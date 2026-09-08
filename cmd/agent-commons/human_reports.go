@@ -119,8 +119,14 @@ func writeRetirementSummary(out io.Writer, report map[string]string) error {
 		human.field("Retired at", report["retiredAt"])
 		human.field("Reason", report["reason"])
 	}
-	human.field("Connection", report["connection"])
-	human.field("Credential", report["credential"])
+	// Absent when the connection was recorded under an adopted identity, whose
+	// path cannot be derived from the registry. A blank field would read as
+	// "there is no file", which is the opposite of true; the notice explains.
+	for _, optional := range []struct{ label, key string }{{"Connection", "connection"}, {"Credential", "credential"}} {
+		if value := report[optional.key]; value != "" {
+			human.field(optional.label, value)
+		}
+	}
 	human.blank()
 	human.note(report["notice"])
 	return human.write()

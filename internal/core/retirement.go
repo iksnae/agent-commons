@@ -13,11 +13,13 @@ import (
 // Session retirement withdraws an identity without erasing it.
 //
 // Deleting the Session record would buy nothing the credential deletion does
-// not already buy, and would cost attribution: deliveryTarget resolves a
-// delivery's project through s.data.Sessions[d.From] / [d.To], so a deleted
-// record yields Target == "" and deliveryAccess then refuses every team-scoped
-// delivery that identity ever sent or received. The operator's own history
-// would disappear from inbox.list as a side effect of the withdrawal.
+// not already buy, and would cost attribution. deliveryTarget resolves a
+// delivery's project through Sessions[d.To], falling back to Sessions[d.From]
+// when the recipient is the operator, so a deleted record yields Target == ""
+// and deliveryAccess then refuses every team-scoped delivery ADDRESSED TO this
+// identity, plus the ones it sent to the operator. Deliveries it sent to a live
+// peer resolve through that peer and survive. The operator's own history would
+// disappear from inbox.list as a side effect of the withdrawal.
 // BoardPost.Author and Review.Actor are bare identity strings with no
 // denormalized name, and a tombstone is what keeps them resolvable.
 //
@@ -68,20 +70,82 @@ func (s *Service) retired(id string) bool {
 // feature's records, then the per-record invariant.
 func (s *Service) validateRetirement() error {
 	for id, v := range s.data.Sessions {
-		if v.RetiredAt == "" && v.RetiredReason == "" {
+		if v.RetiredAt == "" && v.RetiredReason == "" && len(v.Retirements) == 0 {
 			continue
 		}
 		if s.data.SchemaVersion < retirementSchema {
 			return errors.New("retired identity records require schema 5")
 		}
-		if v.RetiredAt == "" || strings.TrimSpace(v.RetiredReason) == "" {
-			return errors.New("retired identity is missing its timestamp or reason")
+		if err := validateRetirementLedger(v); err != nil {
+			return err
 		}
-		if s.data.Tokens[id] != "" {
+		if v.RetiredAt != "" && s.data.Tokens[id] != "" {
 			return errors.New("retired identity still holds a credential")
 		}
 	}
 	return nil
+}
+
+// validateRetirementLedger makes current state and history agree by checking
+// rather than by trusting that both writers stayed correct. RetiredAt and the
+// ledger are two representations of one fact, and two representations that are
+// never compared drift.
+func validateRetirementLedger(v Session) error {
+	for _, entry := range v.Retirements {
+		if entry.At == "" || strings.TrimSpace(entry.Reason) == "" {
+			return errors.New("retirement history entry is missing its timestamp or reason")
+		}
+		if entry.ReinstatedAt == "" && strings.TrimSpace(entry.ReinstatedReason) != "" {
+			return errors.New("retirement history records a reinstatement reason with no timestamp")
+		}
+	}
+	// Every entry but the last must be closed, or "the open one" is ambiguous.
+	for _, entry := range v.Retirements[:max(len(v.Retirements)-1, 0)] {
+		if entry.ReinstatedAt == "" {
+			return errors.New("retirement history has more than one open entry")
+		}
+	}
+	var open *Retirement
+	if n := len(v.Retirements); n > 0 && v.Retirements[n-1].ReinstatedAt == "" {
+		open = &v.Retirements[n-1]
+	}
+	if v.RetiredAt == "" {
+		if strings.TrimSpace(v.RetiredReason) != "" {
+			return errors.New("retirement reason recorded without a timestamp")
+		}
+		if open != nil {
+			return errors.New("live identity has an open retirement history entry")
+		}
+		return nil
+	}
+	if strings.TrimSpace(v.RetiredReason) == "" {
+		return errors.New("retired identity is missing its reason")
+	}
+	if open == nil {
+		return errors.New("retired identity has no open retirement history entry")
+	}
+	if open.At != v.RetiredAt || open.Reason != v.RetiredReason {
+		return errors.New("retirement history disagrees with the current retirement")
+	}
+	return nil
+}
+
+// sessionView is the ONLY place a stored Session becomes something handed out.
+// Two rules live here so neither can be re-applied differently per call site:
+// retirement history is operator evidence and is stripped from everyone else,
+// and no returned Session ever aliases the slice the registry holds.
+//
+// The stripping matters specifically because history outlives reinstatement. A
+// retired session never reaches a peer -- it is excluded from sessions.list and
+// includeRetired is operator-only -- but a REINSTATED one is listed to every
+// peer scoped to its target, and it still carries the ledger.
+func sessionView(actor string, v Session) Session {
+	if actor != "operator" || len(v.Retirements) == 0 {
+		v.Retirements = nil
+		return v
+	}
+	v.Retirements = append([]Retirement{}, v.Retirements...)
+	return v
 }
 
 // retirementRefusal names the condition blocking a withdrawal, or "" when there
@@ -156,6 +220,10 @@ func (s *Service) retire(actor string, p params) (any, error) {
 	}
 	v.RetiredAt = time.Now().UTC().Format(time.RFC3339Nano)
 	v.RetiredReason = p.Evidence
+	// Append rather than replace: an identity can be withdrawn and returned
+	// more than once, and each cycle is its own record.
+	v.Retirements = append(append([]Retirement{}, v.Retirements...),
+		Retirement{At: v.RetiredAt, Reason: v.RetiredReason})
 	// The lease is already expired -- a live one is refused above -- so this
 	// writes the terminal value sessions.detach writes, rather than revoking
 	// anything a holder still owns.
@@ -181,7 +249,7 @@ func (s *Service) retire(actor string, p params) (any, error) {
 			s.data.Teams[key] = team
 		}
 	}
-	return v, nil
+	return sessionView(actor, v), nil
 }
 
 // reinstate returns a retired identity to service. It is a separate, explicit
@@ -206,6 +274,17 @@ func (s *Service) reinstate(actor string, p params) (any, error) {
 	if v.RetiredAt == "" {
 		return nil, errors.New("identity is not retired")
 	}
+	// Close the open ledger entry BEFORE clearing current state, so the
+	// evidence this method demanded is recorded rather than demanded and
+	// discarded, and so the withdrawal it reverses is still legible afterwards.
+	history := append([]Retirement{}, v.Retirements...)
+	if n := len(history); n == 0 || history[n-1].ReinstatedAt != "" {
+		return nil, errors.New("retired identity has no open retirement history entry")
+	} else {
+		history[n-1].ReinstatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		history[n-1].ReinstatedReason = p.Evidence
+	}
+	v.Retirements = history
 	v.RetiredAt = ""
 	v.RetiredReason = ""
 	s.data.Sessions[v.ID] = v
@@ -213,7 +292,7 @@ func (s *Service) reinstate(actor string, p params) (any, error) {
 	s.data.Tokens[v.ID] = token
 	// s.welcome is idempotent on its onboarding key, so nothing re-sends the
 	// onboarding messages this identity already read.
-	return map[string]any{"session": v, "token": token}, nil
+	return map[string]any{"session": sessionView(actor, v), "token": token}, nil
 }
 
 // retiredEnrollmentRefusal is what sessions.enroll answers when the candidate

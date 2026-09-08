@@ -557,14 +557,14 @@ func TestRetirementSurvivesRestartAndRefusesCorruptState(t *testing.T) {
 	}
 }
 
-// The schema number is taken lazily and only by a retirement that succeeded.
-func TestRetireAdvancesSchemaLazilyAndOnlyOnSuccess(t *testing.T) {
+// A retirement that never happened must leave no trace: not the number, not a
+// snapshot. This is the "only on success" half, and nothing else.
+func TestRefusedRetirementAdvancesNoSchemaAndWritesNoSnapshot(t *testing.T) {
 	s, dir, target := retireFixture(t)
 	enrollAgent(t, s, "agent-alpha", "exp-alpha", "builder", target)
 	if s.data.SchemaVersion != 1 {
 		t.Fatalf("fixture schema is %d; adjust this test to its real starting point", s.data.SchemaVersion)
 	}
-
 	denied(t, s, "lead", "sessions.retire", retireArgs("agent-alpha"))
 	denied(t, s, "operator", "sessions.retire", map[string]any{"id": "agent-alpha", "evidence": " "})
 	denied(t, s, "operator", "sessions.retire", retireArgs("no-such-identity"))
@@ -574,14 +574,42 @@ func TestRetireAdvancesSchemaLazilyAndOnlyOnSuccess(t *testing.T) {
 	if backups := retirementBackups(t, dir); len(backups) != 0 {
 		t.Fatalf("refused retirement wrote backups: %v", backups)
 	}
+}
+
+// The first retirement takes the number, and the snapshot it takes first has to
+// be a usable downgrade point.
+//
+// Counting snapshot FILES is not enough and was the blind spot here: a snapshot
+// written after the number was raised is a file of exactly the right name
+// carrying exactly the state an older binary would refuse. So this opens it and
+// reads what is inside.
+func TestFirstRetirementTakesSchemaFiveWithAPreMigrationSnapshot(t *testing.T) {
+	s, dir, target := retireFixture(t)
+	enrollAgent(t, s, "agent-alpha", "exp-alpha", "builder", target)
+	before := s.data.SchemaVersion
 
 	rpc(t, s, "operator", "sessions.retire", retireArgs("agent-alpha"))
-	if s.data.SchemaVersion != 5 {
-		t.Fatalf("schema is %d after retirement, want 5", s.data.SchemaVersion)
+
+	if s.data.SchemaVersion != retirementSchema {
+		t.Fatalf("schema is %d after retirement, want %d", s.data.SchemaVersion, retirementSchema)
 	}
-	if backups := retirementBackups(t, dir); len(backups) != 1 {
+	backups := retirementBackups(t, dir)
+	if len(backups) != 1 {
 		t.Fatalf("want exactly one pre-retirement snapshot, got %v", backups)
 	}
+	snapshot := readSchemaSnapshot(t, backups[0])
+	if snapshot.SchemaVersion != before {
+		t.Fatalf("snapshot records schema %d, want the pre-migration %d; a snapshot taken after the bump is not a downgrade point", snapshot.SchemaVersion, before)
+	}
+	// A snapshot of the post-retirement state would be equally useless, so the
+	// identity inside it must still be the live one.
+	if saved := snapshot.Sessions["agent-alpha"]; saved.RetiredAt != "" {
+		t.Fatalf("snapshot already contains the retirement it was meant to precede: %+v", saved)
+	}
+	if snapshot.Tokens["agent-alpha"] == "" {
+		t.Fatal("snapshot has already lost the credential it was meant to preserve")
+	}
+
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -590,9 +618,44 @@ func TestRetireAdvancesSchemaLazilyAndOnlyOnSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if reopened.data.SchemaVersion != 5 {
+	if reopened.data.SchemaVersion != retirementSchema {
 		t.Fatalf("schema did not survive restart: %d", reopened.data.SchemaVersion)
 	}
+}
+
+// Lazy means once. A migration that re-runs on every retirement writes a fresh
+// snapshot each time, filling the state directory with near-duplicates and
+// burying the one snapshot that actually precedes the change.
+func TestSecondRetirementTakesNoFurtherSnapshot(t *testing.T) {
+	s, dir, target := retireFixture(t)
+	enrollAgent(t, s, "agent-alpha", "exp-alpha", "builder", target)
+	enrollAgent(t, s, "agent-beta", "exp-beta", "reviewer", target)
+
+	rpc(t, s, "operator", "sessions.retire", retireArgs("agent-alpha"))
+	first := retirementBackups(t, dir)
+	if len(first) != 1 {
+		t.Fatalf("first retirement wrote %v", first)
+	}
+	rpc(t, s, "operator", "sessions.retire", retireArgs("agent-beta"))
+	second := retirementBackups(t, dir)
+	if len(second) != 1 || second[0] != first[0] {
+		t.Fatalf("second retirement re-ran the migration: %v -> %v", first, second)
+	}
+}
+
+// readSchemaSnapshot opens a pre-migration snapshot as the state it is, so a
+// test can assert what it contains rather than that it exists.
+func readSchemaSnapshot(t *testing.T, path string) state {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snapshot state
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
 }
 
 func retirementBackups(t *testing.T, dir string) []string {
