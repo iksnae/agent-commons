@@ -94,7 +94,8 @@ reached Codex after restart, and the resumed Claude acknowledgement refused with
 exported fields, so this is a schema migration with a pre-upgrade snapshot on
 the pattern schema 3 already set, not an edit to the frozen list. It takes the
 next free schema number at the time it merges; schema 4 is already taken by task
-abandonment, and numbers are never shared between features.
+abandonment and schema 5 by session retirement, and numbers are never shared
+between features.
 
 A capability broker keeps credentials in a supervisor and gives the child only an
 opaque capability and a socket path, so the child never sees the secret.
@@ -147,7 +148,11 @@ New(directory string) (*Service, error)
 `operator` is reserved. Token returns internal credentials, never exposed by RPC.
 Session fields: ID, Target (absolute directory), Team, Role, Runtime (`claude`,
 `codex`, `pi`, `hermes`, `manual`), Mode (`managed`, `manual`), RuntimeSessionID, Instructions,
-Busy bool. JSON fields camelCase. Credentials are omitted from every public DTO.
+Busy bool, RetiredAt, RetiredReason. JSON fields camelCase. Credentials are
+omitted from every public DTO. RetiredAt and RetiredReason are the session
+retirement amendment to this frozen list: a deliberate contract change, not an
+incidental one. RetiredAt is an RFC3339Nano timestamp rather than a bool because
+the audit trail is the reason retirement tombstones instead of deleting.
 Delivery fields: ID, From, To, Text, Kind (`message`, `task`, `result`), TaskID,
 ContextID, ContextVersion int, Status, Attempts int, Output, Error, CreatedAt.
 Session and Delivery exported Go fields named exactly above.
@@ -158,7 +163,68 @@ See HARNESS-SUPPORT.md for the capability boundary and project inventory sources
 
 Core RPC methods with JSON params:
 - `sessions.register`: operator-only; Session fields; returns session + token.
-- `sessions.list`: operator all; agent same target only.
+- `sessions.list`: operator all; agent same target only. Retired identities are
+  excluded by default; operator-only `{includeRetired:true}` returns them too,
+  so a tombstone is never invisible.
+- `sessions.retire`: operator-only {id,evidence}; evidence nonempty after
+  trimming and at most 8KiB, matching `tasks.abandon`, `tasks.review` and
+  `inbox.handle`. Tombstones an identity in place: the `Session` record stays
+  with Name, Role and Target intact, `RetiredAt`/`RetiredReason` are set, and
+  the credential is deleted from the token map. That deletion is the whole
+  withdrawal — `Authenticate` iterates the token map and `Call` rejects any
+  actor absent from it. The record is deliberately not deleted: `deliveryTarget`
+  resolves a delivery's project through `Sessions[d.From]`/`[d.To]`, so a
+  deleted record yields `Target == ""` and `deliveryAccess` then hides every
+  team-scoped delivery that identity ever sent or received, including from the
+  operator's own `inbox.list`. `BoardPost.Author` and `Review.Actor` are bare
+  identity strings with no denormalized name and stay resolvable for the same
+  reason. There is no delete, no purge and no force flag.
+  Dispositions: inbox preserved unchanged including `Acknowledged`/`Handled`;
+  undelivered (`pending`/`acknowledged`) deliveries to it marked `interrupted`
+  with `Error: "recipient identity retired"`, never `completed`, because
+  delivered does not mean read; board posts immutable with `Author` unchanged;
+  `Context` untouched, having no author field; review verdicts retained verbatim
+  in `Task.Reviews` with the retired actor's ID, and the acceptance predicate
+  unchanged; team memberships set to the existing `revoked` value rather than
+  removed; the attachment zeroed to the terminal value `sessions.detach` writes.
+  Three hard refusals: a busy identity, an identity holding a live attachment
+  lease (`Attachment.ExpiresAt > now`; the lease is 120s, so the remedy is to
+  wait or `sessions.detach`), and an identity in `Lead`, `Author`, `Reviewer` or
+  `RedTeam` of a non-terminal task — that last names the blocking task IDs and
+  is the review-bypass boundary, since retiring a designated reviewer must never
+  dissolve a review obligation. Non-terminal means neither `accepted` nor
+  `abandoned`, through `core.terminalTaskStatus`. Operator only: an agent may
+  not retire itself or anyone. Mechanically self-retirement destroys the
+  caller's credential mid-call, and structurally it is review evasion. A retired
+  identity is refused as a `messages.send` recipient and as a `tasks.assign`
+  author, reviewer or redTeam; `Claim` yields it nothing; `messages.retry` will
+  not re-queue a delivery addressed to it.
+  The first successful retirement advances the state schema to 5 after taking a
+  pre-migration snapshot; see the schema note below.
+- `sessions.enroll` refuses to resurrect. The server resolves enrollment by
+  scanning target + role + (name empty or matching) and overrides the client's
+  derived ID with what it finds, so a re-`init` lands on the retired record
+  whatever the client guessed. Retired candidates are classified separately from
+  live ones: exactly one live candidate is adopted and any retired ones ignored;
+  zero live and at least one retired fails, naming the retired ID, its
+  `RetiredAt`, its `RetiredReason` and the two ways forward; more than one live
+  gives the existing ambiguity error, unchanged. Silently adopting would restore
+  a live credential with no operator decision, and minting a second identity
+  would violate the target/name/role uniqueness registration already enforces.
+- `sessions.reinstate`: operator-only {id,evidence}, the inverse of retirement
+  and a separate deliberate act. Same ID, a NEW credential — the old one was
+  destroyed and does not come back — `RetiredAt`/`RetiredReason` cleared, inbox
+  returned intact with its acknowledgement flags as they were, board posts and
+  task history untouched. Team memberships stay `revoked`: re-invitation is its
+  own act. Onboarding messages are not re-sent, because `welcome` is idempotent
+  on its onboarding key.
+- Durable schema 5 is taken lazily, on the first successful retirement only. A
+  refused retirement writes no snapshot and advances no number. The bump is what
+  makes a downgrade safe: an older binary has no notion of `RetiredAt`, so it
+  would list a withdrawn identity as active, let `tasks.assign` name it and let
+  `sessions.enroll` adopt it. Loading refuses a schema-5 state in which any
+  session carries `RetiredAt` while still holding a credential, so credential
+  destruction is durable state rather than only a code path.
 - `messages.send`: {to,text,idempotencyKey,contextId?,contextVersion?}; sender
   derived from actor; operators can send to any target, agents only same target.
 - `inbox.list`: actor inbox, operator {sessionId}.

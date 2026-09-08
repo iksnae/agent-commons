@@ -436,8 +436,10 @@ func TestAbandonAdvancesSchemaLazilyAndOnlyOnSuccess(t *testing.T) {
 	if reopened.data.SchemaVersion != 4 {
 		t.Fatalf("schema did not survive restart: %d", reopened.data.SchemaVersion)
 	}
-	// A newer schema than this binary knows must be refused, not read.
-	reopened.data.SchemaVersion = 5
+	// A newer schema than this binary knows must be refused, not read. The
+	// number is one past the highest this binary understands, which session
+	// retirement raised to 5.
+	reopened.data.SchemaVersion = retirementSchema + 1
 	if err := reopened.save(); err != nil {
 		t.Fatal(err)
 	}

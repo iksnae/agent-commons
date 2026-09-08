@@ -19,6 +19,8 @@ func commandSections() []helpSection {
 			"enroll       create or adopt a project + role connection, no project defaults",
 			"check-in     read onboarding, inbox and project context",
 			"doctor       diagnose a connection without changing state",
+			"retire       withdraw an identity, keeping its record and evidence",
+			"reinstate    return a retired identity to service, with a new credential",
 		}},
 		{name: "Run the local service", rows: []string{
 			"serve        run the local coordination service",

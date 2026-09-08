@@ -128,7 +128,7 @@ func TestSocketRPCAndMCP(t *testing.T) {
 	}
 }
 func TestToolSurfaceHasNoAdministrativeEscalation(t *testing.T) {
-	for _, name := range []string{"sessions.register", "messages.retry", "Token"} {
+	for _, name := range []string{"sessions.register", "messages.retry", "sessions.retire", "sessions.reinstate", "Token"} {
 		if isTool(name) {
 			t.Fatalf("admin tool exposed: %s", name)
 		}

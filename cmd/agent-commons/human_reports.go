@@ -105,6 +105,34 @@ func writeRuntimeSummary(human *report, page *core.RuntimeStatusPage) {
 	}
 }
 
+// writeRetirementSummary renders one registry withdrawal or its reverse. It
+// reads the same map the JSON document is encoded from, so the two forms cannot
+// report different values, and it never carries a credential in either form.
+func writeRetirementSummary(out io.Writer, report map[string]string) error {
+	human := newReport(out)
+	human.headline("Identity " + retirementPastTense(report["operation"]) + ".")
+	human.field("Identity", report["identity"])
+	human.field("Name", report["name"]+" ("+report["role"]+")")
+	human.field("Project", report["target"])
+	// Present only on a withdrawal; reinstatement has just cleared both.
+	if report["retiredAt"] != "" {
+		human.field("Retired at", report["retiredAt"])
+		human.field("Reason", report["reason"])
+	}
+	human.field("Connection", report["connection"])
+	human.field("Credential", report["credential"])
+	human.blank()
+	human.note(report["notice"])
+	return human.write()
+}
+
+func retirementPastTense(operation string) string {
+	if operation == "reinstate" {
+		return "reinstated"
+	}
+	return "retired"
+}
+
 // writeBundleSummary renders one bundle operation. It reads the same map the
 // JSON document is encoded from, by the keys the operation actually sets, so
 // the two forms cannot report different values.

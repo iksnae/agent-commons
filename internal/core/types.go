@@ -29,6 +29,16 @@ type Session struct {
 	RuntimeSessionID string     `json:"runtimeSessionId"`
 	Instructions     string     `json:"instructions"`
 	Busy             bool       `json:"busy"`
+	// RetiredAt is the RFC3339Nano moment the operator withdrew this identity,
+	// empty while it is active. It is a timestamp rather than a flag because
+	// the audit trail is the point of retiring instead of deleting: the record
+	// stays so that BoardPost.Author, Review.Actor and every delivery this
+	// identity sent or received keep resolving.
+	RetiredAt string `json:"retiredAt,omitempty"`
+	// RetiredReason is the operator's stated reason, required and bounded like
+	// the evidence tasks.abandon, tasks.review and inbox.handle demand. It is
+	// never a verdict on this identity's work.
+	RetiredReason string `json:"retiredReason,omitempty"`
 }
 
 type Attachment struct {

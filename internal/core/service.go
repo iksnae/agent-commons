@@ -98,7 +98,7 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, errors.New("negative state schema version")
 	}
-	if s.data.SchemaVersion > 4 {
+	if s.data.SchemaVersion > retirementSchema {
 		s.Close()
 		return nil, errors.New("state schema newer than this binary")
 	}
@@ -114,6 +114,10 @@ func New(directory string) (*Service, error) {
 		return nil, err
 	}
 	if err = s.validateTeamWork(); err != nil {
+		s.Close()
+		return nil, err
+	}
+	if err = s.validateRetirement(); err != nil {
 		s.Close()
 		return nil, err
 	}
@@ -285,6 +289,10 @@ type params struct {
 	Output                   string `json:"output"`
 	ExpectedRevision         int    `json:"expectedRevision"`
 	AcknowledgeDuplicateRisk bool   `json:"acknowledgeDuplicateRisk"`
+	// IncludeRetired asks sessions.list for tombstoned identities as well.
+	// Operator-only: retired identities must stay reachable or the tombstone
+	// becomes invisible and the audit trail is destroyed by omission.
+	IncludeRetired bool `json:"includeRetired"`
 }
 
 // readOnlyMethods lists the methods Call may run without wrapping them in
@@ -408,6 +416,12 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 	if method == "tasks.abandon" {
 		return s.abandon(actor, p)
 	}
+	if method == "sessions.retire" {
+		return s.retire(actor, p)
+	}
+	if method == "sessions.reinstate" {
+		return s.reinstate(actor, p)
+	}
 	switch method {
 	case "runtime.status":
 		return s.runtimeStatus(actor, p, time.Now())
@@ -450,6 +464,9 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if !checkID(v.ID) || v.ID == "operator" {
 			return fail("invalid session ID")
 		}
+		if v.RetiredAt != "" || v.RetiredReason != "" {
+			return fail("retirement state is operator owned")
+		}
 		if method == "sessions.enroll" {
 			// Resolve server-side, before ID equality is checked: a legacy
 			// operator-registered session (Name == "") or an already-named
@@ -462,25 +479,48 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			var candidates []string
+			// Retired candidates are classified separately rather than added to
+			// the same list. The scan must FIND them, or a re-init would mint a
+			// second identity for a role that already exists; but counting them
+			// as candidates would turn a previously unambiguous enroll into an
+			// ambiguity error the moment an unrelated tombstone matched.
+			var candidates, retiredCandidates []string
 			for id, other := range s.data.Sessions {
 				if other.Target == target && other.Role == v.Role && (other.Name == "" || other.Name == v.Name) {
+					if other.RetiredAt != "" {
+						retiredCandidates = append(retiredCandidates, id)
+						continue
+					}
 					candidates = append(candidates, id)
 				}
 			}
-			switch len(candidates) {
-			case 0:
-				// no existing match; enroll proceeds to mint a new identity below
-			case 1:
+			switch {
+			case len(candidates) == 1:
 				v.ID = candidates[0]
-			default:
+			case len(candidates) > 1:
 				sort.Strings(candidates)
 				return fail(fmt.Sprintf("ambiguous target+role identity for enroll: %d candidates (%s); supply --id to select one", len(candidates), strings.Join(candidates, ", ")))
+			case len(retiredCandidates) > 0:
+				// Adopting would restore a live credential with no operator
+				// decision, and minting would violate the target/name/role
+				// uniqueness registration already enforces. Refuse, and say
+				// which record was hit and what the two ways forward are.
+				sort.Strings(retiredCandidates)
+				return nil, retiredEnrollmentRefusal(s.data.Sessions[retiredCandidates[0]])
+			default:
+				// no existing match; enroll proceeds to mint a new identity below
 			}
 		}
 		if _, ok := s.data.Sessions[v.ID]; ok {
 			if method == "sessions.enroll" {
 				existing := s.data.Sessions[v.ID]
+				// A client-supplied --id can land on a tombstone the candidate
+				// scan above never considered, because that scan matches on
+				// target+role+name. Adoption here would hand back an empty
+				// token and call it an enrollment.
+				if existing.RetiredAt != "" {
+					return nil, retiredEnrollmentRefusal(existing)
+				}
 				target, err := canonicalTarget(v.Target)
 				if err != nil {
 					return nil, err
@@ -534,8 +574,17 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		}
 		return map[string]any{"session": v, "token": tok}, nil
 	case "sessions.list":
+		// Retired identities are excluded by default because a registry full of
+		// withdrawn roles is the pain retirement exists to relieve. They stay
+		// reachable on request so the tombstone is never invisible.
+		if p.IncludeRetired && actor != "operator" {
+			return fail("operator required for includeRetired")
+		}
 		out := []Session{}
 		for _, v := range s.data.Sessions {
+			if v.RetiredAt != "" && !p.IncludeRetired {
+				continue
+			}
 			if s.scoped(actor, v.Target) {
 				out = append(out, v)
 			}
@@ -563,7 +612,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			}
 		}
 		to, ok := s.data.Sessions[p.To]
-		if !ok || !s.scoped(actor, to.Target) {
+		if !ok || to.RetiredAt != "" || !s.scoped(actor, to.Target) {
 			return fail("recipient unavailable")
 		}
 		if !s.teamAccess(actor, to.Target, p.TeamID) || !s.teamAccess(to.ID, to.Target, p.TeamID) {
@@ -627,12 +676,12 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 			return fail("task author requires workflow policy")
 		}
 		r, ok := s.data.Sessions[p.Reviewer]
-		if !ok || r.Target != to.Target || r.ID == to.ID || r.Policy != "workflow" {
+		if !ok || r.RetiredAt != "" || r.Target != to.Target || r.ID == to.ID || r.Policy != "workflow" {
 			return fail("independent reviewer required")
 		}
 		if p.RedTeam != "" {
 			r, ok := s.data.Sessions[p.RedTeam]
-			if !ok || r.Target != to.Target || r.ID == to.ID || r.ID == p.Reviewer || r.Policy != "workflow" {
+			if !ok || r.RetiredAt != "" || r.Target != to.Target || r.ID == to.ID || r.ID == p.Reviewer || r.Policy != "workflow" {
 				return fail("independent red team required")
 			}
 		}
@@ -714,6 +763,12 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				}
 				if s.taskAbandoned(*d) {
 					return fail("abandoned task cannot be reopened by delivery retry")
+				}
+				// Retirement interrupted this delivery precisely because its
+				// recipient will never read it. Re-queueing it would leave work
+				// pending forever for an identity that cannot authenticate.
+				if s.retired(d.To) {
+					return fail("retired recipient cannot be reached by delivery retry")
 				}
 				if d.Kind == "task" && (s.data.Tasks[d.TaskID].Status == "submitted" || s.data.Tasks[d.TaskID].Status == "accepted") {
 					return fail("submitted task requires explicit new revision, not delivery retry")
@@ -868,7 +923,10 @@ func (s *Service) Claim(agentID string) (*Delivery, error) {
 	if !ok {
 		return nil, errors.New("unknown session")
 	}
-	if v.Mode != "managed" || v.Busy {
+	// A retired identity has no credential, so it cannot report a result or be
+	// reached about one. Handing it a delivery would spend a paid runtime turn
+	// on work nobody can return.
+	if v.Mode != "managed" || v.Busy || v.RetiredAt != "" {
 		return nil, nil
 	}
 	pending := false

@@ -7,11 +7,12 @@ upgrade can reuse an existing native session or state directory.
 
 The `state.json` schema is monotonic. A binary accepts its own schema and older
 schemas it knows how to migrate. It refuses newer schemas. The team schemas
-(1 to 2 and 2 to 3) and the task-abandonment schema (to 4) each take a private
-pre-migration snapshot before the first write; keep that snapshot until the
-upgrade has been validated. Do not try to downgrade by changing a schema number
-by hand. That is an operator rule, not a claim that every hand-edited file can
-be detected.
+(1 to 2 and 2 to 3), the task-abandonment schema (to 4) and the
+session-retirement schema (to 5) each take a private pre-migration snapshot
+before the first write; keep that snapshot until the upgrade has been validated.
+A schema number is never shared between two features. Do not try to downgrade by
+changing a schema number by hand. That is an operator rule, not a claim that
+every hand-edited file can be detected.
 
 Schema 4 is taken lazily, the first time `tasks.abandon` actually succeeds. A
 refused abandonment writes no snapshot and leaves the number alone, and a state
@@ -21,6 +22,15 @@ deliberately no longer downgradable: an older binary decides task terminality by
 testing `accepted` alone, so it would let an abandoned task be resubmitted and
 accepted, which is the one outcome abandonment exists to prevent. It refuses an
 unknown schema on startup, so raising the number is what turns that refusal on.
+
+Schema 5 is taken the same way, the first time `sessions.retire` succeeds. A
+refused retirement writes no snapshot and leaves the number alone. Once an
+identity is retired the directory is no longer downgradable: an older binary has
+no notion of a retired identity, so it would list a withdrawn role as active,
+let `tasks.assign` name it and let `sessions.enroll` adopt it. Loading also
+refuses a schema-5 state in which a retired identity still holds a credential,
+because credential destruction is meant to be durable state and not merely
+something the code path did once.
 
 Schema-0 startup performs the built-in legacy normalization and stranded-run
 recovery before saving. That is distinct from the team migrations and is not a

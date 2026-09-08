@@ -138,6 +138,9 @@ func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.W
 	if len(args) > 0 && (args[0] == "enroll" || args[0] == "check-in") {
 		return runOnboarding(ctx, args, out, errOut)
 	}
+	if len(args) > 0 && (args[0] == "retire" || args[0] == "reinstate") {
+		return runRetirement(ctx, args, out, errOut)
+	}
 	// A bare invocation is the same gesture as asking for help, so it gets the
 	// same answer: the help screen, on stdout, exit 0. Typing a binary's name to
 	// find out what it does is discovery, not a usage error, and a non-zero exit
