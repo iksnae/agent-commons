@@ -82,11 +82,23 @@ and its storage is reclaimed in full when the service exits. If a long-lived
 service makes that growth matter before it next restarts, restart it to reclaim
 the space.
 
-A supervised job has no unlinked file, but the lines do not stop. The generated
-launchd plist and systemd unit name no stderr destination, and `service install`
-and `service start` have no flag that sets one, so the output goes to whichever
-sink the supervisor uses by default — journald under systemd, the system log
-under launchd — at that same line per RPC for as long as the service runs.
-Rotation and retention there belong to the supervisor, not to this tool. A
-service you start yourself with `serve` writes those lines to whatever stderr
+A supervised job has no unlinked file. The generated launchd plist and systemd
+unit name no stderr destination, and `service install` and `service start` have
+no flag that sets one.
+
+On macOS the lines are written and discarded. launchd gives a job with no
+`StandardErrorPath` `/dev/null` for standard error rather than routing it to the
+unified log. Measured against a service these commands installed: fd 2 is
+`/dev/null`, its byte offset climbing as the service serves RPCs, and
+`log show --predicate 'process == "agent-commons"'` returns no rows for calls
+made while it ran. A supervised macOS service therefore grows nothing and
+retains nothing — no log to rotate, and none to read when you need to know what
+the service was doing.
+
+On Linux this has not been measured here. The unit names no `StandardError`,
+where systemd's documented default is to inherit `StandardOutput` and journal
+it, so expect that same line per RPC in journald under journald's retention.
+Confirm it on the host before relying on either the volume or the record.
+
+A service you start yourself with `serve` writes those lines to whatever stderr
 you gave it.
