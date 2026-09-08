@@ -16,7 +16,12 @@ cleanup() {
   if [ -n "$STAGED" ]; then rm -f "$STAGED"; fi
 }
 trap cleanup EXIT
-# Leave no staged file behind when the operator interrupts the install.
+# What keeps an interrupted install from leaving a staged file behind is the
+# EXIT cleanup above together with `|| error` on every step below, not these
+# signal traps. HUP and TERM do reach cleanup by exiting through it. INT does
+# not reliably abort: bash discards a pending SIGINT trap when the foreground
+# child did not itself die of SIGINT, so a Ctrl-C can leave the install to run
+# to completion. Do not treat the INT line as an interrupt guarantee.
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -108,8 +113,15 @@ BINARY="$TMP/unpacked/$NAME/agent-commons"
 mkdir -p "$DEST" || error "Cannot create the install directory $DEST. Nothing was installed."
 DEST="$(cd "$DEST" && pwd)" || error "Cannot enter the install directory $DEST. Nothing was installed."
 TARGET="$DEST/agent-commons"
-# A rename onto a directory moves the staged file inside it instead of
-# replacing it, so refuse anything that is not an ordinary file.
+# A rename onto a directory moves the staged file inside it and reports success,
+# so refuse anything that is not an ordinary file. Copying did the same thing
+# just as quietly, so this closes a hole that was already here rather than one
+# the rename opened.
+#
+# `-f` follows symlinks, so a symlink to a regular file passes this guard and
+# the rename replaces the link itself, leaving whatever it pointed at untouched.
+# Copying wrote through the link instead. If you point this path at a versioned
+# binary, an install leaves a real file here and your link is gone.
 if [ -e "$TARGET" ] && [ ! -f "$TARGET" ]; then
   error "$TARGET exists and is not a regular file. Refusing to install over it."
 fi
@@ -117,8 +129,10 @@ fi
 # Replace the installed file by renaming a staged copy over it, never by
 # writing into it. A process already running from $TARGET keeps executing the
 # file it was started from; overwriting that file in place invalidates its
-# image, and macOS kills the process with SIGKILL (exit 137). Upgrading over a
-# running install is the ordinary case, so this is the ordinary path.
+# image, and macOS kills the process with SIGKILL (exit 137). Linux refuses the
+# write with ETXTBSY instead, so the same mistake fails the install rather than
+# the service. Neither outcome is acceptable, and upgrading over a running
+# install is the ordinary case, so this is the ordinary path.
 # cmd/agent-commons/update.go holds the same property for `agent-commons update`.
 #
 # The staged copy must live in $DEST. `mv` across filesystems is a copy and an

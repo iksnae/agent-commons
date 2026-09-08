@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
 # Exercise the installer offline: syntax, a verified local archive, and the
-# refusal paths. No network, no writes outside the scratch directory.
+# refusal paths. Its fixtures are all local and it installs only into the
+# scratch directory. It is not hermetic beyond that: the running-binary case
+# compiles a Go stand-in, which writes to GOCACHE outside the scratch directory,
+# and under GOTOOLCHAIN=auto a toolchain older than that stand-in's `go 1.26`
+# would fetch one over the network.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -105,10 +109,15 @@ test ! -e "$check_dir/bin-absent"
 # Installing over a binary that is CURRENTLY RUNNING from the destination path.
 # Every case above installs into an empty directory, which is why they all
 # passed while the real upgrade path was broken: writing onto a running
-# executable in place invalidates its image and macOS kills the process with
-# SIGKILL (exit 137). The install must replace the directory entry by renaming
-# a staged file over it, so a process already running keeps the file it started
-# from. cmd/agent-commons/update.go holds the same property for `update`.
+# executable in place invalidates its image, and macOS kills the process with
+# SIGKILL (exit 137) while Linux refuses the write with ETXTBSY. The install
+# must replace the directory entry by renaming a staged file over it, so a
+# process already running keeps the file it started from.
+# cmd/agent-commons/update.go holds the same property for `update`.
+#
+# The three assertions below are deliberately independent, and which one fires
+# first is platform-dependent: the held handle and the inode both detect an
+# in-place write directly, while the surviving process detects the consequence.
 #
 # The previous install has to be a compiled binary, and neither shortcut works:
 # a shell script is re-read from its path, so a running one picks up the new
