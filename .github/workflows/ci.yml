@@ -22,11 +22,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - run: |
+          files="$(gofmt -l cmd internal integration)"
+          if [ -n "$files" ]; then echo "$files"; exit 1; fi
       - run: go test -race ./...
       - run: go vet ./...
       - run: node --test plugins/agent-commons/pi/commons.test.mjs
+      - run: bash scripts/check-hook-scripts.sh
       - run: node scripts/check-docs.mjs
       - run: node --test scripts/check-docs.test.mjs
+      - run: bash scripts/check-install.sh
 
   binaries:
     needs: test
