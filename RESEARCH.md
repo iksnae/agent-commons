@@ -21,6 +21,16 @@ independent inputs; registration does not edit them.
   specialist teams. Local `.codex/README.md` documents shared command/skill assets.
 - Local `khaos-publisher/CLAUDE.md` and `AGENTS.md` ancestry define target-specific
   ownership, operational and testing constraints.
+- [Prime Agent](https://www.primeintellect.ai/blog/prime-agent) describes a harness:
+  explicit context surfaces, fully specified configuration, and a `/refine` command
+  that has the model rewrite its own configuration. It contains no reinforcement
+  learning loop. The article states that currently no model has been trained around
+  Prime Agent or its core feature set, and `/refine` is a model-authored config edit,
+  not training.
+- [nano-rlm](https://github.com/PrimeIntellect-ai/nano-rlm) is a different artifact,
+  not that harness: its own `src/rlm/types.py:138-167` docstring describes it as the
+  rollout body for Prime Intellect's RL stack, `prime-rl` plus `verifiers`, and its
+  `install.sh` builds a container image.
 
 ## Adopted principles
 
@@ -48,6 +58,21 @@ run tests/write journals; different meanings of unresolved Critical findings).
 Agent Commons must report unresolved runtime capability gaps rather than silently
 grant broader tools. The initial task ledger enforces independent result review;
 it is not the complete LOSWF declarative delivery engine.
+
+Prime Intellect's answers are correct for a disposable container running under an
+RL trainer. Agent Commons runs on an operator's machine against repositories that
+matter, so from that review only the memory-side concepts are worth taking; the
+executor-side ones are rejected. `/refine`, and any self-modifying harness state,
+is rejected because it violates three constraints at once: AGENTS.md on every peer
+message being peer data rather than operator authority, where a self-generated
+instruction is weaker still and not stronger; AGENTS.md on no global configuration
+writes; and HARNESS-SUPPORT.md on posting an experiment neither scheduling it nor
+authorizing its execution. A persistent execution kernel inside Commons is rejected
+as the executor half of the same split. An autonomous mode with budgets and gates
+is a natural attractor for this codebase and is rejected here too: it belongs in a
+separate binary that reports evidence into Commons, not in the coordination service.
+PLAN.md records the four memory-side concepts as planned scope with their
+collisions. Recording them is not approval, sequencing or an assignment.
 
 ## A2A and MCP
 
