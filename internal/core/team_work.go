@@ -34,6 +34,13 @@ func (s *Service) deliveryRunnable(d Delivery) bool {
 	if !s.deliveryAccess(d.To, d) || !s.deliveryAccess(d.From, d) {
 		return false
 	}
+	// An abandoned task is terminal, so queued work for it must never run: a
+	// claim would otherwise move it back to "working" and undo the operator's
+	// decision. Acceptance is deliberately not checked here, because result
+	// deliveries carry the task ID of tasks that legitimately reach accepted.
+	if d.Kind == "task" && s.data.Tasks[d.TaskID].Status == "abandoned" {
+		return false
+	}
 	if d.TaskID != "" && d.TeamID != "" {
 		return s.taskTeamActive(s.data.Tasks[d.TaskID])
 	}

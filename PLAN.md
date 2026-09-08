@@ -180,6 +180,28 @@ Core RPC methods with JSON params:
   status, so reading an inbox never removes work from the managed execution queue.
 - `tasks.accept`: {id}; assigning lead/operator only, requires submitted output,
   reviewer approval and redTeam approval if configured. Never means merged/shipped.
+- `tasks.abandon`: operator-only {id,evidence}; evidence nonempty after trimming
+  and at most 8KiB, matching `tasks.review` and `inbox.handle`. Sets status
+  `abandoned` from any non-terminal status. It exists because a submitted result
+  carrying a rejection at the current revision advances only when its author
+  resubmits, so a task whose author will never act again pins every participant
+  in an unresolved obligation with no supported exit.
+  Retains `Output`, `Revision` and every `Reviews` entry unchanged, and records
+  the operator's reason in the new `Task.AbandonEvidence` field, which is never a
+  verdict and never joins `Reviews`. Enqueues nothing, is refused from `accepted`
+  and from `abandoned`, and is not reversible: `tasks.submit`, `tasks.review` and
+  `tasks.accept` all refuse an abandoned task, so no sequence reaches `accepted`
+  through it. Abandonment records that work stopped, never that it passed.
+  Unlike the other task methods it is not blocked when a team participant left,
+  because it is the operator coordination that gate demands.
+- `accepted` and `abandoned` are the two terminal task statuses. Sites reasoning
+  about terminality agree through `core.terminalTaskStatus`: `sessions.policy`
+  refuses to restrict an identity participating in a non-terminal task, and
+  `tasks.submit` refuses a terminal task. The acceptance predicate deliberately
+  does not use that helper — it still tests `accepted` alone. Queued work for an
+  abandoned task is refused separately in `deliveryRunnable` and `messages.retry`
+  so a claim or retry cannot move it back to `working`; acceptance is excluded
+  there because result deliveries legitimately carry an accepted task's ID.
 - `messages.retry`: operator-only {messageId}; failed/interrupted only,
   explicit duplicate-effect acknowledgement {acknowledgeDuplicateRisk:true}.
 
