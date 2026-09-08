@@ -8,8 +8,10 @@ cd "$(dirname "$0")/.."
 
 hook=plugins/agent-commons/scripts/claude-session-start.sh
 checkin=plugins/agent-commons/scripts/check-in.sh
+connect=plugins/agent-commons/scripts/connect-mcp.sh
 sh -n "$hook"
 sh -n "$checkin"
+sh -n "$connect"
 
 check_dir=$(mktemp -d)
 trap 'rm -rf "$check_dir"' EXIT
@@ -20,7 +22,7 @@ trap 'rm -rf "$check_dir"' EXIT
 root="$check_dir/install"
 plugin="$root/plugins/agent-commons"
 mkdir -p "$plugin/scripts"
-cp "$hook" "$checkin" "$plugin/scripts/"
+cp "$hook" "$checkin" "$connect" "$plugin/scripts/"
 chmod 755 "$plugin/scripts"/*.sh
 
 argv="$check_dir/argv"
@@ -54,7 +56,7 @@ standin "$full_path/agent-commons"
 # A plugin copy with no binary above it, for the tiers that must not find one.
 orphan="$check_dir/orphan/plugins/agent-commons"
 mkdir -p "$orphan/scripts"
-cp "$hook" "$checkin" "$orphan/scripts/"
+cp "$hook" "$checkin" "$connect" "$orphan/scripts/"
 test ! -e "$check_dir/orphan/agent-commons"
 
 fail() { echo "check-hook-scripts.sh: $1" >&2; exit 1; }
@@ -210,4 +212,65 @@ grep -q 'AGENT_COMMONS_CONNECTION' "$check_dir/err.log" ||
   fail "the hook did not say why it could not check in: $(cat "$check_dir/err.log")"
 test ! -s "$check_dir/out.log" || fail "the hook wrote diagnostics to stdout"
 
-echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, configured-but-missing binary, check-in.sh chain."
+# 13. connect-mcp.sh is the plugin tarball's MCP command: the tarball can never
+#     know its destination, so the wrapper resolves the binary at run time. Tier
+#     2 from a bundle-install destination with nothing on PATH, and the
+#     subcommand it must always supply.
+run "$plugin/scripts/connect-mcp.sh" PATH="$bare_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$plugin"
+test "$status" -eq 0 || fail "connect-mcp.sh exited $status from a bundle-install destination"
+test "$(invoked_path)" = "$root/agent-commons" ||
+  fail "connect-mcp.sh ran $(invoked_path), not the installed binary"
+diff -u - "$argv" <<'EXPECTED' || fail "unexpected connect-mcp.sh argv"
+connect-mcp
+EXPECTED
+
+# 14. The MCP client may pass its own flags; the wrapper forwards them after the
+#     subcommand rather than swallowing them.
+run "$plugin/scripts/connect-mcp.sh" PATH="$bare_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$plugin" --config /private/role.json
+diff -u - "$argv" <<'EXPECTED' || fail "connect-mcp.sh dropped forwarded arguments"
+connect-mcp
+--config
+/private/role.json
+EXPECTED
+
+# 15. connect-mcp.sh tier 1 wins over a resolvable tier 2 and a PATH binary.
+run "$plugin/scripts/connect-mcp.sh" PATH="$full_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$plugin" AGENT_COMMONS_BINARY="$check_dir/explicit-agent-commons"
+test "$(invoked_path)" = "$check_dir/explicit-agent-commons" ||
+  fail "connect-mcp.sh ignored AGENT_COMMONS_BINARY: ran $(invoked_path)"
+
+# 16. Tier 2 outranks tier 3 for connect-mcp.sh too: an unrelated copy on PATH
+#     must not win over the binary installed beside the plugin.
+run "$plugin/scripts/connect-mcp.sh" PATH="$full_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$plugin"
+test "$(invoked_path)" = "$root/agent-commons" ||
+  fail "connect-mcp.sh let PATH outrank the installed binary: ran $(invoked_path)"
+
+# 17. Tier 3: no CLAUDE_PLUGIN_ROOT, as in a source checkout that keeps the
+#     binary on PATH.
+run "$orphan/scripts/connect-mcp.sh" PATH="$full_path:/usr/bin:/bin"
+test "$(invoked_path)" = "$full_path/agent-commons" ||
+  fail "connect-mcp.sh ignored an agent-commons on PATH"
+
+# 18. A derived path that exists but is not executable falls through to PATH.
+printf 'not executable\n' > "$check_dir/orphan/agent-commons"
+chmod 644 "$check_dir/orphan/agent-commons"
+run "$orphan/scripts/connect-mcp.sh" PATH="$full_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$orphan"
+test "$status" -eq 0 ||
+  fail "connect-mcp.sh exited $status on a non-executable derived path"
+test "$(invoked_path)" = "$full_path/agent-commons" ||
+  fail "connect-mcp.sh ran $(invoked_path) from a non-executable derived path"
+rm -f "$check_dir/orphan/agent-commons"
+
+# 19. No tier resolves. Starting an MCP server is an explicit request, not a
+#     launch hook, so the failure must be reported rather than swallowed.
+run "$orphan/scripts/connect-mcp.sh" PATH="$bare_path:/usr/bin:/bin" \
+  CLAUDE_PLUGIN_ROOT="$orphan"
+test "$status" -ne 0 || fail "connect-mcp.sh reported success with no binary findable"
+test ! -f "$invoked" || fail "connect-mcp.sh invoked something with no binary findable"
+test -s "$check_dir/err.log" || fail "connect-mcp.sh failed without saying why"
+
+echo "Plugin scripts verified: installed binary, pinned connection, explicit binary, PATH binary, non-executable fallthrough, absent binary, tier order, configured-but-missing binary, check-in.sh chain, connect-mcp.sh chain."

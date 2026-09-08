@@ -10,6 +10,7 @@ version="$(bash scripts/release-version.sh)"
 
 check_dir=$(mktemp -d)
 trap 'rm -rf "$check_dir"' EXIT
+fail() { echo "check-archives.sh: $1" >&2; exit 1; }
 (cd dist; shasum -a 256 -c SHA256SUMS)
 
 for platform in darwin linux; do
@@ -27,6 +28,15 @@ for platform in darwin linux; do
     done
     for module in crypto net text; do
       test -s "$archive/third-party-notices/golang.org/x/$module/LICENSE"
+    done
+    # A per-platform archive is installed by `bundle install`, which knows the
+    # destination and rewrites these manifests to the absolute path of the
+    # binary it places. It refuses a command whose basename is not
+    # agent-commons, so these copies must stay exactly as the source tree
+    # carries them; the wrapper belongs to the plugin tarball alone.
+    for manifest in mcp.json .mcp.json; do
+      cmp "plugins/agent-commons/$manifest" "$archive/plugins/agent-commons/$manifest" ||
+        fail "$name does not carry the source-tree $manifest"
     done
     mkdir "$archive/source"
     tar -xzf "$archive/source.tar.gz" -C "$archive/source"
@@ -48,7 +58,30 @@ tar -xzf dist/agent-commons-plugin.tar.gz -C "$check_dir"
 cmp LICENSE "$check_dir/agent-commons/LICENSE"
 test -s "$check_dir/agent-commons/skills/agent-commons/SKILL.md"
 cmp plugins/agent-commons/plugin.json "$check_dir/agent-commons/plugin.json"
-cmp plugins/agent-commons/mcp.json "$check_dir/agent-commons/mcp.json"
+# The plugin tarball is the one route that can never learn where it will be
+# unpacked, so its MCP command must name the wrapper that resolves the binary at
+# server start. The source tree keeps the bare command, because that is what
+# `bundle install` validates and rewrites for the other route. Assert both forms
+# separately, and assert that nothing else in the manifest was touched: undoing
+# the intended rewrite must reproduce the source file byte for byte.
+test -x "$check_dir/agent-commons/scripts/connect-mcp.sh" ||
+  fail "the plugin tarball ships no executable connect-mcp.sh for its MCP command"
+for manifest in mcp.json .mcp.json; do
+  source_manifest="plugins/agent-commons/$manifest"
+  packaged="$check_dir/agent-commons/$manifest"
+  grep -q '"command": "sh"' "$packaged" ||
+    fail "the packaged $manifest does not run the wrapper: $(cat "$packaged")"
+  grep -q '"args": \["\${CLAUDE_PLUGIN_ROOT}/scripts/connect-mcp.sh"\]' "$packaged" ||
+    fail "the packaged $manifest does not name the wrapper: $(cat "$packaged")"
+  grep -q '"command": "agent-commons"' "$source_manifest" ||
+    fail "the source-tree $manifest no longer carries the bare command bundle install expects"
+  grep -q '"args": \["connect-mcp"\]' "$source_manifest" ||
+    fail "the source-tree $manifest no longer passes connect-mcp"
+  sed -e 's|"command": "sh"|"command": "agent-commons"|' \
+    -e 's|"args": \["\${CLAUDE_PLUGIN_ROOT}/scripts/connect-mcp.sh"\]|"args": ["connect-mcp"]|' \
+    "$packaged" | cmp - "$source_manifest" ||
+    fail "the packaged $manifest differs from the source beyond the MCP command"
+done
 node --test "$check_dir/agent-commons/pi/commons.test.mjs"
 test -x "$check_dir/agent-commons/scripts/check-in.sh"
 test -s "$check_dir/agent-commons/hooks/claude.json"

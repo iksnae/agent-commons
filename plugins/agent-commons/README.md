@@ -2,7 +2,10 @@
 
 This bundle connects explicitly enrolled project roles to Commons through shared
 instructions and runtime-specific integration. Install the standalone binary
-separately; Claude/Codex MCP launchers need it on PATH.
+separately. `bundle install` points the installed plugin's MCP command at the
+binary it places; the standalone plugin bundle resolves it when the server
+starts, from `AGENT_COMMONS_BINARY`, a binary installed beside the plugin, or
+PATH.
 
 The core working-team harnesses are Claude and Codex. This is pilot integration,
 not a claim of production-ready autonomous teams.
