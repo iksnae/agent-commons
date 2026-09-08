@@ -8,5 +8,17 @@
 *.token
 /dist/
 .DS_Store
-/.certification/
+# .certification/ mixes authored inputs with generated output. Ignore the
+# directory's contents and re-include only what a person wrote, because certify
+# reads config from exactly one path (.certification/config.yml) with no
+# fallback and swallows the load error, so an untracked config silently
+# degrades CI to zero policy packs and an empty policy_version.
+# Deny-then-allow rather than a bare /.certification/: git does not descend into
+# an excluded directory, so a negation under one never matches. Everything not
+# named below stays ignored, including records/, reports/, state.json,
+# index.json, queue.json, badge.json, runs.jsonl and REPORT_CARD.md.
+/.certification/*
+!/.certification/config.yml
+!/.certification/policies/
+!/.certification/overrides/
 /.claude/worktrees/

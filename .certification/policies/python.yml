@@ -1,0 +1,82 @@
+name: python-standard
+version: "1.2.0"
+language: py
+
+rules:
+  - id: lint-clean
+    dimension: correctness
+    description: "Linter must report zero errors"
+    severity: error
+    metric: lint_errors
+    threshold: 0
+
+  - id: test-pass
+    dimension: testability
+    description: "All tests must pass"
+    severity: error
+    metric: test_failures
+    threshold: 0
+
+  - id: no-todos
+    dimension: readability
+    description: "No TODO/FIXME comments in certified code"
+    severity: warning
+    metric: todo_count
+    threshold: 0
+    exclude_patterns: ["test_*.py", "*_test.py"]
+
+  - id: max-complexity
+    dimension: maintainability
+    description: "Cyclomatic complexity should be manageable"
+    severity: warning
+    metric: complexity
+    threshold: 20
+
+  - id: max-params
+    dimension: maintainability
+    description: "Functions should have at most 5 parameters (excluding self/cls)"
+    severity: warning
+    metric: param_count
+    threshold: 5
+
+  - id: max-nesting
+    dimension: readability
+    description: "Function body nesting should not exceed 4 levels"
+    severity: warning
+    metric: max_nesting_depth
+    threshold: 4
+
+  - id: max-func-lines
+    dimension: readability
+    description: "Functions should be concise (under 100 lines)"
+    severity: warning
+    metric: func_lines
+    threshold: 100
+
+  - id: max-cognitive-complexity
+    dimension: readability
+    description: "Cognitive complexity should not exceed 25"
+    severity: warning
+    metric: cognitive_complexity
+    threshold: 25
+
+  - id: no-unsafe-imports
+    dimension: security
+    description: "Avoid subprocess, pickle, ctypes, and similar dangerous imports"
+    severity: warning
+    metric: unsafe_import_count
+    threshold: 0
+
+  - id: no-hardcoded-secrets
+    dimension: security
+    description: "No hardcoded passwords, API keys, or secrets in source"
+    severity: critical
+    metric: hardcoded_secrets
+    threshold: 0
+
+  - id: no-empty-except
+    dimension: correctness
+    description: "Bare except:pass blocks silently swallow errors"
+    severity: warning
+    metric: empty_catch_blocks
+    threshold: 0

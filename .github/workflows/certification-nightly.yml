@@ -5,8 +5,10 @@ on:
   workflow_dispatch:
 
 permissions:
+  # actions/checkout reads the repository. Nothing in this job writes: certify
+  # makes no GitHub API call, and the records leave as an upload-artifact,
+  # which needs no repository scope.
   contents: read
-  issues: write
 
 jobs:
   sweep:
@@ -27,16 +29,15 @@ jobs:
 
       - name: Run full certification
         run: certify certify
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
       - name: Generate report
         run: certify report --format text
 
-      # .certification/ is generated output and is not tracked, so the sweep
-      # publishes its records as a build artifact instead of pushing them to
-      # main. A bot rewriting a large record set nightly would grow history
-      # permanently for data that any run can regenerate from the commit.
+      # config.yml, policies/ and overrides/ are tracked inputs; everything else
+      # under .certification/ is output regenerated from the commit, and it is
+      # not tracked. The sweep publishes it as a build artifact instead of
+      # pushing it to main: a bot rewriting a ~1000-file, 11MB record set nightly
+      # would grow history permanently for data any run can rebuild.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

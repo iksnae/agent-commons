@@ -1,12 +1,15 @@
 name: Certification PR Review
+
 on:
   pull_request:
     branches: [main]
 
 permissions:
+  # actions/checkout reads the repository.
   contents: read
+  # The "Comment on PR" step posts through `gh pr comment`, which writes an
+  # issue comment on the pull request. That is the only write this job makes.
   pull-requests: write
-  issues: write
 
 jobs:
   certify:
@@ -22,20 +25,41 @@ jobs:
       - name: Install certify
         run: go install github.com/iksnae/code-certification/cmd/certify@v0.12.0
 
+      # Known limit: every run is a cold, full certification. certify carries
+      # incremental state in .certification/state.json and records/*.history.jsonl,
+      # and both are untracked generated output, so a fresh checkout starts with
+      # none. config.yml sets expiry.default_window_days: 90, but a window that
+      # is never carried between runs can never elapse — so this recertifies all
+      # units on every push rather than the units the push changed. Correct, and
+      # more expensive than it looks. Restoring the state would mean caching it
+      # across runs, which is a separate decision from tracking the inputs.
       - name: Scan code units
         run: certify scan
 
       - name: Run certification
         run: certify certify
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
+      # --output, not a `>` redirect: `certify report --format json` trails its
+      # "updated" progress lines on stdout after the JSON, so a redirect
+      # captures a file that is not parseable JSON.
       - name: Generate report
-        run: certify report --format json > certification-report.json
+        run: certify report --format json --output certification-report.json
 
+      # `certify review` renders the Markdown body to stdout and returns; it
+      # makes no API call of its own, so `gh` has to do the posting.
+      #
+      # Skipped for pull requests from forks. A `pull_request` event raised by a
+      # fork gets a read-only GITHUB_TOKEN and no secrets no matter what the
+      # permissions block above asks for, so the post would fail and paint an
+      # outside contributor's PR red for something they did not do. The
+      # certification itself still runs on fork PRs and reports in the job log,
+      # so they get a real check rather than a spurious failure.
+      #
+      # Deliberately not `pull_request_target`: certification runs `go test`, so
+      # under that event a fork's _test.go would execute with a write-scoped
+      # token against this repository.
       - name: Comment on PR
-        if: always()
-        run: certify review
+        if: always() && github.event.pull_request.head.repo.fork == false
+        run: certify review | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
