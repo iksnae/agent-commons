@@ -100,8 +100,8 @@ func writeRuntimeSummary(human *report, page *core.RuntimeStatusPage) {
 	human.blank()
 	human.field("Supervisor", page.Supervisor.State)
 	for _, session := range page.Sessions {
-		human.field("Queue", fmt.Sprintf("%s (%s): %d ready, %d running, %d interrupted, %d failed",
-			session.Identity, session.Runtime, session.Ready, session.Running, session.Interrupted, session.Failed))
+		human.field("Queue", fmt.Sprintf("%s (%s): %d ready, %d running, %d interrupted, %d failed, %d held by abandoned tasks",
+			session.Identity, session.Runtime, session.Ready, session.Running, session.Interrupted, session.Failed, session.WaitingAbandoned))
 	}
 }
 

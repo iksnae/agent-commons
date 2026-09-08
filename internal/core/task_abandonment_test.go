@@ -5,6 +5,7 @@ package core
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -59,7 +60,16 @@ func TestAbandonPreservesOutputAndReviews(t *testing.T) {
 func TestAbandonIsNotReversible(t *testing.T) {
 	s, _, task := abandonFixture(t)
 	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
-	denied(t, s, "builder", "tasks.submit", map[string]any{"id": task.ID, "output": "Second attempt", "expectedRevision": 1})
+	// The refusal must describe the condition it actually guards: the task is
+	// terminal, not merely unaccepted.
+	b, _ := json.Marshal(map[string]any{"id": task.ID, "output": "Second attempt", "expectedRevision": 1})
+	_, submitErr := s.Call("builder", "tasks.submit", b)
+	if submitErr == nil {
+		t.Fatal("abandoned task accepted a resubmission")
+	}
+	if !strings.Contains(submitErr.Error(), "non-terminal task") {
+		t.Fatalf("submit refusal misdescribes its own condition: %q", submitErr)
+	}
 	denied(t, s, "reviewer", "tasks.review", map[string]any{"id": task.ID, "verdict": "approved", "evidence": "Reconsidered", "expectedRevision": 1})
 	denied(t, s, "lead", "tasks.accept", map[string]any{"id": task.ID})
 	denied(t, s, "operator", "tasks.accept", map[string]any{"id": task.ID})
@@ -156,19 +166,26 @@ func TestAbandonSurvivesRestart(t *testing.T) {
 }
 
 func TestAbandonRollsBackWhenSaveFails(t *testing.T) {
-	s, _, task := abandonFixture(t)
-	before, err := json.Marshal(s.data.Tasks[task.ID])
+	s, _, first := abandonFixture(t)
+	second := rpc(t, s, "lead", "tasks.assign", map[string]any{"to": "builder", "title": "Second", "text": "More work", "criteria": "Evidence", "reviewer": "reviewer", "idempotencyKey": "rollback"}).(Task)
+	// Abandon once so the schema is already 4: the failure under test is then
+	// the state write itself, not the pre-migration snapshot.
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(first.ID))
+	if s.data.SchemaVersion != 4 {
+		t.Fatalf("schema is %d; the save path is not the one being tested", s.data.SchemaVersion)
+	}
+	before, err := json.Marshal(s.data)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(s.dir, 0o500); err != nil {
 		t.Fatal(err)
 	}
-	denied(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	denied(t, s, "operator", "tasks.abandon", abandonArgs(second.ID))
 	if err := os.Chmod(s.dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	after, err := json.Marshal(s.data.Tasks[task.ID])
+	after, err := json.Marshal(s.data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +193,37 @@ func TestAbandonRollsBackWhenSaveFails(t *testing.T) {
 		t.Fatalf("failed save left a half-applied abandonment: %s -> %s", before, after)
 	}
 	// The rolled-back service must still be able to abandon once saving works.
-	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(second.ID))
+}
+
+// backupSchema now serves two features, so its failure must name the migration
+// that asked for it rather than the team migration it was written for.
+func TestAbandonBackupFailureNamesAbandonmentNotTeams(t *testing.T) {
+	s, _, task := abandonFixture(t)
+	before := s.data.SchemaVersion
+	if err := os.Chmod(s.dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(abandonArgs(task.ID))
+	_, err := s.Call("operator", "tasks.abandon", b)
+	if chmodErr := os.Chmod(s.dir, 0o700); chmodErr != nil {
+		t.Fatal(chmodErr)
+	}
+	if err == nil {
+		t.Fatal("abandonment succeeded with an unwritable state directory")
+	}
+	if !strings.Contains(err.Error(), "pre-task-abandonment-schema backup failed") {
+		t.Fatalf("backup failure does not name abandonment as the migration that asked: %q", err)
+	}
+	if strings.Contains(err.Error(), "team") {
+		t.Fatalf("backup failure blames the team migration: %q", err)
+	}
+	if s.data.SchemaVersion != before {
+		t.Fatalf("failed backup still advanced the schema to %d", s.data.SchemaVersion)
+	}
+	if got := s.data.Tasks[task.ID].Status; got != "submitted" {
+		t.Fatalf("failed backup still moved the task to %q", got)
+	}
 }
 
 // Abandonment is the escape that lets a stuck identity be restricted again.
@@ -213,6 +260,167 @@ func TestAbandonStopsQueuedAndRetryableTaskWork(t *testing.T) {
 	denied(t, s, "operator", "messages.retry", map[string]any{"messageId": deliveryID, "acknowledgeDuplicateRisk": true})
 	if s.RuntimeActive(deliveryID) {
 		t.Fatal("abandoned task delivery reported active")
+	}
+}
+
+// Abandoning a task while its turn is in flight must discard the result rather
+// than record it, and must say abandonment is why.
+func TestAbandonDuringRunWithholdsTheFinishedResult(t *testing.T) {
+	s, _, _ := setup(t)
+	task := rpc(t, s, "lead", "tasks.assign", map[string]any{"to": "builder", "title": "Inspect", "text": "Work", "criteria": "Evidence", "reviewer": "reviewer", "idempotencyKey": "inflight"}).(Task)
+	d := claim(t, s, "builder")
+	if s.data.Tasks[task.ID].Status != "working" {
+		t.Fatal("claim did not start the task")
+	}
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	if err := s.Finish(d.ID, "", "Result the operator no longer wants", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.data.Tasks[task.ID].Status; got != "abandoned" {
+		t.Fatalf("finish moved the abandoned task to %q", got)
+	}
+	var finished Delivery
+	for _, candidate := range s.data.Deliveries {
+		if candidate.ID == d.ID {
+			finished = candidate
+		}
+	}
+	if finished.Status != "failed" {
+		t.Fatalf("delivery status is %q, want failed", finished.Status)
+	}
+	if finished.Output != "" {
+		t.Fatalf("result recorded against an abandoned task: %q", finished.Output)
+	}
+	if !strings.Contains(finished.Error, "abandoned") {
+		t.Fatalf("withholding reason does not name abandonment: %q", finished.Error)
+	}
+	if s.data.Sessions["builder"].Busy {
+		t.Fatal("session left busy after finishing abandoned work")
+	}
+}
+
+// The result delivery reporting an abandoned task must stop costing runtime
+// turns without becoming unreadable.
+func TestAbandonStopsResultDeliveryButKeepsItReadable(t *testing.T) {
+	s, _, _ := setup(t)
+	rpc(t, s, "operator", "sessions.register", Session{ID: "manager", Target: s.data.Sessions["lead"].Target, Mode: "managed", Runtime: "codex", Policy: "workflow"})
+	task := rpc(t, s, "manager", "tasks.assign", map[string]any{"to": "builder", "title": "Inspect", "text": "Work", "criteria": "Evidence", "reviewer": "reviewer", "idempotencyKey": "result"}).(Task)
+	d := claim(t, s, "builder")
+	if err := s.Finish(d.ID, "", "Delivered result", nil); err != nil {
+		t.Fatal(err)
+	}
+	var result Delivery
+	for _, candidate := range s.data.Deliveries {
+		if candidate.To == "manager" && candidate.Kind == "result" {
+			result = candidate
+		}
+	}
+	if result.ID == "" || result.TaskID != task.ID || result.Status != "pending" {
+		t.Fatalf("fixture lacks a pending result delivery for the task: %+v", result)
+	}
+	if claimable, err := s.Claim("manager"); err != nil || claimable == nil {
+		t.Fatalf("result was not claimable before abandonment: %v %+v", err, claimable)
+	}
+	s.data.Deliveries[len(s.data.Deliveries)-1].Status = "pending"
+	manager := s.data.Sessions["manager"]
+	manager.Busy = false
+	s.data.Sessions["manager"] = manager
+
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	if claimable, err := s.Claim("manager"); err != nil || claimable != nil {
+		t.Fatalf("managed turn spent on a terminated task: %v %+v", err, claimable)
+	}
+	// Refusing the turn must not hide the result from the lead who is owed it.
+	found := false
+	for _, listed := range rpc(t, s, "manager", "inbox.list", nil).([]Delivery) {
+		if listed.ID == result.ID {
+			found = true
+			if listed.Text != result.Text || listed.Output != result.Output {
+				t.Fatal("abandonment rewrote peer result content")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("result delivery vanished from the inbox it was addressed to")
+	}
+	if got := s.runtimeQueue(s.data.Sessions["manager"]); got.WaitingAbandoned != 1 || got.WaitingTeam != 0 || got.Ready != 0 {
+		t.Fatalf("abandoned work miscounted: %+v", got)
+	}
+	for i := range s.data.Deliveries {
+		if s.data.Deliveries[i].ID == result.ID {
+			s.data.Deliveries[i].Status = "failed"
+		}
+	}
+	denied(t, s, "operator", "messages.retry", map[string]any{"messageId": result.ID, "acknowledgeDuplicateRisk": true})
+}
+
+// A directory that abandons a task must stop being readable by a binary whose
+// terminality check would let that task be accepted.
+func TestAbandonAdvancesSchemaLazilyAndOnlyOnSuccess(t *testing.T) {
+	s, dir, task := abandonFixture(t)
+	if s.data.SchemaVersion != 1 {
+		t.Fatalf("fixture schema is %d; adjust this test to its real starting point", s.data.SchemaVersion)
+	}
+	before := s.data.SchemaVersion
+	denied(t, s, "lead", "tasks.abandon", abandonArgs(task.ID))
+	denied(t, s, "operator", "tasks.abandon", map[string]any{"id": task.ID, "evidence": " "})
+	denied(t, s, "operator", "tasks.abandon", abandonArgs("no-such-task"))
+	if s.data.SchemaVersion != before {
+		t.Fatalf("refused abandonment advanced the schema to %d", s.data.SchemaVersion)
+	}
+	if backups := schemaBackups(t, dir); len(backups) != 0 {
+		t.Fatalf("refused abandonment wrote backups: %v", backups)
+	}
+	rpc(t, s, "operator", "tasks.abandon", abandonArgs(task.ID))
+	if s.data.SchemaVersion != 4 {
+		t.Fatalf("schema is %d after abandonment, want 4", s.data.SchemaVersion)
+	}
+	if backups := schemaBackups(t, dir); len(backups) != 1 {
+		t.Fatalf("want exactly one pre-abandonment snapshot, got %v", backups)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if reopened.data.SchemaVersion != 4 {
+		t.Fatalf("schema did not survive restart: %d", reopened.data.SchemaVersion)
+	}
+	// A newer schema than this binary knows must be refused, not read.
+	reopened.data.SchemaVersion = 5
+	if err := reopened.save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if refused, err := New(dir); err == nil {
+		refused.Close()
+		t.Fatal("binary read a state schema newer than itself")
+	}
+}
+
+func schemaBackups(t *testing.T, dir string) []string {
+	t.Helper()
+	names, err := filepath.Glob(filepath.Join(dir, "pre-task-abandonment-schema-*.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return names
+}
+
+// A directory that never abandons anything stays on the older schema.
+func TestUnusedAbandonmentLeavesSchemaAlone(t *testing.T) {
+	s, _, task := abandonFixture(t)
+	before := s.data.SchemaVersion
+	rpc(t, s, "builder", "tasks.submit", map[string]any{"id": task.ID, "output": "Corrected", "expectedRevision": 1})
+	rpc(t, s, "reviewer", "tasks.review", map[string]any{"id": task.ID, "verdict": "approved", "evidence": "Independent evidence", "expectedRevision": 2})
+	rpc(t, s, "lead", "tasks.accept", map[string]any{"id": task.ID})
+	if s.data.SchemaVersion != before {
+		t.Fatalf("schema advanced to %d without any abandonment", s.data.SchemaVersion)
 	}
 }
 

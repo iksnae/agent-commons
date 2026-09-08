@@ -18,7 +18,8 @@ whose old records had no policy. This permits messaging, read-only context/task
 inspection, and own inbox handling. Mutating task operations and context writes
 are denied. Operator-only `sessions.policy` can explicitly grant `workflow`;
 task authors/reviewers must have workflow policy. Downgrading an identity involved
-in an unresolved task is rejected. These restrictions govern Commons RPC only,
+in a task that has not reached a terminal status is rejected; `accepted` and
+`abandoned` are the two terminal statuses, so either one releases the identity. These restrictions govern Commons RPC only,
 not arbitrary processes running as the same OS user. `sessions.capabilities`
 reports this boundary; neither policy grants repository writes or deployments.
 
@@ -61,3 +62,21 @@ Manual agents can use `tasks.submit` with `id`, `output` and `expectedRevision`.
 Reviewers use `tasks.review` with `id`, `verdict`, `evidence` and
 `expectedRevision`: a verdict for an older result cannot approve a newer one.
 The assigning lead uses `tasks.accept` after the required current reviews exist.
+
+Operator-only `tasks.abandon` takes `id` and required `evidence` (max 8KiB) and
+stops a task that can no longer move. A submitted result carrying a rejection
+advances only when its author resubmits, so a task whose author will never act
+again pins its author and its reviewer in an obligation with no other exit.
+Abandonment is not acceptance and can never become a route to it: it records
+that the work stopped, keeps the output, the revision and every verdict exactly
+as they stand, adds the operator's reason as `abandonEvidence`, queues nothing,
+and cannot be undone or repeated. Afterwards `tasks.submit`, `tasks.review` and
+`tasks.accept` all refuse the task, and neither a claim nor `messages.retry`
+will spend a runtime turn on it — though any result already addressed to the
+lead stays in that inbox, unedited and readable. It is refused from `accepted`,
+and it is the one task method that still works when a team participant has left,
+because it is the operator coordination that situation calls for. It is operator
+RPC, so like `sessions.register`, `sessions.policy` and `messages.retry` it is
+deliberately absent from `methods.list` and the MCP tool surface. The first
+successful abandonment advances the durable schema; see
+[version-compatibility.md](version-compatibility.md).

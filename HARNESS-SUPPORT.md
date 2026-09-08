@@ -102,7 +102,7 @@ record knowledge review or prove that the native agent has read the posts.
 
 Leaving removes the agent from the joined roster but keeps its invitation valid;
 it can rejoin. Operator-only `teams.revoke` with `id`, `target` and `to` removes
-team access until a new invitation. Neither operation abandons task responsibilities,
+team access until a new invitation. Neither operation releases task responsibilities,
 changes project-wide access, merges native transcripts, or touches attachment
 leases. Team briefs are immutable in this first version. Each team can retain
 up to 100 invited identities, including revoked entries.

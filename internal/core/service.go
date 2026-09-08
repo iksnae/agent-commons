@@ -98,7 +98,7 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, errors.New("negative state schema version")
 	}
-	if s.data.SchemaVersion > 3 {
+	if s.data.SchemaVersion > 4 {
 		s.Close()
 		return nil, errors.New("state schema newer than this binary")
 	}
@@ -692,7 +692,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				if d.Status != "failed" && d.Status != "interrupted" {
 					return fail("only failed or interrupted deliveries can retry")
 				}
-				if d.Kind == "task" && s.data.Tasks[d.TaskID].Status == "abandoned" {
+				if s.taskAbandoned(*d) {
 					return fail("abandoned task cannot be reopened by delivery retry")
 				}
 				if d.Kind == "task" && (s.data.Tasks[d.TaskID].Status == "submitted" || s.data.Tasks[d.TaskID].Status == "accepted") {
@@ -758,7 +758,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 				return fail("task author required")
 			}
 			if terminalTaskStatus(t.Status) || t.Revision != p.ExpectedRevision || strings.TrimSpace(p.Output) == "" {
-				return fail("unresolved task, matching revision and output required")
+				return fail("non-terminal task, matching revision and output required")
 			}
 			t = s.submit(t, p.Output)
 			for i := range s.data.Deliveries {
@@ -910,7 +910,7 @@ func (s *Service) Finish(id, runtimeID, output string, runErr error) error {
 			v := s.data.Sessions[d.To]
 			v.Busy = false
 			if !s.deliveryRunnable(*d) {
-				runErr = errors.Join(errors.New("task or team access changed during execution; result withheld"), runErr)
+				runErr = errors.Join(errors.New("task abandoned or team access changed during execution; result withheld"), runErr)
 				output = ""
 			}
 			if runtimeID != "" && v.RuntimeSessionID != "" && runtimeID != v.RuntimeSessionID {

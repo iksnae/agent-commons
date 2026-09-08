@@ -30,15 +30,28 @@ func (s *Service) deliveryAccess(actor string, d Delivery) bool {
 	return s.teamAccess(actor, s.deliveryTarget(d), d.TeamID)
 }
 
+// taskAbandoned reports whether a delivery carries the ID of a task the
+// operator terminated. A TaskID absent from Tasks yields the zero Task, whose
+// empty status is never "abandoned", so a map miss is safe. Both callers share
+// this helper so the queue and the retry gate cannot drift apart.
+func (s *Service) taskAbandoned(d Delivery) bool {
+	return d.TaskID != "" && s.data.Tasks[d.TaskID].Status == "abandoned"
+}
+
 func (s *Service) deliveryRunnable(d Delivery) bool {
 	if !s.deliveryAccess(d.To, d) || !s.deliveryAccess(d.From, d) {
 		return false
 	}
-	// An abandoned task is terminal, so queued work for it must never run: a
-	// claim would otherwise move it back to "working" and undo the operator's
-	// decision. Acceptance is deliberately not checked here, because result
+	// An abandoned task is terminal, so no delivery carrying its ID may run,
+	// whatever its kind. Claiming task work would move the task back to
+	// "working" and undo the operator's decision; claiming the result that
+	// reports it would spend a managed session's paid runtime turn on
+	// terminated work. Runnability governs only whether Claim takes a
+	// delivery, so nothing is withheld by refusing it: the delivery stays
+	// pending and readable in the recipient's inbox, text and output intact.
+	// Acceptance is deliberately not checked here, because result
 	// deliveries carry the task ID of tasks that legitimately reach accepted.
-	if d.Kind == "task" && s.data.Tasks[d.TaskID].Status == "abandoned" {
+	if s.taskAbandoned(d) {
 		return false
 	}
 	if d.TaskID != "" && d.TeamID != "" {
