@@ -50,9 +50,11 @@ func (s *Service) deliveryRunnable(d Delivery) bool {
 	// delivery and whether Finish records the result of one already running.
 	// A delivery still pending is only left alone: it stays readable in the
 	// recipient's inbox with its text intact. One already in flight when the
-	// operator abandons is failed by Finish with its output discarded and no
-	// retry available, which is the same treatment a team change gives work
-	// in flight. Either way the text the recipient was sent stays readable.
+	// operator abandons is failed by Finish with its output discarded, which
+	// is what a team change also does to work in flight. The retry gate is
+	// where the two part: messages.retry refuses an abandoned task outright,
+	// while after a team change it still accepts the call and only leaves the
+	// delivery unrunnable. Either way the text already sent stays readable.
 	// Acceptance is deliberately not checked here, because result
 	// deliveries carry the task ID of tasks that legitimately reach accepted.
 	if s.taskAbandoned(d) {
