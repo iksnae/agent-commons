@@ -1,7 +1,10 @@
 # Codex integration
 
-Set `AGENT_COMMONS_CONNECTION` in the intended role's launcher environment before
-using the plugin's scoped MCP connection. Follow the shared
+The plugin's scoped MCP connection resolves the role connection from
+`AGENT_COMMONS_CONNECTION` when the launcher sets it, and otherwise searches
+upward from the working directory for `.agent-commons/project.json`. Set the
+variable explicitly to pin one role in a project that has several enrolled; it
+always wins. Follow the shared
 [connection instructions](../skills/agent-commons/references/connection.md).
 
 Native Codex 0.153.4 install/removal testing used a disposable local marketplace.
