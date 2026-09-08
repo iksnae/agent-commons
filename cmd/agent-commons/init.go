@@ -14,8 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
-
-	"agentcommons/internal/harness"
 )
 
 type projectDefaults struct {
@@ -43,7 +41,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 	fs.StringVar(&name, "name", name, "stable agent name")
 	fs.StringVar(&role, "role", role, "project role")
 	fs.StringVar(&team, "team", team, "project team label")
-	fs.StringVar(&runtimeName, "runtime", runtimeName, "runtime: "+runtimeVocabulary())
+	fs.StringVar(&runtimeName, "runtime", runtimeName, "runtime: "+initRuntimeVocabulary())
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -58,8 +56,8 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := harness.Lookup(runtimeName); !ok {
-		return fmt.Errorf("runtime must be %s", runtimeVocabulary())
+	if !initRuntimeAllowed(runtimeName) {
+		return fmt.Errorf("runtime must be %s", initRuntimeVocabulary())
 	}
 	if err := os.MkdirAll(state, 0700); err != nil {
 		return err
