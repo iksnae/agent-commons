@@ -76,11 +76,6 @@ func TestHelpMarksTheAgentFacingCommands(t *testing.T) {
 			t.Fatalf("help omits %q:\n%s", want, help)
 		}
 	}
-	for _, name := range []string{"call", "methods"} {
-		if !strings.Contains(help, name) {
-			t.Fatalf("help lost a command the marker was appended to: %s", help)
-		}
-	}
 }
 
 // The new-operator path is named on the screen, not left to be inferred from

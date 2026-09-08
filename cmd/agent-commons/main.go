@@ -239,7 +239,13 @@ func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.W
 		if !json.Valid(raw) {
 			return errors.New("parameters must be valid JSON")
 		}
-		result, err := transport.Call(ctx, *socket, token, rest[0], raw)
+		// json.RawMessage on both ends is what preserves call's stdout contract
+		// through the seam. As a parameter it marshals verbatim rather than as
+		// the base64 string a plain []byte would become; as the result type its
+		// UnmarshalJSON copies the response bytes unchanged, so the round trip
+		// is the identity function and this still prints what the service sent.
+		result, err := rpcCall[json.RawMessage](ctx,
+			rpcClient{socket: *socket, token: token, state: *state}, rest[0], json.RawMessage(raw))
 		if err != nil {
 			return err
 		}

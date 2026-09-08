@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // refusedError and missingError are the two dial failures the transport really
@@ -245,5 +247,115 @@ func TestRunRendersTheBlockOnStderrAndLeavesStdoutAlone(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Fatalf("stdout was written to: %q", out.String())
+	}
+}
+
+// call is machine-facing and on the seam. It gains the classified single line
+// on stderr -- which an agent can act on, where a bare dial error left it
+// nothing to relay -- and keeps a stdout that is written to only on success.
+func TestCallIsClassifiedAndLeavesStdoutEmpty(t *testing.T) {
+	state := populatedState(t)
+	var out, errOut strings.Builder
+	err := run(context.Background(), []string{"call", "--state", state, "sessions.list"},
+		strings.NewReader(""), &out, &errOut)
+	var unreachable *serviceUnreachableError
+	if !errors.As(err, &unreachable) {
+		t.Fatalf("call returned %T (%v), not a classified unreachable error", err, err)
+	}
+	if unreachable.condition != serviceStopped {
+		t.Fatalf("classified as %v, want stopped", unreachable.condition)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("stdout was written to on a failed call: %q", out.String())
+	}
+	// Machine-facing: the styled block is suppressed, and the one line main
+	// prints is the whole diagnosis.
+	if errOut.Len() != 0 {
+		t.Fatalf("call rendered the human block: %q", errOut.String())
+	}
+	for _, want := range []string{serviceSentences[serviceStopped].headline, serviceSentences[serviceStopped].fix} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("single line omits %q: %q", want, err.Error())
+		}
+	}
+	if strings.Contains(err.Error(), "\n") {
+		t.Fatalf("machine-facing error spans more than one line: %q", err.Error())
+	}
+	// Absence is the one condition only the state directory evidences, so this
+	// is what proves call carries it; without it this degrades to stopped and
+	// the field is untested. --token-file is what makes the case reachable: the
+	// default credential lives in the state directory, and with none there
+	// readToken would fail before any dial.
+	empty := shortStateDir(t)
+	out.Reset()
+	errOut.Reset()
+	err = run(context.Background(), []string{"call", "--state", empty,
+		"--token-file", filepath.Join(state, "operator.token"), "sessions.list"},
+		strings.NewReader(""), &out, &errOut)
+	if !errors.As(err, &unreachable) {
+		t.Fatalf("call returned %T (%v), not a classified unreachable error", err, err)
+	}
+	if unreachable.condition != serviceAbsent {
+		t.Fatalf("classified as %v, want absent; call is not carrying its state", unreachable.condition)
+	}
+}
+
+// call's stdout contract survives the seam because both ends are
+// json.RawMessage: as a result type its UnmarshalJSON copies the response
+// verbatim. The numeric cases are the ones that would betray a decode through
+// any other type -- a large integer or a trailing-zero float does not survive a
+// map[string]any round trip.
+func TestRawMessageRoundTripIsTheIdentityFunction(t *testing.T) {
+	for _, body := range []string{
+		`{"a":1}`, `[1,2,3]`, `null`, `"text"`, `{"n":{"deep":[true,false]}}`,
+		`12345678901234567890`, `{"f":1.0}`, `{"unicode":"é"}`,
+	} {
+		var result json.RawMessage
+		if err := json.Unmarshal([]byte(body), &result); err != nil {
+			t.Fatalf("%s: %v", body, err)
+		}
+		if string(result) != body {
+			t.Fatalf("round trip altered %s into %s", body, result)
+		}
+	}
+}
+
+// watch is human-facing and long-lived, so it gets the block -- once for the
+// invocation, not once per --interval. Reaching a classified error rather than
+// the deadline is itself the proof the poller was not retried past it.
+func TestWatchRendersTheBlockOncePerInvocation(t *testing.T) {
+	state := populatedState(t)
+	var out, errOut strings.Builder
+	started := time.Now()
+	err := run(context.Background(), []string{"watch", "--state", state,
+		"--token-file", filepath.Join(state, "operator.token"),
+		"--interval", "100ms", "--timeout", "3s"}, strings.NewReader(""), &out, &errOut)
+	elapsed := time.Since(started)
+	var unreachable *serviceUnreachableError
+	if !errors.As(err, &unreachable) {
+		t.Fatalf("watch returned %T (%v), not a classified unreachable error", err, err)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("watch took %v; it retried instead of reporting the first failure", elapsed)
+	}
+	headline := serviceSentences[unreachable.condition].headline
+	if got := strings.Count(errOut.String(), headline); got != 1 {
+		t.Fatalf("block rendered %d times, want exactly 1:\n%s", got, errOut.String())
+	}
+	if out.Len() != 0 {
+		t.Fatalf("stdout was written to: %q", out.String())
+	}
+	// As with call, absence is the condition that proves the state reached the
+	// client; without it this degrades to stopped and the field is untested.
+	empty := shortStateDir(t)
+	errOut.Reset()
+	err = run(context.Background(), []string{"watch", "--state", empty,
+		"--token-file", filepath.Join(state, "operator.token"),
+		"--interval", "100ms", "--timeout", "3s"}, strings.NewReader(""), &out, &errOut)
+	if !errors.As(err, &unreachable) {
+		t.Fatalf("watch returned %T (%v), not a classified unreachable error", err, err)
+	}
+	if unreachable.condition != serviceAbsent {
+		t.Fatalf("classified as %v, want absent; watch is not carrying its state", unreachable.condition)
 	}
 }
