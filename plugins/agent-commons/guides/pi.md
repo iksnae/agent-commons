@@ -11,10 +11,13 @@ Pi installs at user scope by default; add `-l` for project scope. Run
 packages remain at their original path, so keep the extracted directory intact.
 There are no runtime npm dependencies; `private: true` prevents npm publication.
 
-The launcher must supply absolute `AGENT_COMMONS_BINARY` and
-`AGENT_COMMONS_CONNECTION` paths for the intended enrolled role. Without both,
-startup either stays inactive (neither supplied) or reports failed configuration.
-Installing the package does not enroll a role or start the Commons service.
+The launcher must supply an absolute `AGENT_COMMONS_BINARY`. A role connection
+is optional: without `AGENT_COMMONS_CONNECTION`, the binary resolves the role by
+searching upward from the launch directory for `.agent-commons/project.json`.
+Supply it to pin one role in a project with several enrolled; an explicit value
+must be an absolute path or startup reports failed configuration. Startup stays
+inactive when neither variable is set. Installing the package does not enroll a
+role or start the Commons service.
 
 On startup, resume or reload, the extension reads Pi's native session ID and
 header. It rejects fork ancestry and new/fork lifecycle events, then checks that
