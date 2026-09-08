@@ -52,8 +52,13 @@ func runLaunchContext(ctx context.Context, args []string, in io.Reader, out, err
 		//     open, or a project that is initialized but has no enrolled role.
 		//     Silence there hides the operator's own mistake.
 		//
-		// Neither path may exit 2: Claude Code treats 2 as blocking, and a
-		// check-in that cannot happen must never stop a launch.
+		// Neither path exits 2. On SessionStart exit 2 is not blocking - it
+		// shows stderr and execution continues, like any other non-zero exit -
+		// so it would buy nothing here. It is avoided because 2 is the hook
+		// protocol's reserved signal for blocking an action on the events that
+		// can be blocked, and a check-in that cannot happen never asks to stop
+		// a launch. Keeping that signal unused means this contract does not
+		// depend on which side of the event table SessionStart happens to be.
 		return nil
 	}
 	resolvedConfig, err := resolveConnectionConfigPath(*config, event.Directory)

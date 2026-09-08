@@ -27,8 +27,12 @@ binary beside it. It is not silent about configuration that exists and is broken
 an initialised project with no enrolled role, a connection file that will not
 open, a launch outside the enrolled root, or `AGENT_COMMONS_CONNECTION` set with
 no binary findable each report on stderr and exit non-zero. Claude shows that in
-the transcript and the launch continues — the hook never exits 2, which would
-block it.
+the transcript and the launch continues. The hook never exits 2. On SessionStart
+that code is not special — it shows stderr and continues, exactly like the 127
+the hook actually uses — but 2 is the hook protocol's reserved signal for
+blocking an action on the events that can be blocked. This hook has no business
+sending that signal, and a reader who knows the protocol should not have to
+check the event table to be sure a failed check-in cannot stop a launch.
 
 On startup or resume, the hook attaches the native session to that identity and
 returns brief instructions to read its inbox and project learnings. It does not

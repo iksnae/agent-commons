@@ -15,8 +15,10 @@ if [ -z "$binary" ]; then
     binary=agent-commons
   elif [ -n "${AGENT_COMMONS_CONNECTION:-}" ]; then
     # The operator named a connection, so they meant this launch to check in.
-    # Report the missing binary rather than swallowing their intent. Never
-    # exit 2: Claude Code treats 2 as blocking and this must not stop a launch.
+    # Report the missing binary rather than swallowing their intent. Exit 127,
+    # never 2: on SessionStart both merely show stderr and continue, but 2 is
+    # the hook protocol's reserved signal for blocking an action, and a failed
+    # check-in never asks for that. 127 also keeps its usual "not found" sense.
     echo 'agent-commons: AGENT_COMMONS_CONNECTION is set but no agent-commons binary was found (AGENT_COMMONS_BINARY, $CLAUDE_PLUGIN_ROOT/../../agent-commons, PATH)' >&2
     exit 127
   else
