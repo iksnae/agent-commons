@@ -1,25 +1,24 @@
 # Install a local binary bundle
 
-Start with a native archive for your operating system and CPU from a build you
-trust. The binary bundle has no npm package or install-time download. Check `SHA256SUMS` for
+Start with the shared harness instructions in the target project. The binary
+bundle has no npm package or install-time download. Check `SHA256SUMS` for
 accidental damage; a checksum shipped beside an archive does not prove who made it.
 Signed public releases are still pending.
 
 ## Install the shared skill with Vercel Skills
 
 Use the established [Vercel Skills CLI](https://github.com/vercel-labs/skills) for
-the instructions and their supporting references. From the target project, with
-a trusted local Agent Commons checkout available:
+the instructions and their supporting references:
 
 ```sh
-DISABLE_TELEMETRY=1 npx skills@1.5.24 add /absolute/agent-commons/plugins/agent-commons \
+DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
+  https://github.com/iksnae/agent-commons.git \
   --skill agent-commons --agent claude-code codex pi hermes-agent --copy
 ```
 
 Select only the agents you use. This installs at project scope; add `--global`
 only when you want a user-wide skill. `--copy` keeps support files together
-without depending on symlinks. Vercel also supports Git sources; the repository
-is currently private, so remote installation needs your existing Git access.
+without depending on symlinks.
 
 The command downloads Vercel's npm-published installer, not an Agent Commons npm
 package. It does not install our binary, register MCP, start a service, enroll a

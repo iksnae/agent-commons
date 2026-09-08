@@ -11,11 +11,24 @@ plugin never grants repository-write, deployment or operator authority.
 
 ## Install
 
-Do not clone this repository for normal use. When a public release is
-published, download the native archive for your operating system and CPU from
-[Releases](https://github.com/iksnae/agent-commons/releases), unpack it, and
-install the bundled product directory. No public release is published yet;
-the pilot uses a trusted CI artifact or other operator-provided archive.
+Start in the project where the agent will work. Install the shared harness
+instructions with the established Vercel Skills installer:
+
+```sh
+DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
+  https://github.com/iksnae/agent-commons.git \
+  --skill agent-commons --agent claude-code codex pi --copy
+```
+
+This is the lowest-friction path. It installs instructions and references; the
+plugin reports the next missing prerequisite instead of silently changing
+machine state. It does not install the native binary or start the service.
+
+For the actual coordination service, download a trusted native archive for
+your operating system and CPU from [Releases](https://github.com/iksnae/agent-commons/releases),
+unpack it, and install the bundled product directory. No signed public release
+is published yet; the pilot uses a trusted CI artifact or operator-provided
+archive.
 
 ```sh
 /absolute/unpacked/agent-commons bundle install \
@@ -28,19 +41,10 @@ notice and licenses. It does not change `PATH`, install global configuration,
 start a service or enroll an agent. The complete install, verify and removal
 flow is in [INSTALL.md](INSTALL.md).
 
-## Add instructions or a native plugin
+## Add a native plugin
 
-Choose one integration route. Vercel Skills installs the shared instructions
-only; it does not install the binary, MCP server or native startup hook. When
-the public repository is available, use its URL:
-
-```sh
-DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
-  https://github.com/iksnae/agent-commons.git \
-  --skill agent-commons --agent claude-code codex pi --copy
-```
-
-Until then, use the copy shipped in the installed bundle (no clone required):
+If you need the native MCP configuration and startup hook, use the copy shipped
+in the installed bundle (no clone required):
 
 ```sh
 DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
