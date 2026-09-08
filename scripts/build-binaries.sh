@@ -3,6 +3,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+version="$(bash scripts/release-version.sh)"
+echo "Stamping build version: $version"
 mkdir -p dist
 build_dir=$(mktemp -d)
 trap 'rm -rf "$build_dir"' EXIT
@@ -23,7 +25,7 @@ for platform in darwin linux; do
     name="agent-commons-${platform}-${arch}"
     mkdir -p "$build_dir/$name"
     (cd "$build_dir/source"; CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" go build \
-      -mod=vendor -trimpath -buildvcs=false -ldflags='-s -w' \
+      -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X main.version=$version" \
       -o "$build_dir/$name/agent-commons" ./cmd/agent-commons)
     cp "$build_dir/source/README.md" "$build_dir/source/LICENSE" \
       "$build_dir/source/LICENSING.md" "$build_dir/source/INSTALL.md" "$build_dir/source/SERVICE.md" \

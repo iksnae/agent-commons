@@ -127,6 +127,39 @@ MCP command still names the original path.
 The command does not inspect or stop the OS supervisor. `--confirm-stopped` is your
 confirmation, not a claim that the tool checked your processes.
 
+## Update the CLI in place
+
+`agent-commons version` prints the release the binary was built from. Release
+archives are built without VCS stamping, so a binary that reports `dev` was built
+from a working tree rather than cut from a tag.
+
+```sh
+agent-commons update
+```
+
+This asks GitHub for the latest published release of `iksnae/agent-commons`. When
+that tag is the one this binary reports, it says so and downloads nothing. Otherwise
+it downloads the archive for your platform along with `SHA256SUMS`, checks the archive
+against them, and only then writes the new binary beside the running one and renames
+it over the top. A mismatch replaces nothing.
+
+It does not compare version numbers. GitHub decides which release is latest; this
+command reports what that release is and installs it, rather than claiming a release
+is newer than yours. A binary reporting `dev` matches no tag, so running this command
+on a locally built binary says the build carries no release stamp and then overwrites
+it with the published release. Keep a build you still need somewhere else first.
+
+The checksum detects transfer damage, not publisher authenticity. Release signing is
+still pending, so treat a verified checksum as an intact download and no more.
+
+The command replaces the binary it is running from. If that file's directory is not
+writable it names the path and stops; it never uses `sudo` and never elevates. Install
+somewhere you own with `scripts/install.sh --to DIR` instead. A running service keeps
+the old binary until it is restarted, and this command does not restart it.
+
+This route updates one binary. It does not update the bundle, the plugin, or the
+installed skill.
+
 ## Upgrade and service setup
 
 Install a new version into a separate directory. Verify it, back up service state,
