@@ -31,7 +31,7 @@ fmt:
     gofmt -w cmd internal integration
 
 # Run ordinary pre-commit checks; no models or native service registration.
-check: fmt-check test vet pi-extension-test docs-check
+check: fmt-check test vet pi-extension-test docs-check install-check
 
 # Verify local documentation links and keep the two entry-point READMEs short.
 docs-check:
@@ -54,6 +54,10 @@ pi-hook-test: build
 # Build all native archives and the plugin; stage new files first.
 package:
     bash scripts/build-binaries.sh
+
+# Check the installer offline: syntax, a verified local archive, a damaged one.
+install-check:
+    bash scripts/check-install.sh
 
 # Verify existing archives, offline rebuilds, notices, and local bundle removal.
 archives-check:
