@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -42,7 +41,9 @@ func recoverServiceSocket(state, socket string) error {
 		connection.Close()
 		return fmt.Errorf("default socket is active; refusing replacement")
 	}
-	if !errors.Is(err, syscall.ECONNREFUSED) {
+	// socketRefused is shared with classification in service_reachability.go, so
+	// the socket the CLI calls stale is exactly the one serve will replace.
+	if !socketRefused(err) {
 		return fmt.Errorf("cannot establish that default socket is stale: %w", err)
 	}
 	after, err := os.Lstat(socket)

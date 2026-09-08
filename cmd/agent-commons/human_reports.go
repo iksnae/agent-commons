@@ -135,6 +135,69 @@ func bundlePastTense(operation string) string {
 	}
 }
 
+// serviceSentence is what one unreachable condition says: what is wrong, and
+// what to do about it. Both halves are required -- a condition that names
+// itself without naming a fix leaves the operator exactly where the raw
+// transport error did.
+type serviceSentence struct{ headline, fix string }
+
+// serviceSentences maps every condition to its two sentences. It is an array
+// indexed by the condition, not a map, so the set is exactly as wide as the
+// enum: adding a condition widens this array and the new entry is empty until
+// somebody fills it in. Go cannot make that a compile error, so
+// TestEveryConditionNamesItselfAndAFix fails on the empty entry instead, and
+// serviceConditionUnknown carries a real sentence too so that no path through
+// the renderer can produce a blank line.
+var serviceSentences = [serviceConditionCount]serviceSentence{
+	serviceConditionUnknown: {
+		headline: "The local service could not be reached.",
+		fix:      "Run 'agent-commons doctor' to check this connection.",
+	},
+	serviceAbsent: {
+		headline: "The local service has never run for this state directory.",
+		fix:      "Run 'agent-commons init' in your project to set it up and start the service.",
+	},
+	serviceStopped: {
+		headline: "The local service is not running. It shut down cleanly.",
+		fix:      "Start it with 'agent-commons service start', or run 'agent-commons init' in your project.",
+	},
+	serviceStale: {
+		headline: "The local service is not running. It stopped without cleaning up its socket.",
+		fix:      "Start it with 'agent-commons service start'; the stale socket is removed on startup.",
+	},
+}
+
+// serviceUnreachableLine is the machine-facing form: one line, on stderr,
+// naming the condition and the fix. It is what Error() returns, so a command
+// that simply returns the error still says something useful.
+func serviceUnreachableLine(unreachable *serviceUnreachableError) string {
+	sentence := serviceSentences[unreachable.condition]
+	line := sentence.headline + " " + sentence.fix
+	if unreachable.socket != "" {
+		line += " (socket " + unreachable.socket + ")"
+	}
+	return line
+}
+
+// writeServiceUnreachable is the human-facing form: the same two sentences as a
+// styled block, with the paths a reader may need to check. It goes to stderr,
+// never stdout -- stdout is the machine contract on every command that has one,
+// and it was never where a diagnosis belonged.
+func writeServiceUnreachable(errOut io.Writer, unreachable *serviceUnreachableError) error {
+	sentence := serviceSentences[unreachable.condition]
+	human := newReport(errOut)
+	human.headline(sentence.headline)
+	if unreachable.socket != "" {
+		human.field("Socket", unreachable.socket)
+	}
+	if unreachable.state != "" {
+		human.field("Service state", unreachable.state)
+	}
+	human.blank()
+	human.note(sentence.fix)
+	return human.write()
+}
+
 // writeCheckInHeader names who checked in and what they attached to.
 //
 // It goes to the ERROR stream, and must stay there. check-in's stdout carries

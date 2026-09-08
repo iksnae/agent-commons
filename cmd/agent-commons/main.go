@@ -31,7 +31,39 @@ func main() {
 	}
 }
 
+// run dispatches and then renders. Attaching the unreachable-service block here
+// rather than in each command is what keeps one rendering of it: a command only
+// has to return the typed error rpcCall produced, however deep it was raised,
+// and this is the single place that decides an operator should read a block
+// about it. Commands whose stdout is a machine contract are unaffected -- the
+// block goes to errOut, and stdout is never touched.
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	err := dispatch(ctx, args, in, out, errOut)
+	var unreachable *serviceUnreachableError
+	if errors.As(err, &unreachable) && humanFacing(args) {
+		if renderErr := writeServiceUnreachable(errOut, unreachable); renderErr != nil {
+			return renderErr
+		}
+	}
+	return err
+}
+
+// humanFacing reports whether this command's reader is a person. The machine
+// facing ones -- call, mcp and connect-mcp -- get the single-line Error() their
+// caller already prints, because a styled block on their stderr is noise to a
+// parser reading their stdout.
+func humanFacing(args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	switch args[0] {
+	case "call", "mcp", "connect-mcp":
+		return false
+	}
+	return true
+}
+
+func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
 	if len(args) > 0 && args[0] == "harnesses" {
 		if len(args) != 1 {
 			return errors.New("harnesses takes no arguments")
@@ -77,7 +109,11 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	if len(args) > 0 && (args[0] == "enroll" || args[0] == "check-in") {
 		return runOnboarding(ctx, args, out, errOut)
 	}
-	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+	// A bare invocation is the same gesture as asking for help, so it gets the
+	// same answer: the help screen, on stdout, exit 0. Typing a binary's name to
+	// find out what it does is discovery, not a usage error, and a non-zero exit
+	// here makes a shell think the tool is broken.
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		return writeHelp(out)
 	}
 	if len(args) > 0 && (args[0] == "version" || args[0] == "--version") {
@@ -91,9 +127,6 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	}
 	if len(args) > 0 && args[0] == "watch" {
 		return runWatch(ctx, args[1:], out, errOut)
-	}
-	if len(args) == 0 {
-		return usageError()
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

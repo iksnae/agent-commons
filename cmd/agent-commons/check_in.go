@@ -95,7 +95,7 @@ func openProjectConnection(path string) (projectConnection, error) {
 		return projectConnection{}, errors.New("unsupported connection config")
 	}
 	token, err := readToken(config.TokenFile)
-	return projectConnection{config: config, client: rpcClient{socket: config.Socket, token: token}}, err
+	return projectConnection{config: config, client: rpcClient{socket: config.Socket, token: token, state: config.State}}, err
 }
 
 func (connection *projectConnection) verifyIdentity(ctx context.Context) error {

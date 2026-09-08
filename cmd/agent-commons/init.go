@@ -79,17 +79,20 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 	socket := filepath.Join(state, "service.sock")
+	var startup *serviceStartup
 	if !serviceReachable(socket) {
 		binary, err := os.Executable()
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(binary, "serve", "--state", state)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, io.Discard, io.Discard
-		if err := cmd.Start(); err != nil {
+		startup, err = startDetached(exec.Command(binary, "serve", "--state", state), state)
+		if err != nil {
 			return fmt.Errorf("start service: %w", err)
 		}
-		_ = cmd.Process.Release()
+		// Removed on every path out of here, reached or not. A service that came
+		// up keeps writing into the unlinked file; one that failed has already
+		// been read by then.
+		defer startup.discard()
 	}
 	deadline := time.Now().Add(3 * time.Second)
 	for !serviceReachable(socket) && time.Now().Before(deadline) {
@@ -100,7 +103,7 @@ func runInit(ctx context.Context, args []string, out, errOut io.Writer) error {
 		}
 	}
 	if !serviceReachable(socket) {
-		return errors.New("service did not become reachable; inspect the private state directory")
+		return unreachableAfterStart(startup)
 	}
 	// enrollAgent owns the connection-file guard: it can only be applied once
 	// the server has said which identity it really adopted. Do not re-check it
@@ -229,6 +232,23 @@ func describeFieldValue(value reflect.Value) string {
 		return strconv.Quote(value.String())
 	}
 	return fmt.Sprint(value.Interface())
+}
+
+// unreachableAfterStart explains a service that never came up. When the child
+// said why before exiting, that reason IS the explanation and the old advice to
+// go looking in the state directory is dropped: the directory did not contain
+// it, which is what made the original message a dead end. When there is nothing
+// captured -- the service was already running under someone else, or died
+// silently -- the message falls back to naming the state directory, which is
+// still the only place left to look.
+func unreachableAfterStart(startup *serviceStartup) error {
+	if startup == nil {
+		return errors.New("service did not become reachable; inspect the private state directory")
+	}
+	if diagnosis := startup.diagnose(); diagnosis != "" {
+		return fmt.Errorf("service did not become reachable: %s", diagnosis)
+	}
+	return errors.New("service did not become reachable and reported nothing; inspect the private state directory")
 }
 
 func serviceReachable(socket string) bool {

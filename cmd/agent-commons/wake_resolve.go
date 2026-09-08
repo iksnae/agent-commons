@@ -37,7 +37,7 @@ func runWakeResolution(ctx context.Context, args []string, out, errOut io.Writer
 	}
 	report := wakeResolutionReport{InspectedStatus: record.Status, RecordHash: wakeRecordHash(record), Decision: o.Decision}
 	if o.Decision != "" {
-		if err = verifyWakeOperator(ctx, connection.client.socket, o.OperatorToken); err != nil {
+		if err = verifyWakeOperator(ctx, connection.client, o.OperatorToken); err != nil {
 			return err
 		}
 		resolved, resolveErr := resolveWakeRecord(record, o.Expected, o.Decision, o.Evidence)
@@ -57,14 +57,18 @@ func runWakeResolution(ctx context.Context, args []string, out, errOut io.Writer
 	return nil
 }
 
-func verifyWakeOperator(ctx context.Context, socket, path string) error {
+// verifyWakeOperator borrows the connection's endpoint -- socket and state
+// both, so a failed dial is classified the same way here as anywhere else --
+// and substitutes the operator credential for the connection's own.
+func verifyWakeOperator(ctx context.Context, client rpcClient, path string) error {
 	token, err := readToken(path)
 	if err != nil {
 		return err
 	}
+	client.token = token
 	identity, err := rpcCall[struct {
 		Identity string `json:"identity"`
-	}](ctx, rpcClient{socket: socket, token: token}, "sessions.capabilities", struct{}{})
+	}](ctx, client, "sessions.capabilities", struct{}{})
 	if err != nil {
 		return err
 	}

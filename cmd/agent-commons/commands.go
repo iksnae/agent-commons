@@ -2,14 +2,11 @@
 
 package main
 
-import (
-	"errors"
-	"strings"
-)
+import "strings"
 
 // helpSection groups documented commands for the help screen. This catalog is
-// the single source for both the help screen and the bare-argument usage line;
-// adding a command in one rendering can never omit it from the other.
+// the single source for the help screen, which a bare invocation also gets, so
+// there is one list of commands and one rendering of it.
 type helpSection struct {
 	name string
 	rows []string
@@ -56,9 +53,4 @@ func commandNames() []string {
 		}
 	}
 	return names
-}
-
-// usageError reports the documented command set when invoked with no arguments.
-func usageError() error {
-	return errors.New("usage: agent-commons " + strings.Join(commandNames(), "|") + " [options]; see help")
 }

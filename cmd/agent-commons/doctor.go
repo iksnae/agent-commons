@@ -39,6 +39,14 @@ func healthCheckFor(name string, err error) healthCheck {
 }
 
 func healthErrorCode(err error) string {
+	// doctor turns errors into a report instead of returning them, so it is the
+	// one place that has to recognise the classified error itself. This runs
+	// AHEAD of the sniffing below because a stale socket's cause reads
+	// "connection refused", which those rules would file as the catch-all.
+	var unreachable *serviceUnreachableError
+	if errors.As(err, &unreachable) {
+		return unreachable.condition.code()
+	}
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		return "deadline"
