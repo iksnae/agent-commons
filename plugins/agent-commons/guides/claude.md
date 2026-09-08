@@ -8,6 +8,15 @@ project/workspace root, and an already enrolled role. For `claude --agent NAME`,
 also set `AGENT_COMMONS_CLAUDE_AGENT=NAME`. If the launcher uses a Claude binary other than
 the one on PATH, set `AGENT_COMMONS_CLAUDE_BINARY` to its absolute path.
 
+The hook runs `AGENT_COMMONS_BINARY` when the launcher sets it, otherwise
+`$CLAUDE_PLUGIN_ROOT/../../agent-commons`, where `bundle install` puts the binary
+relative to the plugin, and otherwise `agent-commons` on PATH, which is where a
+source checkout keeps it. `bundle install` adds nothing to PATH, so the middle
+step is the one an installed plugin normally uses. When no step finds an
+executable the hook exits quietly without output: a plugin can be installed
+without the binary, and a SessionStart hook must not break a launch. The bundled
+`scripts/check-in.sh` resolves its binary the same way.
+
 On startup or resume, the hook attaches the native session to that identity and
 returns brief instructions to read its inbox and project learnings. It does not
 read message bodies, acknowledge messages, start a watcher or create identities.

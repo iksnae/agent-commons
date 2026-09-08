@@ -17,6 +17,10 @@ export function installCommons(pi, { env, execute }) {
     try {
       const args = launchArguments(event, ctx, env);
       const result = await execute(env.AGENT_COMMONS_BINARY, args, {
+        // Pin the child to the native launch directory: the binary resolves a
+        // project role from its own working directory, not from
+        // --launch-directory, which it uses only to match the enrolled target.
+        cwd: ctx.cwd,
         timeout: 5000, maxBuffer: 2 << 20, killSignal: 'SIGKILL', shell: false,
       });
       const snapshot = JSON.parse(result.stdout);

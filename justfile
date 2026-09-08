@@ -31,7 +31,7 @@ fmt:
     gofmt -w cmd internal integration
 
 # Run ordinary pre-commit checks; no models or native service registration.
-check: fmt-check test vet pi-extension-test docs-check install-check
+check: fmt-check test vet pi-extension-test hook-scripts-test docs-check install-check
 
 # Verify local documentation links and keep the two entry-point READMEs short.
 docs-check:
@@ -41,6 +41,10 @@ docs-check:
 # Test Pi lifecycle behavior with fakes; no Pi installation or model calls.
 pi-extension-test:
     node --test plugins/agent-commons/pi/commons.test.mjs
+
+# Run the shipped plugin shell scripts against stand-ins; no Claude, no models.
+hook-scripts-test:
+    bash scripts/check-hook-scripts.sh
 
 # OPT-IN: parse a copied bundle with Hermes's installed portable plugin loader.
 # Set AGENT_COMMONS_HERMES_ROOT to an absolute Hermes checkout with venv/bin/python.
