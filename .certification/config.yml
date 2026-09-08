@@ -19,18 +19,31 @@ scope:
 agent:
   # Off, deliberately. This is a security setting, not a preference.
   #
-  # Absent an explicit disable, certify auto-detects a provider from the
-  # ambient environment (OPENROUTER_API_KEY, CERTIFY_API_KEY, OPENAI_API_KEY,
-  # a reachable OLLAMA_HOST, a local model server) and turns on AI-assisted
-  # review by itself. It then sends unit source to whatever it found. On a
-  # developer machine that already holds provider keys, a plain
-  # `certify certify` — which is exactly how the three workflows in
-  # .github/workflows invoke it — would ship this repository's source to a
-  # third-party API without anyone asking for it.
+  # What this covers: `certify certify`. Absent an explicit disable, it
+  # auto-detects a provider from the ambient environment (OPENROUTER_API_KEY,
+  # CERTIFY_API_KEY, OPENAI_API_KEY, GROQ_API_KEY, OLLAMA_HOST, or a local
+  # model server answering on localhost) and turns on AI-assisted review by
+  # itself, sending unit source to whatever it found. On a developer machine
+  # holding provider keys, a plain `certify certify` — which is how the three
+  # workflows in .github/workflows invoke it — would ship this repository's
+  # source to a third-party API with nobody asking for it. `enabled: false` is
+  # read as an explicit disable and short-circuits ahead of detection, so for
+  # that command the outcome does not depend on which keys are exported.
   #
-  # `enabled: false` is read as an explicit disable and short-circuits ahead
-  # of detection, so the decision does not depend on which keys happen to be
-  # exported in the shell or set as repository secrets.
+  # What this does NOT cover: `certify scan`, which runs first in all three
+  # workflows. Scan loads this file but reads only the `scope` block; it then
+  # detects providers and calls out unconditionally. There is no `--skip-agent`
+  # flag on `scan`, so nothing here can stop it.
+  #
+  # That is narrower than it sounds, and the details were checked rather than
+  # assumed. Scan's payload is a repository summary — language names, unit
+  # count, adapter names — and never unit source. The call is best-effort with
+  # a 15s timeout and any failure is swallowed silently, so it leaves no trace
+  # in the output. In GitHub Actions none of those variables are set and no
+  # local model server is listening, so scan detects nothing and CI is
+  # unaffected. The exposure is local: running `certify scan` on a workstation
+  # that holds provider keys sends that metadata to the first provider detected.
+  # Treat it as a known property of the tool, not a surprise.
   #
   # To opt in later, this has to be a deliberate change: set enabled: true
   # and name the provider and models explicitly, e.g.

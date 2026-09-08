@@ -45,6 +45,23 @@ jobs:
       - name: Generate report
         run: certify report --format json --output certification-report.json
 
+      # certify exits 0 when it finds no records, and a report over zero units
+      # renders as "## ✅ Certification Report / **0/0** units passing". Posting
+      # that would put a green comment on the pull request while the job check
+      # goes red — and the comment is the artifact people actually read. Record
+      # whether the report covers anything, and let the comment step require it.
+      # Not `run: jq -e`, as the weekly workflow does: here a missing report is
+      # a reason to stay quiet, not a second red step on top of the real failure.
+      - name: Check the report covers at least one unit
+        id: report
+        if: always()
+        run: |
+          if jq -e '.card.total_units > 0' certification-report.json > /dev/null 2>&1; then
+            echo "has_units=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_units=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # `certify review` renders the Markdown body to stdout and returns; it
       # makes no API call of its own, so `gh` has to do the posting.
       #
@@ -66,7 +83,7 @@ jobs:
       # is only accepted alongside `--edit-last`. "Last comment" is scoped to
       # the token's own user, so this never edits a reviewer's comment.
       - name: Comment on PR
-        if: always() && github.event.pull_request.head.repo.fork == false
+        if: always() && github.event.pull_request.head.repo.fork == false && steps.report.outputs.has_units == 'true'
         run: certify review | gh pr comment "${{ github.event.pull_request.number }}" --body-file - --edit-last --create-if-none
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

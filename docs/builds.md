@@ -43,31 +43,42 @@ unit from scratch instead of the units the push touched. The result is correct
 and costs more than the configuration suggests. Keeping the history would mean
 caching it across runs, which is a separate decision from tracking the inputs.
 
-**`test-pass` is repo-wide and binary, so one flaky test fails everything.** The
-certifier collects evidence once per module — a single `go test ./...` — and
+**`test-pass` is repo-wide and binary, so one failing test fails every Go unit.**
+The certifier collects evidence once per module — a single `go test ./...` — and
 copies that same result into every unit. The rule asks for a metric named
 `test_failures`, which nothing emits (the test collector emits `test_failed`), so
 evaluation falls through to a legacy branch that reads "a test run that did not
-pass counts as 1". At `severity: error, threshold: 0`, one failure anywhere
-fails all units at once.
+pass counts as 1". At `severity: error, threshold: 0`, one failure anywhere fails
+all Go units at once. Only Go, because `test-pass` lives in `go.yml` and policy
+packs are language-gated.
 
-This is not hypothetical. `TestCancellationKillsDescendants` in
-`internal/runtime` is a known load-sensitive flake: it passes when run alone and
-fails intermittently under a full `go test ./...`. Measured on the same commit
-and the same machine, with a healthy toolchain and `go vet` clean both times:
+This is not hypothetical. `TestCancellationKillsDescendants` in `internal/runtime`
+is a known load-sensitive flake: it passes when run alone and fails intermittently
+under a full `go test ./...`. Measured against this configuration's 452 units, on
+one machine and one commit, with `go vet` clean in both runs — the failing case
+produced by injecting a deliberately failing test rather than by waiting for the
+flake:
 
-| Run | Flake | Result |
+| Test run | Result | Report card |
 | --- | --- | --- |
-| Full suite, flake tripped | 1 of 552 failed | **0 of 597 units certified** |
-| Full suite, flake passed | 0 of 552 failed | **597 of 597 units certified** |
+| 0 failures | **452 of 452 units certified** | — |
+| 1 failure | **20 of 452 units certified** | `overall_grade: B`, `pass_rate: 0.044` |
 
-Nothing about the code changed between those two runs. A red certification badge
-is therefore evidence about one test's timing at least as often as it is evidence
-about the codebase, and the same collapse can be produced by a broken module
-environment, since `go: downloading …` chatter is also recorded as failure. Check
-which test failed before reading anything into the grade. This is the single
-largest reason to treat the certified count as advisory — which is why
-`config.yml` sets `mode: advisory`.
+Nothing about the graded code changed between those runs. Two things deserve
+attention in the second row. The first is the floor: a single failing test moves
+the result from everything passing to 4.4% passing. The second is worse — the
+grade stays **B**. The 20 survivors are exactly the units no rule examines: 14
+shell, 5 JavaScript, 1 Python. Every Go unit failed. So in a collapse the
+headline grade is carried entirely by unchecked code, and reads far better than
+the run deserves.
+
+A red certification badge is therefore evidence about one test's timing at least
+as often as it is evidence about the codebase, and the same collapse can be
+produced by a broken module environment, since `go: downloading …` chatter is also
+recorded as failure. Check which test failed, and check the pass rate rather than
+the letter grade, before reading anything into the result. This is the single
+largest reason to treat certification as advisory — which is why `config.yml` sets
+`mode: advisory`.
 
 **`lint-clean` counts output lines, not diagnostics.** The `go vet` parser treats
 every non-blank line that does not begin with `#` as one lint error. Module
@@ -86,13 +97,30 @@ not reach them.
 **Some units are graded against no rules.** Policy packs are language-gated: a
 pack with no `language` key applies to every unit, one with `language: go` only
 to Go. `lint-clean` and `test-pass` now live only in `go.yml`, and `python.yml`
-was removed, so shell, TypeScript, Markdown, YAML and Python units currently match
-no rules and score the default. Their grades say nothing was checked, not that
-everything passed. `unsafe_import_count` is likewise no longer enforced; see the
+was removed, so the 20 non-Go units in the index — 14 shell, 5 JavaScript, 1
+Python, against 432 Go — currently match no rules and score the default. Their
+grades say nothing was checked, not that everything passed.
+
+This is deliberate. Go is what certification is here to measure; the shell and
+JavaScript sources have their own gates in `just check`, which certification does
+not replace. The cost is the collapse behaviour above, where those 20 unchecked
+units are the only survivors and carry the headline grade.
+
+`unsafe_import_count` is likewise no longer enforced; see the
 note in `.certification/policies/go.yml` for why counting that metric could not
 express what this project needs.
 
-AI-assisted review is disabled in `.certification/config.yml`, deliberately and
-for security rather than preference. Left unset, certify detects provider
+**AI-assisted review is disabled, and the disable is narrower than it looks.**
+`.certification/config.yml` sets `agent.enabled: false` deliberately, for
+security rather than preference: left unset, `certify certify` detects provider
 credentials in the ambient environment and uploads unit source to whichever
-provider it finds. Read the comment there before changing it.
+provider it finds. The disable stops that.
+
+It does not stop `certify scan`, which runs first in all three workflows. Scan
+reads only the `scope` block of the config, then detects providers and calls out
+regardless, and it has no `--skip-agent` flag to suppress. What it sends is a
+repository summary — language names, unit count, adapter names — never unit
+source, and any failure is swallowed silently. GitHub Actions runners have no
+provider keys and no local model server, so CI is unaffected; the exposure is
+running `certify scan` on a workstation that holds keys. Read the comment in
+`config.yml` before changing any of this.
