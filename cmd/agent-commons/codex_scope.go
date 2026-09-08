@@ -24,7 +24,7 @@ func parseCodexRoleScope(ctx context.Context, command string, args []string, err
 	f.SetOutput(errOut)
 	config := f.String("config", "", "private enrolled role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	home := f.String("codex-home", "", "explicit private Codex configuration/session directory")
-	if err := f.Parse(args); err != nil {
+	if err := parseFlags(f, args); err != nil {
 		return codexRoleScope{}, err
 	}
 	if !filepath.IsAbs(*home) || f.NArg() != 0 {

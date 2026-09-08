@@ -171,7 +171,7 @@ func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.W
 	// claude and codex have DiscoverX implemented below; pi and hermes support
 	// check-in but not --target discovery yet.
 	runtimeName := fs.String("runtime", "claude", "runtime for discovery: claude or codex")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := parseFlags(fs, args[1:]); err != nil {
 		return err
 	}
 	if *socket == "" {

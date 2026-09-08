@@ -75,7 +75,7 @@ func runDoctor(ctx context.Context, args []string, out, errOut io.Writer) error 
 	config := fs.String("config", "", "private enrolled connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	timeout := fs.Duration("timeout", 5*time.Second, "total diagnostic deadline")
 	asJSON := fs.Bool("json", false, jsonFlagUsage)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 || *timeout <= 0 || *timeout > time.Minute {

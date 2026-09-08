@@ -25,7 +25,7 @@ func parseWakeResolution(args []string, errOut io.Writer) (wakeResolveOptions, e
 	f.StringVar(&o.Evidence, "evidence", "", "operator reasoning, at most 4096 bytes; do not include secrets")
 	f.StringVar(&o.OperatorToken, "operator-token-file", "", "explicit private operator credential for applying a decision")
 	f.BoolVar(&o.Confirmed, "acknowledge-notification-risk", false, "acknowledge possible duplicate notification or suppression without delivery")
-	if err := f.Parse(args); err != nil {
+	if err := parseFlags(f, args); err != nil {
 		return o, err
 	}
 	if o.Config == "" || o.Thread == "" || o.Message == "" || len(o.Message) > 256 || f.NArg() != 0 {

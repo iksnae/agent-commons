@@ -62,7 +62,7 @@ func runInitWith(ctx context.Context, args []string, out, errOut io.Writer, spaw
 	fs.StringVar(&team, "team", team, "project team label")
 	fs.StringVar(&runtimeName, "runtime", runtimeName, "runtime: "+initRuntimeVocabulary())
 	asJSON := fs.Bool("json", false, jsonFlagUsage)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 || name == "" || role == "" {

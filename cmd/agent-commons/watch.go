@@ -98,7 +98,7 @@ func runWatch(ctx context.Context, args []string, out, errOut io.Writer) error {
 	once := fs.Bool("once", false, "exit after first nonempty batch of notifications")
 	timeout := fs.Duration("timeout", 0, "overall deadline; zero waits until canceled")
 	wakeThread := fs.String("codex-thread", "", "explicitly bind this inbox to an existing Codex thread UUID and queue fixed arrival signals")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 || *tokenFile == "" || *timeout < 0 {
