@@ -58,8 +58,15 @@ jobs:
       # Deliberately not `pull_request_target`: certification runs `go test`, so
       # under that event a fork's _test.go would execute with a write-scoped
       # token against this repository.
+      #
+      # `--edit-last --create-if-none` rewrites this job's own previous comment
+      # instead of appending a new one, so a ten-push pull request carries one
+      # comment describing the current head rather than ten describing states
+      # nobody can act on any more. `--create-if-none` posts the first one, and
+      # is only accepted alongside `--edit-last`. "Last comment" is scoped to
+      # the token's own user, so this never edits a reviewer's comment.
       - name: Comment on PR
         if: always() && github.event.pull_request.head.repo.fork == false
-        run: certify review | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
+        run: certify review | gh pr comment "${{ github.event.pull_request.number }}" --body-file - --edit-last --create-if-none
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

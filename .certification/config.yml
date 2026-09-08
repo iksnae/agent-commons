@@ -9,18 +9,31 @@ scope:
     - "dist/**"
     - "build/**"
     - "testdata/**"
-    - "**/*_test.go"
-    - "**/*.test.ts"
-    - "**/*.spec.ts"
+    # Patterns are matched against the file's basename, not its path, so a
+    # leading "**/" never matches and silently excludes nothing. Keep these
+    # basename-shaped.
+    - "*_test.go"
+    - "*.test.ts"
+    - "*.spec.ts"
 
 agent:
-  # Auto-detection: when OPENROUTER_API_KEY (or CERTIFY_API_KEY) is set in
-  # your environment or as a GitHub secret, Certify automatically enables
-  # conservative AI-assisted review (prescreen-only, free-tier models,
-  # 10k token budget). No configuration needed — just add the secret.
+  # Off, deliberately. This is a security setting, not a preference.
   #
-  # To use the full agent pipeline, set enabled: true and configure models:
-  # enabled: true
+  # Absent an explicit disable, certify auto-detects a provider from the
+  # ambient environment (OPENROUTER_API_KEY, CERTIFY_API_KEY, OPENAI_API_KEY,
+  # a reachable OLLAMA_HOST, a local model server) and turns on AI-assisted
+  # review by itself. It then sends unit source to whatever it found. On a
+  # developer machine that already holds provider keys, a plain
+  # `certify certify` — which is exactly how the three workflows in
+  # .github/workflows invoke it — would ship this repository's source to a
+  # third-party API without anyone asking for it.
+  #
+  # `enabled: false` is read as an explicit disable and short-circuits ahead
+  # of detection, so the decision does not depend on which keys happen to be
+  # exported in the shell or set as repository secrets.
+  #
+  # To opt in later, this has to be a deliberate change: set enabled: true
+  # and name the provider and models explicitly, e.g.
   # provider:
   #   type: openrouter
   #   base_url: https://openrouter.ai/api/v1
@@ -29,9 +42,7 @@ agent:
   #   prescreen: qwen/qwen3-coder:free
   #   review: qwen/qwen3-coder:free
   #   scoring: qwen/qwen3-coder:free
-  #
-  # To explicitly disable AI even when a key is present, uncomment:
-  # enabled: false
+  enabled: false
 
 expiry:
   default_window_days: 90
