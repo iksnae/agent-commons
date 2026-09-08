@@ -9,7 +9,7 @@ import (
 )
 
 func TestBoardNewestPaginationPreservesScopeAndInsertionOrder(t *testing.T) {
-	s := &Service{data: state{Tokens: map[string]string{"reader": "test"}, Sessions: map[string]Session{"reader": {Target: "/project"}}, Board: []BoardPost{
+	s := &Service{dir: t.TempDir(), data: state{Tokens: map[string]string{"reader": "test"}, Sessions: map[string]Session{"reader": {Target: "/project"}}, Board: []BoardPost{
 		{ID: "a", Target: "/project", Topic: "idea"},
 		{ID: "foreign", Target: "/other", Topic: "idea"},
 		{ID: "b", Target: "/project", Topic: "technique"},
