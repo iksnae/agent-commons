@@ -51,6 +51,8 @@ if [ -n "$ARCHIVE" ]; then
     info "No SHA256SUMS beside the archive; installing the file you supplied unchecked."
   fi
 else
+  command -v curl > /dev/null 2>&1 \
+    || error "curl is required to download a release. Install curl, or pass a local archive with --archive PATH."
   info "Looking up the latest release of $REPO …"
   TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
     | grep -o '"tag_name"[^,]*' | head -1 | cut -d'"' -f4 || true)"
@@ -85,6 +87,11 @@ if [ -f "$TMP/SHA256SUMS" ]; then
 fi
 
 mkdir -p "$TMP/unpacked"
+# An archive may only write inside its own directory. On the unchecked --archive
+# route nothing else constrains its members.
+if tar -tzf "$TMP/$NAME.tar.gz" | grep -Eq '^/|(^|/)\.\.(/|$)'; then
+  error "Archive contains paths outside its own directory. Refusing to unpack it."
+fi
 tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP/unpacked"
 BINARY="$TMP/unpacked/$NAME/agent-commons"
 [ -f "$BINARY" ] || error "Archive does not contain $NAME/agent-commons."

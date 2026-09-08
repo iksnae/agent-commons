@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
-# Exercise the installer offline: syntax, a verified local archive, and a
-# checksum mismatch. No network, no writes outside the scratch directory.
+# Exercise the installer offline: syntax, a verified local archive, and the
+# refusal paths. No network, no writes outside the scratch directory.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -62,8 +62,39 @@ grep -q 'checksum mismatch' "$check_dir/damaged.log"
 test ! -e "$bad_dest/agent-commons"
 test -f "$check_dir/damaged/$name.tar.gz"
 
+# An archive with no SHA256SUMS beside it announces the gap and still installs.
+# The operator named a file on their own disk; the script must not claim it checked it.
+mkdir "$check_dir/unchecked"
+cp "$check_dir/release/$name.tar.gz" "$check_dir/unchecked/"
+plain_dest="$check_dir/bin-unchecked"
+HOME="$home" bash scripts/install.sh --archive "$check_dir/unchecked/$name.tar.gz" \
+  --to "$plain_dest" > "$check_dir/unchecked.log" 2>&1
+test -x "$plain_dest/agent-commons"
+grep -q 'installing the file you supplied unchecked' "$check_dir/unchecked.log"
+if grep -q 'checksum verified' "$check_dir/unchecked.log"; then
+  echo "installer claimed a checksum it never had" >&2
+  exit 1
+fi
+
+# An archive whose members escape their own directory is refused before unpacking.
+mkdir -p "$check_dir/escape/$name"
+cp "$check_dir/stage/$name/agent-commons" "$check_dir/escape/$name/agent-commons"
+echo escaped > "$check_dir/escape/marker"
+(cd "$check_dir/escape/$name" && tar -czPf "$check_dir/escape/$name.tar.gz" agent-commons ../marker)
+# Assert the mutant is really malformed, so a sanitizing tar fails loudly here
+# rather than letting the guard's test pass without exercising it.
+tar -tzf "$check_dir/escape/$name.tar.gz" | grep -q '^\.\./marker$'
+esc_dest="$check_dir/bin-escape"
+if HOME="$home" bash scripts/install.sh --archive "$check_dir/escape/$name.tar.gz" \
+  --to "$esc_dest" > "$check_dir/escape.log" 2>&1; then
+  echo "installer unpacked an archive with escaping members" >&2
+  exit 1
+fi
+grep -q 'outside its own directory' "$check_dir/escape.log"
+test ! -e "$esc_dest/agent-commons"
+
 # An unreadable archive path fails loudly instead of installing nothing quietly.
-if bash scripts/install.sh --archive "$check_dir/absent.tar.gz" --to "$check_dir/bin-absent" \
+if HOME="$home" bash scripts/install.sh --archive "$check_dir/absent.tar.gz" --to "$check_dir/bin-absent" \
   > "$check_dir/absent.log" 2>&1; then
   echo "installer accepted a missing archive" >&2
   exit 1
@@ -71,4 +102,4 @@ fi
 grep -q 'error:' "$check_dir/absent.log"
 test ! -e "$check_dir/bin-absent"
 
-echo "Installer verified: local archive, checksum mismatch, missing archive."
+echo "Installer verified: verified archive, checksum mismatch, unchecked archive, escaping members, missing archive."

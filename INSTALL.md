@@ -16,14 +16,32 @@ curl -fsSL https://raw.githubusercontent.com/iksnae/agent-commons/main/scripts/i
 
 It detects your platform, downloads the matching archive and `SHA256SUMS` from the
 latest GitHub release, refuses to install on a checksum mismatch, and copies the
-binary to `~/.local/bin`. Pass `--to DIR` for another directory and `--archive PATH`
-to install an archive you already have, which is the route to use before a release
-is published. It never uses `sudo`, never edits a shell profile, never writes global
-configuration, and never starts a service or enrolls a role. If the install
-directory is not on your `PATH` it prints the line to add and leaves the file to you.
+binary to `~/.local/bin`. It never uses `sudo`, never edits a shell profile, never
+writes global configuration, and never starts a service or enrolls a role. If the
+install directory is not on your `PATH` it prints the line to add and leaves the
+file to you.
+
+Options need `bash -s --`, because the piped shell reads the script on standard
+input and would otherwise take the flags as its own:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/iksnae/agent-commons/main/scripts/install.sh \
+  | bash -s -- --to /absolute/your/bin
+```
+
+`--archive PATH` installs an archive you already have and skips the download. That
+is the route to use before any release is published. When a `SHA256SUMS` sits beside
+the archive the script checks against it; when none does, it says so and installs the
+file you named rather than pretending to a guarantee it does not have.
 
 The checksum detects transfer damage, not publisher authenticity. Release signing
 is still pending, so treat a verified checksum as an intact download and no more.
+
+The script asks GitHub for the *latest* release, which by definition excludes drafts
+and prereleases. A first tag cut as a prerelease returns nothing, and the script
+reports that no published release was found while the release is plainly visible on
+the repository page. Publish the first release as a normal, non-draft release, or
+install from a local archive with `--archive`.
 
 ## Install the shared skill with Vercel Skills
 
