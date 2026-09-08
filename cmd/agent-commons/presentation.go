@@ -101,12 +101,6 @@ func (r *report) note(text string) {
 	r.lines = append(r.lines, reportLine{text: r.paint.paint(asideStyle, text)})
 }
 
-// line writes text with no styling and no label, for a renderer that has
-// already painted its own spans.
-func (r *report) line(text string) {
-	r.lines = append(r.lines, reportLine{text: text})
-}
-
 // blank separates two blocks.
 func (r *report) blank() {
 	r.lines = append(r.lines, reportLine{})

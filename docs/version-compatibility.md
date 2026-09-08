@@ -43,8 +43,8 @@ other command — `call`, `watch`, `methods`, `connect-mcp`, `harnesses`,
 `discover`, `inventory`, `launch-context`, `service`, `wake-*` and `codex-*` —
 is unchanged.
 
-Colour and alignment appear only on a terminal. A pipe, a redirect and
-`NO_COLOR` all get plain text.
+Colour appears only on a terminal. A pipe, a redirect and `NO_COLOR` all get
+plain text. Label columns are padded either way.
 
 ## Plugins and native adapters
 
