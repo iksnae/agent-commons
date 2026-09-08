@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 # would report the stamp as a difference between the shipped binary and the
 # source it was built from.
 version="$(bash scripts/release-version.sh)"
+ldflags="$(bash scripts/build-ldflags.sh "$version")"
 
 check_dir=$(mktemp -d)
 trap 'rm -rf "$check_dir"' EXIT
@@ -42,7 +43,7 @@ for platform in darwin linux; do
     tar -xzf "$archive/source.tar.gz" -C "$archive/source"
     cmp LICENSE "$archive/source/LICENSE"
     (cd "$archive/source"; GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS="$platform" GOARCH="$arch" \
-      go build -mod=vendor -trimpath -buildvcs=false -ldflags="-s -w -X agentcommons/internal/core.Version=$version" \
+      go build -mod=vendor -trimpath -buildvcs=false -ldflags="$ldflags" \
       -o "$archive/rebuilt" ./cmd/agent-commons)
     cmp "$archive/agent-commons" "$archive/rebuilt"
     # Checks that must run the shipped binary, so only for this host.

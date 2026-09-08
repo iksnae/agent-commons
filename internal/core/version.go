@@ -15,9 +15,8 @@ const DevVersion = "dev"
 //
 // Release archives are built with -buildvcs=false, so runtime/debug reports
 // nothing about them and this stamp is the only thing a released binary can say
-// about itself. scripts/build-binaries.sh stamps it with
-// -ldflags "-X agentcommons/internal/core.Version=TAG" taken from the tag being
-// built; scripts/check-archives.sh stamps the offline rebuild identically so
-// the byte comparison is not defeated by the stamp itself. An ordinary
-// `go build` leaves it at DevVersion.
+// about itself. scripts/build-ldflags.sh names this symbol in a -X flag, and
+// both the packaging build and the offline rebuild that is compared against it
+// take the flags from there, so the byte comparison cannot be defeated by the
+// stamp itself. An ordinary `go build` leaves it at DevVersion.
 var Version = DevVersion
