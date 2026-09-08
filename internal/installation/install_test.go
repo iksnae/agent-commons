@@ -25,7 +25,7 @@ func bundleFixture(t *testing.T) string {
 }
 
 func TestInstallAndRecoverableRemoval(t *testing.T) {
-	bundle := bundleFixture(t)
+	bundle := pluginBundleFixture(t)
 	target := filepath.Join(t.TempDir(), "installed")
 	if err := Install(bundle, target); err != nil {
 		t.Fatal(err)
@@ -44,8 +44,14 @@ func TestInstallAndRecoverableRemoval(t *testing.T) {
 	if _, err = os.Stat(target); !os.IsNotExist(err) {
 		t.Fatal("installation path still exists")
 	}
-	if err = Verify(retained); err != nil {
-		t.Fatal("removed bundle not recoverable", err)
+	// INSTALL.md documents recovery as moving the retained copy back to the
+	// original path. The installed MCP command names that path, so only there
+	// is the recovered installation usable rather than merely intact.
+	if err = os.Rename(retained, target); err != nil {
+		t.Fatal(err)
+	}
+	if err = Verify(target); err != nil {
+		t.Fatal("recovered bundle not usable at its original path", err)
 	}
 }
 

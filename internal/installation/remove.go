@@ -67,6 +67,16 @@ func Verify(target string) error {
 			return fmt.Errorf("installed file permissions changed: %s", record.Path)
 		}
 	}
+	// Intact bytes are not a usable installation: an MCP manifest still has to
+	// name a binary that exists here and can actually run.
+	for _, record := range r.Files {
+		if !mcpManifest(record.Path) {
+			continue
+		}
+		if err := verifyManifestCommands(filepath.Join(target, record.Path)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
