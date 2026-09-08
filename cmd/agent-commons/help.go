@@ -20,6 +20,7 @@ type helpSection struct {
 func writeHelp(out io.Writer) error {
 	sections := []helpSection{
 		{name: "Connect a session", rows: []string{
+			"init         bootstrap this project and enroll the first role",
 			"enroll       create a project + agent role connection",
 			"check-in     read onboarding, inbox and project context",
 			"doctor       diagnose a connection without changing state",

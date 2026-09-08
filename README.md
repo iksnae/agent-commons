@@ -61,10 +61,17 @@ silently repaired. See the [plugin guide](plugins/agent-commons/README.md).
 
 ## Let the agent finish setup
 
-An operator enrolls each project + agent name/role once. Keep the generated
-connection file outside the project. Put the installed binary on the harness
-`PATH`, start the local service, then give the connection path to the intended
-agent:
+From the target project, let the first agent bootstrap its own project-scoped
+connection:
+
+```sh
+agent-commons init --name lead --role workspace-lead --runtime codex
+```
+
+`init` starts the per-user local service when needed, writes `.agent-commons/project.json`
+for project defaults, and keeps credentials under the private state directory.
+It is safe to run again for the same role. For manual or recovery work, the
+lower-level flow remains available:
 
 ```sh
 export PATH="/absolute/installations/agent-commons:$PATH"

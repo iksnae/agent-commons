@@ -53,6 +53,9 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	if len(args) > 0 && args[0] == "launch-context" {
 		return runLaunchContext(ctx, args[1:], in, out, errOut)
 	}
+	if len(args) > 0 && args[0] == "init" {
+		return runInit(ctx, args[1:], out, errOut)
+	}
 	if len(args) > 0 && args[0] == "console" {
 		return runConsole(ctx, args[1:], in, out, errOut)
 	}
