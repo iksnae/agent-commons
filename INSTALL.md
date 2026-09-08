@@ -84,6 +84,8 @@ Stop every service and watcher using this binary before removing it:
 Removal refuses changed files or added files. It moves the verified directory
 into a private sibling archive and prints the recovery path. Nothing is deleted.
 Move that retained directory back to its original, now-vacant path to restore it.
+Verify reports the retained copy as unusable until you move it back, because its
+MCP command still names the original path.
 The command does not inspect or stop the OS supervisor. `--confirm-stopped` is your
 confirmation, not a claim that the tool checked your processes.
 
