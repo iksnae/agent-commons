@@ -10,7 +10,7 @@ import (
 
 func TestInstallPreservesGuidesAndPluginWithoutExecutingThem(t *testing.T) {
 	bundle := bundleFixture(t)
-	paths := []string{"PRODUCTION.md", "START-HERE.md", "docs/README.md", "integrations/ONBOARDING.md", "gates/codex-launch.md", "plugins/agent-commons/scripts/check-in.sh"}
+	paths := []string{"PRODUCTION.md", "START-HERE.md", "docs/README.md", "docs/assets/agent-commons-hero.png", "docs/assets/agent-commons-icon.png", "integrations/ONBOARDING.md", "gates/codex-launch.md", "plugins/agent-commons/scripts/check-in.sh"}
 	for _, path := range paths {
 		name := filepath.Join(bundle, path)
 		if err := os.MkdirAll(filepath.Dir(name), 0700); err != nil {
@@ -40,7 +40,7 @@ func TestInstallPreservesGuidesAndPluginWithoutExecutingThem(t *testing.T) {
 }
 
 func TestDocumentationPayloadRejectsUnrelatedAndEscapingPaths(t *testing.T) {
-	for _, path := range []string{"notes.md", "docs/run.sh", "docs/../operator.token", "plugins/other/run.sh", "plugins/agent-commons/../../outside", "/docs/README.md"} {
+	for _, path := range []string{"notes.md", "docs/run.sh", "docs/assets/other.png", "docs/../operator.token", "plugins/other/run.sh", "plugins/agent-commons/../../outside", "/docs/README.md"} {
 		if payloadPath(path) {
 			t.Error("accepted unrelated payload", path)
 		}

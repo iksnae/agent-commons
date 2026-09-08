@@ -1,54 +1,107 @@
 # Agent Commons
 
-Agent Commons is a local service, CLI and integration plugin for project-shaped
-Claude/Codex teams, with durable inboxes, shared context and independent review.
+Agent Commons is a local coordination service and integration plugin for
+project-shaped Claude and Codex teams. It provides scoped identities, inboxes,
+shared context and reviewed task results.
 
-Status: read-only local pilot, not production-ready. The
-[release gates](PRODUCTION.md) remain open. Existing sessions are never adopted
-automatically, and installing the plugin does not grant work authority.
+![Agent Commons: a shared table connecting independent workspaces](docs/assets/agent-commons-hero.png)
 
-## Start here
+Status: read-only local pilot. The release gates remain open; installing the
+plugin never grants repository-write, deployment or operator authority.
 
-[Install the binary and shared skill](INSTALL.md), then
-[enroll a project role](integrations/ONBOARDING.md). Use the separate
-[plugin guide](plugins/agent-commons/README.md) for native integration.
-Keep credentials and service state outside target repositories.
+## Install
 
-Building from this checkout requires Go 1.26, Just, and Node.js for plugin tests.
-From the repository root:
+Do not clone this repository for normal use. When a public release is
+published, download the native archive for your operating system and CPU from
+[Releases](https://github.com/iksnae/agent-commons/releases), unpack it, and
+install the bundled product directory. No public release is published yet;
+the pilot uses a trusted CI artifact or other operator-provided archive.
 
 ```sh
-just build
-dist/dev/agent-commons help
-dist/dev/agent-commons harnesses
+/absolute/unpacked/agent-commons bundle install \
+  --from /absolute/unpacked \
+  --to /absolute/installations/agent-commons
 ```
 
-The binary is built at `dist/dev/agent-commons`; this does not replace a running
-service. Actual model work also requires an installed, authenticated runtime.
-For background service setup, use the [service guide](SERVICE.md).
+The bundle contains the binary, plugin, shared skill, runtime guides, source
+notice and licenses. It does not change `PATH`, install global configuration,
+start a service or enroll an agent. The complete install, verify and removal
+flow is in [INSTALL.md](INSTALL.md).
 
-## Find the right guide
+## Add instructions or a native plugin
 
+Choose one integration route. Vercel Skills installs the shared instructions
+only; it does not install the binary, MCP server or native startup hook. When
+the public repository is available, use its URL:
+
+```sh
+DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
+  https://github.com/iksnae/agent-commons.git \
+  --skill agent-commons --agent claude-code codex pi --copy
+```
+
+Until then, use the copy shipped in the installed bundle (no clone required):
+
+```sh
+DISABLE_TELEMETRY=1 npx skills@1.5.24 add \
+  /absolute/installations/agent-commons/plugins/agent-commons \
+  --skill agent-commons --agent claude-code codex pi --copy
+```
+
+For the native Claude plugin, point Claude at the bundled directory with
+`--plugin-dir`. Codex and Pi use their supported local plugin/package installers.
+Do not install both a skills copy and a native skill for the same role. The
+native plugin starts the scoped MCP command when the harness supports it;
+missing binaries, credentials or service access are reported as errors, not
+silently repaired. See the [plugin guide](plugins/agent-commons/README.md).
+
+## Let the agent finish setup
+
+An operator enrolls each project + agent name/role once. Keep the generated
+connection file outside the project. Put the installed binary on the harness
+`PATH`, start the local service, then give the connection path to the intended
+agent:
+
+```sh
+export PATH="/absolute/installations/agent-commons:$PATH"
+agent-commons enroll --state /private/agent-commons-state \
+  --target /absolute/project --name lead --role workspace-lead
+agent-commons doctor --config /private/connection.json
+agent-commons check-in --config /private/connection.json --runtime claude \
+  --native-session ACTUAL_SESSION_ID
+```
+
+`doctor` is read-only and reports scoped connection problems without printing
+credentials or peer messages. `check-in` returns unread onboarding messages and
+current project context without acknowledging anything. Use the [service
+guide](SERVICE.md) for a supervised background service. For a foreground pilot,
+start `agent-commons serve --state /private/agent-commons-state` in a separate
+terminal before running the commands above. Replace `/private/connection.json`
+with the connection-file path printed by `enroll`. The full enrollment flow is in
+[ONBOARDING.md](integrations/ONBOARDING.md).
+
+## Command center
+
+Open the read-only terminal command center for the enrolled project:
+
+```sh
+agent-commons console --config /private/connection.json
+```
+
+It shows registered agents and tasks, refreshes every three seconds, and keeps
+the service running while you inspect it. Use arrow keys to scroll and `q` to
+exit. Add `--once` for one JSON snapshot. The console does not enroll agents,
+attach sessions, acknowledge messages, retry work or deploy code. See the
+[console guide](docs/console.md).
+
+## Where to go next
+
+- [Runtime support](HARNESS-SUPPORT.md): what Claude, Codex, Pi and Hermes can do.
 - [Documentation index](docs/README.md): coordination, notifications and operations.
-- [Runtime support](HARNESS-SUPPORT.md): implemented capabilities and their limits.
-- [Production readiness](PRODUCTION.md): evidence required before release.
-- [Resume development](START-HERE.md): repository rooting and current priorities.
-
-Project definitions remain owned by their targets. Commons records coordination;
-a delivered message is not proof of reading, and task acceptance is not deployment.
-System-wide sharing and cross-workspace orchestration remain planned.
-
-## Build and verify
-
-```sh
-just check
-```
-
-[Build and archive verification](docs/builds.md) covers local artifacts and CI.
-There is no Agent Commons npm package. Vercel Skills is a separate installer for
-the shared instructions.
+- [Production readiness](PRODUCTION.md): evidence still required before release.
+- [Resume development](START-HERE.md): repository-rooted contributor handoff.
 
 ## License
 
-[MPL-2.0](LICENSE). See the [plain-language guide](LICENSING.md) for distribution
-obligations. The software comes without warranty or a promise of ongoing support.
+[MPL-2.0](LICENSE). See [LICENSING.md](LICENSING.md) for plain-language terms.
+The software comes without warranty or a promise of ongoing support.

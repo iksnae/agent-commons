@@ -19,6 +19,11 @@ func documentationPayload(path string) bool {
 			return true
 		}
 	}
+	for _, asset := range []string{"docs/assets/agent-commons-hero.png", "docs/assets/agent-commons-icon.png"} {
+		if path == asset {
+			return true
+		}
+	}
 	return false
 }
 
