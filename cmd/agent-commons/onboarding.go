@@ -52,7 +52,7 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	flags.StringVar(&options.Target, "target", "", "canonical project/workspace directory")
 	flags.StringVar(&options.Runtime, "runtime", "", "runtime for this attachment: "+runtimeVocabulary())
 	flags.StringVar(&options.NativeSession, "native-session", "", "exact native runtime session ID")
-	flags.StringVar(&options.LaunchDirectory, "launch-directory", "", "native launch directory; must match enrolled target")
+	flags.StringVar(&options.LaunchDirectory, "launch-directory", "", "native launch directory; must be the enrolled target or a directory beneath it")
 	flags.BoolVar(&options.Hold, "hold", false, "renew attachment while watching for inbox arrivals")
 	flags.BoolVar(&options.Once, "once", false, "with hold: exit after one arrival batch")
 	if err := flags.Parse(args[1:]); err != nil {

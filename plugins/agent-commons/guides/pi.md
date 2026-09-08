@@ -13,7 +13,8 @@ There are no runtime npm dependencies; `private: true` prevents npm publication.
 
 The launcher must supply an absolute `AGENT_COMMONS_BINARY`. A role connection
 is optional: without `AGENT_COMMONS_CONNECTION`, the binary resolves the role by
-searching upward from the launch directory for `.agent-commons/project.json`.
+searching upward for `.agent-commons/project.json` from its own working
+directory, which the extension pins to the native launch directory.
 Supply it to pin one role in a project with several enrolled; an explicit value
 must be an absolute path or startup reports failed configuration. Startup stays
 inactive when neither variable is set. Installing the package does not enroll a

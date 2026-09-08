@@ -18,7 +18,8 @@ prints Git state (see START-HERE.md).
 
 `just` is the task surface; `Makefile` only has a reduced `check`/`build`.
 
-- `just check` — pre-commit gate: `fmt-check`, `test`, `vet`, `pi-extension-test`, `docs-check`.
+- `just check` — pre-commit gate: `fmt-check`, `test`, `vet`, `pi-extension-test`,
+  `hook-scripts-test`, `docs-check`, `install-check`.
 - `just test` — `go test -race ./...` with every opt-in integration flag forced off.
 - `just build` — dev binary to `dist/dev/agent-commons` (never replaces the running pilot's binary).
 - `just fmt` / `just fmt-check` — gofmt over `cmd internal integration`.

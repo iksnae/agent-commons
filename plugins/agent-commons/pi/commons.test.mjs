@@ -47,6 +47,15 @@ test('without a connection the binary resolves the role from the project', async
   assert.match(f.messages[0][0].content, /inbox/);
 });
 
+test('the check-in child runs in the native launch directory', async () => {
+  // The binary resolves a project role from its own working directory, so
+  // inheriting the Pi host's directory would resolve some other project.
+  const f = fixture(async () => ({ stdout: JSON.stringify({ identity: 'enrolled', attachment: { nativeId: session, runtime: 'pi' } }) }),
+    { AGENT_COMMONS_BINARY: '/bin/commons' });
+  await f.start();
+  assert.equal(f.calls[0][2].cwd, '/project');
+});
+
 test('a relative connection is refused rather than passed through', async () => {
   const f = fixture(() => assert.fail('must not execute'),
     { AGENT_COMMONS_CONNECTION: 'role.json', AGENT_COMMONS_BINARY: '/bin/commons' });
