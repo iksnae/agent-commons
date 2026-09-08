@@ -287,6 +287,28 @@ type params struct {
 	AcknowledgeDuplicateRisk bool   `json:"acknowledgeDuplicateRisk"`
 }
 
+// readOnlyMethods lists the methods Call may run without wrapping them in
+// Service.mutate. Membership is an assertion that the method writes nothing:
+// an unwrapped write lands in s.data unsaved and unrolled-back, then persists
+// at whatever later moment an unrelated mutating call happens to save. A
+// method absent from this map is wrapped, which is always safe, so new
+// methods default to correct by exclusion. Pinned by
+// TestReadOnlyMethodsDoNotMutateState.
+var readOnlyMethods = map[string]bool{
+	"runtime.status":        true,
+	"teams.list":            true,
+	"teams.get":             true,
+	"board.list":            true,
+	"board.get":             true,
+	"sessions.list":         true,
+	"sessions.capabilities": true,
+	"inbox.page":            true,
+	"inbox.list":            true,
+	"context.get":           true,
+	"tasks.get":             true,
+	"tasks.list":            true,
+}
+
 func (s *Service) Call(actor, method string, raw json.RawMessage) (any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -310,12 +332,10 @@ func (s *Service) Call(actor, method string, raw json.RawMessage) (any, error) {
 			return nil, errors.New("one JSON object required")
 		}
 	}
-	switch method {
-	case "runtime.status", "teams.list", "teams.get", "board.list", "board.get", "sessions.list", "sessions.capabilities", "inbox.page", "inbox.list", "context.get", "tasks.get", "tasks.list":
+	if readOnlyMethods[method] {
 		return s.call(actor, method, p)
-	default:
-		return s.mutate(func() (any, error) { return s.call(actor, method, p) })
 	}
+	return s.mutate(func() (any, error) { return s.call(actor, method, p) })
 }
 func (s *Service) scoped(actor, target string) bool {
 	return actor == "operator" || s.data.Sessions[actor].Target == target
