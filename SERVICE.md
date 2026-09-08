@@ -69,16 +69,36 @@ matching state backup until migration has been tested.
 
 ## Known limit: the service's own stderr
 
-When `init` starts the service for you, it captures that process's stderr to a
-private file in the state directory so a failed startup can say why. On success
-the file is unlinked immediately, but the running service keeps writing to it:
-the coordination service logs one line per authenticated RPC (actor and method
-only — no parameters, content or credentials).
+`agent-commons init` starts the per-user service when none is running. It
+captures that process's stderr to a private file in the state directory so a
+failed startup can say why. On success the file is unlinked immediately, but the
+running service keeps writing to it: the coordination service logs one line per
+authenticated RPC (actor and method only — no parameters, content or
+credentials).
 
 The file has no directory entry while this happens, so it is invisible to `ls`
 and `du`, occupies roughly 64 bytes per RPC — about 61 MiB per million calls —
-and its storage is reclaimed in full when the service exits. A service you start
-yourself with `serve` is unaffected; its stderr is wherever you pointed it.
+and its storage is reclaimed in full when the service exits. If a long-lived
+service makes that growth matter before it next restarts, restart it to reclaim
+the space.
 
-If a long-lived service makes that growth matter before it next restarts,
-restart it to reclaim the space.
+A supervised job has no unlinked file. The generated launchd plist and systemd
+unit name no stderr destination, and `service install` and `service start` have
+no flag that sets one.
+
+On macOS the lines are written and discarded. launchd gives a job with no
+`StandardErrorPath` `/dev/null` for standard error rather than routing it to the
+unified log. Measured against a service these commands installed: fd 2 is
+`/dev/null`, its byte offset climbing as the service serves RPCs, and
+`log show --predicate 'process == "agent-commons"'` returns no rows for calls
+made while it ran. A supervised macOS service therefore grows nothing and
+retains nothing — no log to rotate, and none to read when you need to know what
+the service was doing.
+
+On Linux this has not been measured here. The unit names no `StandardError`,
+where systemd's documented default is to inherit `StandardOutput` and journal
+it, so expect that same line per RPC in journald under journald's retention.
+Confirm it on the host before relying on either the volume or the record.
+
+A service you start yourself with `serve` writes those lines to whatever stderr
+you gave it.

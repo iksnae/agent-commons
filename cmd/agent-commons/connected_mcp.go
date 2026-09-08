@@ -16,7 +16,7 @@ func runConnectedMCP(ctx context.Context, args []string, in io.Reader, out, errO
 	flags := flag.NewFlagSet("connect-mcp", flag.ContinueOnError)
 	flags.SetOutput(errOut)
 	config := flags.String("config", "", "private project-role connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
-	if err := flags.Parse(args); err != nil {
+	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {

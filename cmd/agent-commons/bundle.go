@@ -25,7 +25,7 @@ func runBundle(args []string, out, errOut io.Writer) error {
 	// verify and remove, and is not something a caller has to look up per
 	// subcommand.
 	asJSON := fs.Bool("json", false, jsonFlagUsage)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := parseFlags(fs, args[1:]); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 || *target == "" {

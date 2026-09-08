@@ -71,7 +71,7 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	if options.Command == "enroll" {
 		flags.BoolVar(&options.JSON, "json", false, jsonFlagUsage)
 	}
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := parseFlags(flags, args[1:]); err != nil {
 		return options, err
 	}
 	if flags.NArg() != 0 {
