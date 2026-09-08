@@ -1,9 +1,11 @@
 # Claude launch check-in
 
-The hook is inactive unless the launcher sets `AGENT_COMMONS_CONNECTION`. It
-requires Claude Code 2.1.214 or newer, a matching project/workspace root, and an
-already enrolled role. For `claude --agent NAME`, also set
-`AGENT_COMMONS_CLAUDE_AGENT=NAME`. If the launcher uses a Claude binary other than
+The hook resolves the role connection from `AGENT_COMMONS_CONNECTION` when the
+launcher sets it, and otherwise searches upward from the launch directory for
+`.agent-commons/project.json`, so a launch inside an initialised project needs no
+launcher environment at all. It requires Claude Code 2.1.214 or newer, a matching
+project/workspace root, and an already enrolled role. For `claude --agent NAME`,
+also set `AGENT_COMMONS_CLAUDE_AGENT=NAME`. If the launcher uses a Claude binary other than
 the one on PATH, set `AGENT_COMMONS_CLAUDE_BINARY` to its absolute path.
 
 On startup or resume, the hook attaches the native session to that identity and
