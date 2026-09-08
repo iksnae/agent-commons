@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-
-	"agentcommons/internal/console"
 )
 
 func TestRedirectedConsoleIsBoundedJSON(t *testing.T) {
@@ -18,12 +16,12 @@ func TestRedirectedConsoleIsBoundedJSON(t *testing.T) {
 		t.Fatal("buffer mistaken for terminal")
 	}
 	calls := 0
-	load := func(ctx context.Context) (console.Snapshot, error) {
+	load := func(ctx context.Context) (consoleSnapshotJSON, error) {
 		calls++
 		if _, ok := ctx.Deadline(); !ok {
 			t.Fatal("unbounded snapshot call")
 		}
-		return console.Snapshot{Scope: "project", Agents: []string{"peer\x1b[2J"}}, nil
+		return consoleSnapshotJSON{Scope: "project", Agents: []string{"peer\x1b[2J"}}, nil
 	}
 	if err := writeConsoleSnapshot(context.Background(), load, &output); err != nil {
 		t.Fatal(err)
@@ -35,7 +33,9 @@ func TestRedirectedConsoleIsBoundedJSON(t *testing.T) {
 
 func TestFailedStaticSnapshotDoesNotEmitSuccess(t *testing.T) {
 	var output bytes.Buffer
-	err := writeConsoleSnapshot(context.Background(), func(context.Context) (console.Snapshot, error) { return console.Snapshot{}, errors.New("offline") }, &output)
+	err := writeConsoleSnapshot(context.Background(), func(context.Context) (consoleSnapshotJSON, error) {
+		return consoleSnapshotJSON{}, errors.New("offline")
+	}, &output)
 	if err == nil || output.Len() != 0 {
 		t.Fatal("failure presented as snapshot")
 	}
