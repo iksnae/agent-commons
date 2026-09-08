@@ -25,11 +25,22 @@ func enrollAgent(ctx context.Context, options onboardingOptions, out io.Writer) 
 	if err != nil {
 		return err
 	}
-	exists, err := connection.checkExisting()
+	adopted, credential, err := connection.enrollIdentity(ctx, options.Team)
 	if err != nil {
 		return err
 	}
-	credential, err := connection.enrollIdentity(ctx, options.Team)
+	// The server, not the client, decides which session this credential
+	// authenticates as: sessions.enroll may adopt a pre-existing session
+	// whose ID differs from the pre-RPC guess computed in prepareEnrollment.
+	// Correct the in-memory identity to that real, adopted ID before it is
+	// compared against (or written into) the connection file. connection.Path
+	// and connection.Config.TokenFile are concrete strings fixed above and
+	// are deliberately unaffected by this — see the doc comment on
+	// connectionConfig.Identity for why the two must stay independent.
+	if adopted != "" && adopted != connection.Config.Identity {
+		connection.Config.Identity = adopted
+	}
+	exists, err := connection.checkExisting()
 	if err != nil {
 		return err
 	}
@@ -46,6 +57,14 @@ func enrollAgent(ctx context.Context, options onboardingOptions, out io.Writer) 
 	})
 }
 
+// prepareEnrollment computes the connection file's PATH and a starting-guess
+// Config.Identity before any RPC happens, since ambient resolution
+// (deriveEnrolledConnectionPath in connection_resolve.go) must be able to
+// reproduce the path from a manifest alone, with no server round trip. The
+// guessed identity is provisional: enrollAgent corrects Config.Identity
+// after the RPC to whatever session sessions.enroll actually adopted, which
+// may be a different, pre-existing ID. The path never follows that
+// correction — do not make it do so.
 func prepareEnrollment(options onboardingOptions) (enrollmentConnection, error) {
 	if options.Name == "" || options.Role == "" || !filepath.IsAbs(options.Target) {
 		return enrollmentConnection{}, errors.New("enroll requires --name --role and absolute --target")
@@ -104,25 +123,31 @@ func (connection enrollmentConnection) checkExisting() (bool, error) {
 	return true, nil
 }
 
-func (connection enrollmentConnection) enrollIdentity(ctx context.Context, team string) (string, error) {
+// enrollIdentity performs the sessions.enroll RPC and returns both the
+// adopted session's real ID and its credential. The server may adopt a
+// pre-existing session (e.g. a legacy blank-Name registration) whose ID
+// differs from config.Identity, the pre-RPC guess; callers must treat the
+// returned ID as authoritative and correct their Config.Identity to it.
+func (connection enrollmentConnection) enrollIdentity(ctx context.Context, team string) (adoptedID, token string, err error) {
 	config := connection.Config
 	operator, err := readToken(filepath.Join(config.State, "operator.token"))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	identity := core.Session{ID: config.Identity, Name: config.Name, Role: config.Role, Team: team,
 		Target: config.Target, Runtime: "manual", Mode: "manual", Policy: "coordination"}
 	result, err := rpcCall[struct {
-		Token string `json:"token"`
+		Session core.Session `json:"session"`
+		Token   string       `json:"token"`
 	}](ctx,
 		rpcClient{socket: config.Socket, token: operator}, "sessions.enroll", identity)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	if result.Token == "" {
-		return "", errors.New("missing enrollment credential")
+	if result.Token == "" || result.Session.ID == "" {
+		return "", "", errors.New("missing enrollment credential")
 	}
-	return result.Token, nil
+	return result.Session.ID, result.Token, nil
 }
 
 func ensureCredential(path, expected string) error {

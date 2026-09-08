@@ -13,7 +13,16 @@ import (
 )
 
 type connectionConfig struct {
-	Version   int    `json:"version"`
+	Version int `json:"version"`
+	// Identity is the REAL, server-adopted session ID this file's credential
+	// authenticates as — set from the sessions.enroll response, not from the
+	// name/role/target hash used to derive this file's path (see
+	// prepareEnrollment in enrollment.go and deriveEnrolledConnectionPath in
+	// connection_resolve.go). Enroll may adopt a pre-existing session (e.g. a
+	// legacy blank-Name registration) whose ID differs from that hash. The
+	// path stays pinned to the hash forever so ambient resolution can
+	// recompute it from a manifest with no RPC; Identity deliberately does
+	// NOT follow the path. Do not "fix" this divergence — it is the point.
 	Identity  string `json:"identity"`
 	Target    string `json:"target"`
 	Name      string `json:"name"`
