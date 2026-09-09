@@ -44,9 +44,12 @@ func TestTeamRevocationStopsManagedProcessGroup(t *testing.T) {
 	}
 }
 
+// The deadline is generous because it bounds only failure: the poll returns as
+// soon as the fixture records its pid, so waiting longer costs a passing run
+// nothing and keeps a loaded machine from being mistaken for a broken one.
 func waitFixturePID(t *testing.T, path string) int {
 	t.Helper()
-	deadline := time.After(3 * time.Second)
+	deadline := time.After(30 * time.Second)
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
