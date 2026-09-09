@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// abandonmentSchema is the durable schema number task abandonment takes. Teams
+// take 2, team-scoped work 3, and session retirement 5.
+const abandonmentSchema = 4
+
 // enableTaskAbandonment advances the state schema the first time a task is
 // actually abandoned, taking a pre-migration snapshot first. It is lazy on
 // purpose: a directory that never abandons anything keeps the older schema and
@@ -20,13 +24,50 @@ import (
 // Callers must run every validation before this: a refused abandonment must
 // write no backup and advance no number.
 func (s *Service) enableTaskAbandonment() error {
-	if s.data.SchemaVersion >= 4 {
+	if s.data.SchemaVersion >= abandonmentSchema {
 		return nil
 	}
 	if err := s.backupSchema(fmt.Sprintf("pre-task-abandonment-schema-%d-", s.data.SchemaVersion)); err != nil {
 		return err
 	}
-	s.data.SchemaVersion = 4
+	s.data.SchemaVersion = abandonmentSchema
+	return nil
+}
+
+// validateTaskAbandonment refuses to load state whose abandonment records
+// disagree with the schema that carries them or with each other. It mirrors
+// validateRetirement in both halves: a schema floor for the feature's records,
+// then the per-record invariant.
+//
+// The floor is the load-time half of what enableTaskAbandonment arms at write
+// time. A binary older than schema 4 tests only `Status == "accepted"` for
+// terminality, so an abandoned task carried on schema 3 or below is exactly the
+// state that binary would reopen and let be resubmitted. The pre-migration
+// snapshots this package retains (schema_backup.go) are the files an operator
+// hand-edits during a repair, which is how such a record comes to be written.
+//
+// The per-record half exists because Status and AbandonEvidence are two halves
+// of one record that abandon always writes together, so a saved task carrying
+// one without the other did not come from abandon.
+func (s *Service) validateTaskAbandonment() error {
+	for _, t := range s.data.Tasks {
+		abandoned := t.Status == "abandoned"
+		if !abandoned && t.AbandonEvidence == "" {
+			continue
+		}
+		if s.data.SchemaVersion < abandonmentSchema {
+			return errors.New("abandoned task records require schema 4")
+		}
+		if !abandoned {
+			return errors.New("abandonment evidence recorded on a task that is not abandoned")
+		}
+		if strings.TrimSpace(t.AbandonEvidence) == "" {
+			return errors.New("abandoned task is missing its evidence")
+		}
+		if len(t.AbandonEvidence) > 8192 {
+			return errors.New("abandoned task evidence exceeds the 8KiB bound")
+		}
+	}
 	return nil
 }
 
