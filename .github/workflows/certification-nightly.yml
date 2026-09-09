@@ -1,0 +1,47 @@
+name: Certification Nightly Sweep
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  workflow_dispatch:
+
+permissions:
+  # actions/checkout reads the repository. Nothing in this job writes: certify
+  # makes no GitHub API call, and the records leave as an upload-artifact,
+  # which needs no repository scope.
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Install certify
+        run: go install github.com/iksnae/code-certification/cmd/certify@v0.12.0
+
+      - name: Scan code units
+        run: certify scan
+
+      - name: Run full certification
+        run: certify certify
+
+      - name: Generate report
+        run: certify report --format text
+
+      # config.yml, policies/ and overrides/ are tracked inputs; everything else
+      # under .certification/ is output regenerated from the commit, and it is
+      # not tracked. The sweep publishes it as a build artifact instead of
+      # pushing it to main: a bot rewriting a ~1000-file, 11MB record set nightly
+      # would grow history permanently for data any run can rebuild.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: certification-${{ github.sha }}
+          path: .certification/
+          if-no-files-found: error
+          retention-days: 30

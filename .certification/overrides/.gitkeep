@@ -1,0 +1,5 @@
+Overrides are authored waivers, one .yml per exception, read by
+certify at .certification/overrides/. The directory is optional —
+certify treats it as empty when absent — but it is tracked so the
+extension point travels with the repository. certify ignores every
+file here that does not end in .yml or .yaml, including this one.

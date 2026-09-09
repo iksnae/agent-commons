@@ -1,0 +1,76 @@
+name: Certification Weekly Report
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # 8 AM UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  # actions/checkout reads the repository. Nothing in this job writes: certify
+  # makes no GitHub API call, and the reports leave as upload-artifact, which
+  # needs no repository scope.
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Install certify
+        run: go install github.com/iksnae/code-certification/cmd/certify@v0.12.0
+
+      # A fresh checkout carries the tracked inputs (config.yml, policies/,
+      # overrides/) but no records, and `certify report` on a bare checkout
+      # prints "No certification records found" and exits 0. The report has to
+      # certify the commit before it has anything to report. `certify certify`
+      # without a prior scan exits 1.
+      - name: Scan code units
+        run: certify scan
+
+      - name: Run certification
+        run: certify certify
+
+      - name: Generate weekly report
+        run: certify report --format text
+
+      # --output rather than a `>` redirect, for two reasons. A redirect creates
+      # the file before certify runs, so `if-no-files-found: error` can never
+      # see the failure case; with --output the file exists only if certify
+      # actually wrote a report. And `certify report --format json` trails its
+      # "updated" progress lines on stdout after the JSON, so a redirect
+      # captures a file that is not parseable JSON at all.
+      - name: Generate JSON report
+        run: certify report --format json --output weekly-report.json
+
+      # The real guard. certify exits 0 when it finds no records, so neither the
+      # step's exit code nor if-no-files-found proves the report has content.
+      # Parse it and assert it covers at least one unit.
+      - name: Verify the report has content
+        run: jq -e '.card.total_units > 0' weekly-report.json > /dev/null
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: certification-weekly-${{ github.sha }}
+          path: weekly-report.json
+          if-no-files-found: error
+          retention-days: 90
+
+      # Weekly runs the same full certification the nightly sweep does, so it
+      # keeps the same records rather than discarding them: without this, the
+      # summary above could not be drilled into per unit. Retained for 90 days
+      # to match this workflow's own report, which is the longer horizon the
+      # weekly cadence exists for.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: certification-weekly-records-${{ github.sha }}
+          path: .certification/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,18 @@
+# The language-neutral pack. It matches every unit, because a pack with no
+# `language` is applied to all of them.
+#
+# It deliberately carries no rules. It used to define `lint-clean` and
+# `test-pass` byte-identically to go.yml, and because both packs match every Go
+# unit, each violation was evaluated and recorded twice — a single failing test
+# showed up as two observations reading "test_failures: 1 exceeds threshold 0"
+# on all 597 units. go.yml owns those two rules now.
+#
+# The file stays so the pack directory keeps a language-neutral slot, and so
+# that adding a genuinely cross-language rule has an obvious home. Note the
+# consequence of the move: `lint-clean` and `test-pass` now reach Go units only.
+# Shell, TypeScript, Markdown and YAML units are evaluated against no rules at
+# all.
+name: global
+version: "1.1.0"
+
+rules: []
