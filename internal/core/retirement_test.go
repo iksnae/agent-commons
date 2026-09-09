@@ -33,6 +33,24 @@ func enrollAgent(t *testing.T, s *Service, id, name, role, target string) (Sessi
 	return result["session"].(Session), result["token"].(string)
 }
 
+// deniedWith is `denied` plus the message. It is local rather than a change to
+// the shared helper in service_test.go, whose many callers assert a different
+// question and would all have to name a message they do not care about.
+func deniedWith(t *testing.T, s *Service, actor, method, want string, params any) {
+	t.Helper()
+	raw, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, callErr := s.Call(actor, method, raw)
+	if callErr == nil {
+		t.Fatalf("expected denial: %s by %s", method, actor)
+	}
+	if !strings.Contains(callErr.Error(), want) {
+		t.Fatalf("%s refused for a different reason than the one under test:\n got %q\nwant %q", method, callErr, want)
+	}
+}
+
 func retireArgs(id string) map[string]any {
 	return map[string]any{"id": id, "evidence": "One afternoon's communications test; the identity will never work again."}
 }
@@ -780,21 +798,27 @@ func TestRegistrationRefusesClientSuppliedRetirementState(t *testing.T) {
 		mutate(&v)
 		return v
 	}
+	// The exact message, not merely "an error". Registration refuses for a dozen
+	// unrelated reasons -- invalid ID, invalid runtime, unusable target -- and a
+	// forged field that started failing one of THOSE would leave this test green
+	// while the guard it names was gone. The ledger table next door was rewritten
+	// for this reason; the same question deserves the same standard.
+	const want = "retirement state is operator owned"
 	for _, method := range []string{"sessions.register", "sessions.enroll"} {
-		denied(t, s, "operator", method, forged(func(v *Session) {
+		deniedWith(t, s, "operator", method, want, forged(func(v *Session) {
 			v.RetiredAt = time.Now().UTC().Format(time.RFC3339Nano)
 		}))
-		denied(t, s, "operator", method, forged(func(v *Session) {
+		deniedWith(t, s, "operator", method, want, forged(func(v *Session) {
 			v.RetiredReason = "pre-retired"
 		}))
 		// An OPEN entry: if accepted, the resulting state cannot be loaded
 		// again, so one legal RPC call permanently bricks the state directory.
-		denied(t, s, "operator", method, forged(func(v *Session) {
+		deniedWith(t, s, "operator", method, want, forged(func(v *Session) {
 			v.Retirements = []Retirement{{At: "2026-01-01T00:00:00Z", Reason: "Fabricated."}}
 		}))
 		// A CLOSED entry: well-formed, passes every load validator, and comes
 		// back through sessions.list as the service's own evidence.
-		denied(t, s, "operator", method, forged(func(v *Session) {
+		deniedWith(t, s, "operator", method, want, forged(func(v *Session) {
 			v.Retirements = []Retirement{{At: "2026-01-01T00:00:00Z", Reason: "Fabricated.",
 				ReinstatedAt: "2026-01-02T00:00:00Z", ReinstatedReason: "Also fabricated."}}
 		}))
@@ -807,9 +831,22 @@ func TestRegistrationRefusesClientSuppliedRetirementState(t *testing.T) {
 	}
 }
 
-// The consequence, asserted where it actually bites: a refused call must leave
-// the state directory loadable. Asserting only that the RPC returned an error
-// would miss a guard that refuses after writing.
+// The consequence, asserted where it actually bites: at schema 5 -- the state of
+// any deployment that has ever retired anyone -- a refused registration must
+// leave the state directory loadable, with the poison absent and real
+// retirement evidence untouched.
+//
+// This does NOT discriminate against a guard that refuses after writing. An
+// earlier version of this comment said it did, and that was wrong: Service.mutate
+// snapshots s.data, and on any error it restores the snapshot and never calls
+// save(), so a post-write guard cannot persist anything. Moving the guard below
+// s.data.Sessions[v.ID] = v leaves both of these tests passing -- measured, not
+// reasoned about. Do not re-add that claim.
+//
+// What it does add over the refusal test above is the far end of the failure
+// that was actually reported: it drives New(dir) rather than stopping at the RPC
+// boundary, so it also fails if registration and the load validator ever
+// disagree about what a legal Session may contain.
 func TestClientSuppliedRetirementStateCannotBrickTheStateDirectory(t *testing.T) {
 	s, dir, target := retireFixture(t)
 	// Schema 5 is the state of any deployment that has ever retired anyone.
