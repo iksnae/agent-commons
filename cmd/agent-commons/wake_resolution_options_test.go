@@ -24,12 +24,12 @@ func TestWakeResolutionRequiresEveryDecisionSafeguard(t *testing.T) {
 					args = append(args, flag...)
 				}
 			}
-			if _, err := parseWakeResolution(args, io.Discard); err == nil {
+			if _, err := parseWakeResolution(args, io.Discard, io.Discard); err == nil {
 				t.Fatal("incomplete decision accepted")
 			}
 		})
 	}
-	if _, err := parseWakeResolution(base, io.Discard); err != nil {
+	if _, err := parseWakeResolution(base, io.Discard, io.Discard); err != nil {
 		t.Fatal("plain inspection rejected", err)
 	}
 }

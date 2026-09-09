@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,6 +91,58 @@ func TestStoppedServiceIsReportedOnceByTheBuiltBinary(t *testing.T) {
 			t.Fatalf("call wrote to stdout: %q", stdout)
 		}
 	})
+
+	// --json selects the report form on stdout; it does not reach this block,
+	// which run chooses from args[0] alone after the command's FlagSet is gone
+	// (see jsonFlagUsage in cmd/agent-commons/presentation.go). So these four
+	// ask for machine output and still get the styled block on stderr.
+	//
+	// That is tolerable for exactly one reason, and this is the reason: stdout
+	// stays byte-empty, so a caller parsing it reads nothing rather than
+	// reading prose. The comment says the cost is confined to stderr; without
+	// this, nothing holds it there. If a future change ever renders the block
+	// on stdout for one of these, the claim silently becomes false and a
+	// parser starts consuming box-aligned text.
+	target, err := os.MkdirTemp("/tmp", "actgt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(target) })
+
+	// A connection file pointing at the same absent socket, so the commands
+	// that read one reach the dial rather than stopping at resolution.
+	config := filepath.Join(state, "connection.json")
+	if err := os.WriteFile(config, []byte(fmt.Sprintf(
+		`{"version":1,"identity":"sess-fixture","target":%q,"name":"n","role":"r","socket":%q,"tokenFile":%q,"state":%q}`,
+		target, socket, token, state)), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, machine := range []struct {
+		name string
+		argv []string
+	}{
+		{"enroll --json", []string{"enroll", "--state", state, "--name", "n", "--role", "r", "--target", target, "--json"}},
+		{"retire --json", []string{"retire", "--state", state, "--id", "sess-fixture", "--evidence", "e", "--json"}},
+		{"reinstate --json", []string{"reinstate", "--state", state, "--id", "sess-fixture", "--evidence", "e", "--json"}},
+		{"console --once", []string{"console", "--config", config, "--once"}},
+	} {
+		t.Run(machine.name+" leaves stdout empty", func(t *testing.T) {
+			stdout, stderr, code := runCommons(t, binary, machine.argv...)
+			if code == 0 {
+				t.Fatalf("%s succeeded against a stopped service:\n%s", machine.name, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("%s wrote to stdout on the unreachable path: %q", machine.name, stdout)
+			}
+			// Naming the block is what makes this row evidence for the comment
+			// rather than a bare emptiness check: it records that the block IS
+			// what these receive, which is the inconsistency being tolerated.
+			if !strings.Contains(stderr, "Service state") {
+				t.Fatalf("%s did not get the styled block; jsonFlagUsage in presentation.go says it does:\n%s", machine.name, stderr)
+			}
+		})
+	}
 }
 
 func buildCommonsBinary(t *testing.T) string {

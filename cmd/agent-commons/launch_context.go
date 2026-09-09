@@ -20,7 +20,7 @@ func runLaunchContext(ctx context.Context, args []string, in io.Reader, out, err
 	config := flags.String("config", "", "explicit private enrolled-role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search from the launch directory")
 	agentType := flags.String("agent-type", "", "exact Claude --agent name; empty for default primary session")
 	version := flags.String("claude-version", "", "output of the launching Claude binary's --version")
-	if err := parseFlags(flags, args); err != nil {
+	if err := parseFlags(flags, args, out); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {

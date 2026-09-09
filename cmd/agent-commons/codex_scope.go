@@ -19,12 +19,12 @@ type codexRoleScope struct {
 	Binding string
 }
 
-func parseCodexRoleScope(ctx context.Context, command string, args []string, errOut io.Writer) (codexRoleScope, error) {
+func parseCodexRoleScope(ctx context.Context, command string, args []string, out, errOut io.Writer) (codexRoleScope, error) {
 	f := flag.NewFlagSet(command, flag.ContinueOnError)
 	f.SetOutput(errOut)
 	config := f.String("config", "", "private enrolled role connection; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search")
 	home := f.String("codex-home", "", "explicit private Codex configuration/session directory")
-	if err := parseFlags(f, args); err != nil {
+	if err := parseFlags(f, args, out); err != nil {
 		return codexRoleScope{}, err
 	}
 	if !filepath.IsAbs(*home) || f.NArg() != 0 {

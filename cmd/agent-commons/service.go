@@ -35,7 +35,7 @@ func runService(ctx context.Context, args []string, out, errOut io.Writer) error
 	fs.StringVar(&options.SearchPath, "path", "", "explicit provider CLI PATH (install only)")
 	fs.StringVar(&file, "file", "", "installed service configuration file")
 	fs.BoolVar(&confirm, "confirm-stopped", false, "confirm service is stopped before removal")
-	if err := parseFlags(fs, args[1:]); err != nil {
+	if err := parseFlags(fs, args[1:], out); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {

@@ -19,7 +19,7 @@ func runConsole(ctx context.Context, args []string, in io.Reader, out, errOut io
 	flags.SetOutput(errOut)
 	config := flags.String("config", "", "explicit private role connection file; falls back to AGENT_COMMONS_CONNECTION or an upward .agent-commons/project.json search; never falls back to operator")
 	once := flags.Bool("once", false, "print one JSON snapshot; automatic when input or output is not a terminal")
-	if err := parseFlags(flags, args); err != nil {
+	if err := parseFlags(flags, args, out); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {

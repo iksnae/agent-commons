@@ -39,6 +39,14 @@ func execute(ctx context.Context, args []string, in io.Reader, out, errOut io.Wr
 	if err == nil {
 		return 0
 	}
+	// An explicit -h/--help is a satisfied request, not a failure: parseFlags
+	// has already written the listing to the output stream. Exiting 0 here is
+	// what makes `COMMAND --help` safe under `set -e` and useful through a
+	// pipe, and it is the same answer a bare invocation already gives.
+	var help helpRequestedError
+	if errors.As(err, &help) {
+		return 0
+	}
 	var reported reportedError
 	if !errors.As(err, &reported) {
 		fmt.Fprintln(errOut, err)
@@ -174,7 +182,7 @@ func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.W
 	// claude and codex have DiscoverX implemented below; pi and hermes support
 	// check-in but not --target discovery yet.
 	runtimeName := fs.String("runtime", "claude", "runtime for discovery: claude or codex")
-	if err := parseFlags(fs, args[1:]); err != nil {
+	if err := parseFlags(fs, args[1:], out); err != nil {
 		return err
 	}
 	if *socket == "" {
