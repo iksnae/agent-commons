@@ -102,6 +102,21 @@ func humanFacing(args []string) bool {
 
 func dispatch(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
 	if len(args) > 0 && args[0] == "harnesses" {
+		// harnesses builds no FlagSet, so nothing here would have answered -h.
+		// It is asked before the argument check because "takes no arguments" is
+		// a true answer to the wrong question: the operator asked what the
+		// command is, and this command's own stdout is a machine contract that
+		// says nothing about that.
+		if helpRequested(args[1:]) {
+			return writeCommandHelp(out, flaglessCommand("harnesses"), "agent-commons harnesses", []string{
+				"",
+				"Writes the harness support catalog to stdout as JSON: the runtimes",
+				"this build knows how to launch, and what each one supports.",
+				"",
+				"Takes no flags and no arguments. Support recorded here describes",
+				"this build, not whether a runtime is installed -- use 'doctor'.",
+			})
+		}
 		if len(args) != 1 {
 			return errors.New("harnesses takes no arguments")
 		}
