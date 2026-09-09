@@ -30,10 +30,13 @@ agent:
   # read as an explicit disable and short-circuits ahead of detection, so for
   # that command the outcome does not depend on which keys are exported.
   #
-  # What this does NOT cover: `certify scan`, which runs first in all three
-  # workflows. Scan loads this file but reads only the `scope` block; it then
-  # detects providers and calls out unconditionally. There is no `--skip-agent`
-  # flag on `scan`, so nothing here can stop it.
+  # What this does NOT cover, of the commands these workflows run: `certify
+  # scan`, which runs first in all three. Scan loads this file but reads only
+  # the `scope` block; it then detects providers and calls out unconditionally.
+  # There is no `--skip-agent` flag on `scan`, so nothing here can stop it.
+  # (`certify models` and `certify architect` also detect providers without
+  # consulting this setting, but no workflow runs them and both exist to reach
+  # a model on purpose. Scan is the one that surprises.)
   #
   # That is narrower than it sounds, and the details were checked rather than
   # assumed. Scan's payload is a repository summary — language names, unit

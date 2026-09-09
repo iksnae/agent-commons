@@ -66,11 +66,20 @@ flake:
 
 Nothing about the graded code changed between those runs. Two things deserve
 attention in the second row. The first is the floor: a single failing test moves
-the result from everything passing to 4.4% passing. The second is worse — the
-grade stays **B**. The 20 survivors are exactly the units no rule examines: 14
-shell, 5 JavaScript, 1 Python. Every Go unit failed. So in a collapse the
-headline grade is carried entirely by unchecked code, and reads far better than
-the run deserves.
+the result from everything passing to 4.4% passing. The 20 survivors are exactly
+the units no rule examines — 14 shell, 5 JavaScript, 1 Python — because
+`test-pass` reaches only Go; that is what the pass rate is measuring.
+
+The second is that **the grade stays B anyway**, and it is worth being precise
+about why, because the intuitive explanation is wrong. `overall_grade` is the
+arithmetic mean of every unit's score, taken with no reference to whether the
+unit passed. Grade and certification status are therefore decoupled: failing the
+binary `test-pass` rule costs a unit only a little score, so all 432 Go units can
+fail certification while 380 of them still grade B. The unchecked survivors are
+not propping the letter up — they are 4.4% of the weight and average 0.806
+against Go's 0.838, so dropping them entirely would nudge the mean *up*, from
+0.836 to 0.838, and leave the grade at B. The B is produced by the 432 failing
+units themselves.
 
 A red certification badge is therefore evidence about one test's timing at least
 as often as it is evidence about the codebase, and the same collapse can be
@@ -103,8 +112,11 @@ grades say nothing was checked, not that everything passed.
 
 This is deliberate. Go is what certification is here to measure; the shell and
 JavaScript sources have their own gates in `just check`, which certification does
-not replace. The cost is the collapse behaviour above, where those 20 unchecked
-units are the only survivors and carry the headline grade.
+not replace. The cost is the collapse behaviour above: because no rule reaches
+them, these 20 are the only units that can still pass once a Go test fails, so
+the pass rate is reporting unchecked code. They do not distort the letter grade —
+they score below the Go mean, so removing them would raise it — but they are the
+reason a 4.4% pass rate is not a 0% one.
 
 `unsafe_import_count` is likewise no longer enforced; see the
 note in `.certification/policies/go.yml` for why counting that metric could not
