@@ -29,6 +29,12 @@ in a target repository, do not edit that target to repair the path mismatch.
   normalize or overwrite them. Preserve provenance and relative support paths.
 - Verification: `go test -race ./...`, `go vet ./...`, `go build ./cmd/agent-commons`.
 - Test restart, duplicate delivery, credential scope and review bypass attempts.
+- Mutate every new test: break the code it covers, confirm red, restore from a copy.
+  Never restore with `git checkout --`; it reverts to HEAD and discards the fix under test.
+  A mutation that fails to compile is no result, not a survivor - re-issue it compiling.
+- Ask what the test would still pass with: naming one property while asserting an
+  adjacent one reads correctly in review, and only a surviving mutation exposes it.
+- Validate an empty probe with a positive control before reporting an absence as a finding.
 - Keep real-runtime evidence distinct from subprocess fixtures and mock runners.
 - No merges, deployments, global config writes or automatic session adoption.
 
