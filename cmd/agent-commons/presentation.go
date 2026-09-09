@@ -35,6 +35,12 @@ import (
 // console --once, whose machine contract is a positional mode rather than a
 // flag: each asks for machine output and still gets the styled block.
 //
+// init --json can reach it as well, but only through a race, which is why it
+// is not in that list: init gates on serviceReachable before enrolling and
+// answers a failed gate with unreachableAfterStart -- a plain error carrying
+// no block. Reaching the block needs the service to pass that gate and then
+// die before the enroll RPC, so no operator can produce it on demand.
+//
 // It is left that way deliberately. The block goes to stderr and stdout stays
 // byte-empty on that path, so nothing a caller parses is affected -- the cost
 // is box-aligned prose on an error stream instead of a single line.
