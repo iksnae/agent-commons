@@ -306,18 +306,35 @@ func TestUpdateRefusesAnUnwritableTargetWithoutElevating(t *testing.T) {
 	assertUntouched(t, target)
 }
 
-const renameHelperEnv = "AGENT_COMMONS_RENAME_HELPER_MARKER"
+const (
+	renameHelperEnv  = "AGENT_COMMONS_RENAME_HELPER_DIR"
+	renameHelperName = "helper"
+
+	// The parent writes these; the helper waits on them and reads them back.
+	renameHelperStarted     = "started"
+	renameHelperReplaced    = "replaced"
+	renameHelperReplacement = "a different binary now sits at this path"
+
+	// Printed only by a helper that was still executing after the rename and
+	// found both halves of the replacement on the path it was launched from.
+	renameHelperSurvived = "helper still running after its own image was renamed"
+)
 
 // The atomic replacement renames a file that may be the running program.
 // Renaming a running executable is documented to work on macOS and Linux;
 // this proves it on the machine running the suite instead of trusting that.
+//
+// A sleep in the helper cannot prove that: it makes the helper's lifetime a
+// race against the parent's scheduling, and a helper that has already exited
+// leaves the parent renaming a dead file and reporting success. The proof here
+// is a handshake instead. The helper blocks on a file the parent writes only
+// after the rename, so the survival line can only be printed by a process that
+// was alive at rename time and went on executing afterwards. A helper that died
+// first never sees the signal, and a rename that never happened fails the
+// helper's own check of its launch path.
 func TestRunningExecutableSurvivesBeingRenamed(t *testing.T) {
-	if marker := os.Getenv(renameHelperEnv); marker != "" {
-		if err := os.WriteFile(marker, []byte("running"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		time.Sleep(2 * time.Second)
-		fmt.Println("helper finished after replacement")
+	if dir := os.Getenv(renameHelperEnv); dir != "" {
+		runRenameHelper(t, dir)
 		return
 	}
 	self, err := os.Executable()
@@ -325,7 +342,7 @@ func TestRunningExecutableSurvivesBeingRenamed(t *testing.T) {
 		t.Skipf("cannot locate the test binary: %v", err)
 	}
 	dir := t.TempDir()
-	helper := filepath.Join(dir, "helper")
+	helper := filepath.Join(dir, renameHelperName)
 	source, err := os.ReadFile(self)
 	if err != nil {
 		t.Skipf("cannot copy the test binary: %v", err)
@@ -333,43 +350,93 @@ func TestRunningExecutableSurvivesBeingRenamed(t *testing.T) {
 	if err := os.WriteFile(helper, source, 0755); err != nil {
 		t.Fatal(err)
 	}
-	marker := filepath.Join(dir, "started")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, helper, "-test.run=^TestRunningExecutableSurvivesBeingRenamed$", "-test.count=1")
-	cmd.Env = append(os.Environ(), renameHelperEnv+"="+marker)
+	cmd.Env = append(os.Environ(), renameHelperEnv+"="+dir)
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if _, err := os.Stat(marker); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			cmd.Process.Kill()
-			cmd.Wait()
-			t.Fatalf("helper never started: %s", output.String())
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	if err := os.Rename(helper, helper+".replaced"); err != nil {
+	// Reap before reading the buffer: the copier goroutine owns it until Wait
+	// returns. Both calls are idempotent enough to repeat from the cleanup.
+	reap := func() string {
 		cmd.Process.Kill()
 		cmd.Wait()
+		return output.String()
+	}
+	t.Cleanup(func() { reap() })
+
+	awaitFile(t, filepath.Join(dir, renameHelperStarted), func() string {
+		return "helper never started: " + reap()
+	})
+
+	if err := os.Rename(helper, helper+"."+renameHelperReplaced); err != nil {
 		t.Fatalf("cannot rename a running executable on this platform: %v", err)
 	}
-	if err := os.WriteFile(helper, []byte("a different binary now sits at this path"), 0755); err != nil {
+	if err := os.WriteFile(helper, []byte(renameHelperReplacement), 0755); err != nil {
 		t.Fatal(err)
 	}
+	// Only now may the helper proceed. Everything it reports is therefore
+	// reported by a process that outlived the rename of its own image.
+	if err := os.WriteFile(filepath.Join(dir, renameHelperReplaced), []byte("go"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("renamed process failed: %v\n%s", err, output.String())
 	}
-	if !strings.Contains(output.String(), "helper finished after replacement") {
-		t.Fatalf("helper did not run to completion: %s", output.String())
+	if !strings.Contains(output.String(), renameHelperSurvived) {
+		t.Fatalf("helper did not outlive the rename of its own image: %s", output.String())
+	}
+}
+
+// runRenameHelper is the child half of TestRunningExecutableSurvivesBeingRenamed.
+// It runs from an image the parent is about to rename out from under it.
+func runRenameHelper(t *testing.T, dir string) {
+	t.Helper()
+	image := filepath.Join(dir, renameHelperName)
+	if err := os.WriteFile(filepath.Join(dir, renameHelperStarted), []byte("running"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	awaitFile(t, filepath.Join(dir, renameHelperReplaced), func() string {
+		return "parent never signalled that the rename had happened"
+	})
+	// Still executing, and still able to reach the filesystem, after the path
+	// this process was launched from stopped naming its image.
+	if _, err := os.Stat(image + "." + renameHelperReplaced); err != nil {
+		t.Fatalf("the running image was never renamed aside: %v", err)
+	}
+	moved, err := os.ReadFile(image)
+	if err != nil {
+		t.Fatalf("nothing sits at the launch path: %v", err)
+	}
+	if string(moved) != renameHelperReplacement {
+		t.Fatalf("the launch path does not hold the replacement: %q", moved)
+	}
+	fmt.Println(renameHelperSurvived)
+}
+
+// awaitFile polls to a deadline rather than sleeping a fixed span: a signal
+// that lands in 20ms costs 20ms, and the generous deadline bounds only failure,
+// so a loaded machine is not mistaken for a broken one.
+func awaitFile(t *testing.T, path string, unmet func() string) {
+	t.Helper()
+	deadline := time.After(30 * time.Second)
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatal(unmet())
+		case <-ticker.C:
+		}
 	}
 }
 
