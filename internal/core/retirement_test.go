@@ -767,15 +767,73 @@ func TestRetirementIsOperatorOnly(t *testing.T) {
 }
 
 // Retirement state is server-owned; a client may not present itself as retired.
+//
+// All THREE fields, because params embeds Session and registration copies it
+// wholesale. A guard naming two of a three-field tri-state is not a guard: the
+// unnamed field is a durable, operator-facing evidence record whose only
+// legitimate author is the service.
 func TestRegistrationRefusesClientSuppliedRetirementState(t *testing.T) {
 	s, _, target := retireFixture(t)
-	denied(t, s, "operator", "sessions.register", Session{ID: "agent-forged", Name: "exp", Role: "builder",
-		Target: target, Runtime: "manual", Mode: "manual", Policy: "coordination",
-		RetiredAt: time.Now().UTC().Format(time.RFC3339Nano)})
-	denied(t, s, "operator", "sessions.enroll", Session{ID: "agent-forged", Name: "exp", Role: "builder",
-		Target: target, Runtime: "manual", Mode: "manual", Policy: "coordination",
-		RetiredReason: "pre-retired"})
+	forged := func(mutate func(*Session)) Session {
+		v := Session{ID: "agent-forged", Name: "exp", Role: "builder", Target: target,
+			Runtime: "manual", Mode: "manual", Policy: "coordination"}
+		mutate(&v)
+		return v
+	}
+	for _, method := range []string{"sessions.register", "sessions.enroll"} {
+		denied(t, s, "operator", method, forged(func(v *Session) {
+			v.RetiredAt = time.Now().UTC().Format(time.RFC3339Nano)
+		}))
+		denied(t, s, "operator", method, forged(func(v *Session) {
+			v.RetiredReason = "pre-retired"
+		}))
+		// An OPEN entry: if accepted, the resulting state cannot be loaded
+		// again, so one legal RPC call permanently bricks the state directory.
+		denied(t, s, "operator", method, forged(func(v *Session) {
+			v.Retirements = []Retirement{{At: "2026-01-01T00:00:00Z", Reason: "Fabricated."}}
+		}))
+		// A CLOSED entry: well-formed, passes every load validator, and comes
+		// back through sessions.list as the service's own evidence.
+		denied(t, s, "operator", method, forged(func(v *Session) {
+			v.Retirements = []Retirement{{At: "2026-01-01T00:00:00Z", Reason: "Fabricated.",
+				ReinstatedAt: "2026-01-02T00:00:00Z", ReinstatedReason: "Also fabricated."}}
+		}))
+	}
 	if _, ok := s.data.Sessions["agent-forged"]; ok {
 		t.Fatal("a client-supplied retirement state was registered")
+	}
+	if _, ok := s.data.Tokens["agent-forged"]; ok {
+		t.Fatal("a refused registration still minted a credential")
+	}
+}
+
+// The consequence, asserted where it actually bites: a refused call must leave
+// the state directory loadable. Asserting only that the RPC returned an error
+// would miss a guard that refuses after writing.
+func TestClientSuppliedRetirementStateCannotBrickTheStateDirectory(t *testing.T) {
+	s, dir, target := retireFixture(t)
+	// Schema 5 is the state of any deployment that has ever retired anyone.
+	enrollAgent(t, s, "agent-real", "exp-real", "builder", target)
+	rpc(t, s, "operator", "sessions.retire", retireArgs("agent-real"))
+	if s.data.SchemaVersion != retirementSchema {
+		t.Fatalf("fixture is at schema %d, not the one under test", s.data.SchemaVersion)
+	}
+	denied(t, s, "operator", "sessions.register", Session{ID: "agent-poison", Target: target,
+		Runtime: "manual", Mode: "manual", Policy: "coordination",
+		Retirements: []Retirement{{At: "2026-01-01T00:00:00Z", Reason: "Fabricated."}}})
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := New(dir)
+	if err != nil {
+		t.Fatalf("a refused registration left the state directory unloadable: %v", err)
+	}
+	defer reopened.Close()
+	if _, ok := reopened.data.Sessions["agent-poison"]; ok {
+		t.Fatal("the refused registration was persisted after all")
+	}
+	// The real retirement is untouched, so the refusal cost no evidence.
+	if reopened.data.Sessions["agent-real"].RetiredAt == "" {
+		t.Fatal("the refusal disturbed a real retirement")
 	}
 }

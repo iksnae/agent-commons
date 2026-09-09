@@ -105,17 +105,34 @@ func parseRetirement(args []string, errOut io.Writer) (retirementOptions, error)
 //
 // prepareEnrollment (enrollment.go) pins the connection PATH to the digest of
 // the identity it GUESSED from target + name + role, and deliberately does not
-// move it when the server adopts a different, pre-existing session. So the path
-// is recoverable only when those two coincide. This recomputes the guess from
-// the session's own target, name and role and compares: equal means the derived
-// paths are the real ones, and unequal means this command cannot locate the
-// connection from the registry and must say so.
+// move it when the server adopts a different, pre-existing session. This
+// recomputes that guess from the session's own target, name and role and
+// compares it against the real ID.
 //
 // Reporting a derived path anyway would be worse than saying nothing. The only
 // remedy available after a reinstatement is manual and operates on exactly
 // these two paths, so a wrong path does not merely misinform -- it sends a
 // repair at a file that does not exist while the real credential sits unnamed
-// under the guessed stem.
+// under a different stem.
+//
+// The check is a heuristic over the registry, and two enrollment flags fall
+// outside what the registry can answer. Both are stated rather than silently
+// implied, because a false claim here misdirects the same repair:
+//
+//   - `enroll --id X` honours an explicit identity (enrollment.go), so the
+//     files ARE at the digest of X -- but the guess will not match, and this
+//     reports "cannot locate" rather than naming them. A false negative. The
+//     notice therefore names an explicit --id alongside adoption as a cause,
+//     instead of blaming an adoption that did not happen.
+//   - `enroll --config P` overrides the path entirely. If the identity happens
+//     to match the guess, this reports located and names state-directory paths
+//     that are not where the files live. That case is NOT detected, and the
+//     located notice says the paths are the default location for that reason.
+//
+// Closing either would mean reading the connection files to find the one whose
+// Identity matches, which locates them authoritatively but makes this command
+// read private files it currently only names. That is a scope decision, not a
+// detail, so it is recorded here rather than taken.
 func retirementFiles(state string, session core.Session) (config, credential string, located bool) {
 	guessed := "agent-" + identityDigest(session.Target+"\x00"+session.Name+"\x00"+session.Role)
 	if guessed != session.ID {
@@ -147,13 +164,15 @@ const reinstatedNotice = "The identity is active again under a new credential th
 
 // locatedFilesNotice is appended when the connection path was derivable, which
 // is the only case in which any path was printed.
-const locatedFilesNotice = " The connection and credential files named here were not deleted."
+const locatedFilesNotice = " The connection and credential files named here are where `enroll` writes them " +
+	"by default, and were not deleted; an enrollment made with --config keeps them elsewhere."
 
 // unlocatableNotice is appended instead when the connection was recorded under
 // an adopted identity, so its path cannot be derived from the registry.
 const unlocatableNotice = " The connection and credential files cannot be located from the registry: " +
 	"this identity's ID differs from the target/name/role digest `enroll` pins those paths to, which " +
-	"happens when enroll adopted a pre-existing session. They are not named here, and nothing was deleted."
+	"happens when enroll adopted a pre-existing session or when the connection was made with an " +
+	"explicit --id. They are not named here, and nothing was deleted."
 
 func retirementReport(options retirementOptions, session core.Session) map[string]string {
 	notice := retiredNotice

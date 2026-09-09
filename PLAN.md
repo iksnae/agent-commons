@@ -164,6 +164,14 @@ from every Session handed to any other actor, and from `Sessions()`, through the
 single `core.sessionView` helper, because a reinstated identity is listed to its
 peers again. `omitempty` keeps the `[]Session` wire shape unchanged for clients
 that never see it. Both retirement evidence bounds govern stored bytes.
+The service is the ledger's SOLE author: `sessions.register` and
+`sessions.enroll` refuse a client-supplied `RetiredAt`, `RetiredReason` or
+`Retirements` together, because `params` embeds `Session` and those handlers
+copy it wholesale. That refusal is what makes the ledger evidence rather than
+input, on the same footing as `Review.Evidence`, `Delivery.HandlingEvidence` and
+`Task.AbandonEvidence`, none of which is settable at registration. It also keeps
+a legal call from writing state `validateRetirement` would refuse at every later
+load, which no supported operation could then repair.
 Delivery fields: ID, From, To, Text, Kind (`message`, `task`, `result`), TaskID,
 ContextID, ContextVersion int, Status, Attempts int, Output, Error, CreatedAt.
 Session and Delivery exported Go fields named exactly above.

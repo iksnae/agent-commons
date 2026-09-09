@@ -466,7 +466,21 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if !checkID(v.ID) || v.ID == "operator" {
 			return fail("invalid session ID")
 		}
-		if v.RetiredAt != "" || v.RetiredReason != "" {
+		// Every field of the retirement tri-state, not two of three. params
+		// embeds Session and this branch copies it wholesale, so a field left
+		// out of this list binds straight from client JSON.
+		//
+		// Retirements is the one that matters most. Accepting an OPEN entry
+		// writes state that validateRetirement then refuses at every later
+		// load, and no delete, purge or force exists by design -- so one legal
+		// call would leave the state directory unopenable. Accepting a CLOSED
+		// one is quieter and worse: it passes every validator, survives
+		// restart, and is served back through sessions.list as the service's
+		// own evidence. The ledger's whole justification is that the service
+		// is its sole author, exactly as Review.Evidence,
+		// Delivery.HandlingEvidence and Task.AbandonEvidence are written only
+		// by the methods that demanded them.
+		if v.RetiredAt != "" || v.RetiredReason != "" || len(v.Retirements) > 0 {
 			return fail("retirement state is operator owned")
 		}
 		if method == "sessions.enroll" {

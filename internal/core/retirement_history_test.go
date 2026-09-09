@@ -232,44 +232,97 @@ func TestLoadRefusesATombstoneMissingItsReason(t *testing.T) {
 
 // Current state and history are two representations of one fact, so they are
 // made to agree by validation rather than by hoping both writers stay correct.
+//
+// Every subtest names the exact message it expects. Asserting only that loading
+// FAILED cannot tell nine invariants apart, and a table that reads as nine
+// branches then quietly exercises three -- which is what the previous version
+// of this test did, with two of its four cases driving the same branch.
+//
+// The fixture is two full cycles (retire, reinstate, retire), so the ledger has
+// one closed entry and one open one and every branch is reachable by editing it.
 func TestLoadRefusesHistoryThatDisagreesWithCurrentState(t *testing.T) {
 	for _, corruption := range []struct {
 		name    string
+		want    string
 		corrupt func(*Service)
 	}{
-		{"retired with no open entry", func(s *Service) {
-			v := s.data.Sessions["agent-alpha"]
-			v.Retirements[len(v.Retirements)-1].ReinstatedAt = "2026-09-08T00:00:00Z"
-			v.Retirements[len(v.Retirements)-1].ReinstatedReason = "Closed while still retired."
-			s.data.Sessions["agent-alpha"] = v
-		}},
-		{"retired with no history at all", func(s *Service) {
-			v := s.data.Sessions["agent-alpha"]
-			v.Retirements = nil
-			s.data.Sessions["agent-alpha"] = v
-		}},
-		{"open entry timestamp does not match", func(s *Service) {
-			v := s.data.Sessions["agent-alpha"]
-			v.Retirements[len(v.Retirements)-1].At = "2020-01-01T00:00:00Z"
-			s.data.Sessions["agent-alpha"] = v
-		}},
-		{"live identity left with an open entry", func(s *Service) {
-			v := s.data.Sessions["agent-alpha"]
-			v.RetiredAt = ""
-			v.RetiredReason = ""
-			s.data.Sessions["agent-alpha"] = v
-			s.data.Tokens["agent-alpha"] = randomID()
-		}},
+		{"entry with no reason", "retirement history entry is missing its timestamp or reason",
+			func(s *Service) { editLedger(s, func(h []Retirement) { h[0].Reason = "  " }) }},
+		{"entry with no timestamp", "retirement history entry is missing its timestamp or reason",
+			func(s *Service) { editLedger(s, func(h []Retirement) { h[0].At = "" }) }},
+		{"reinstatement reason with no timestamp", "retirement history records a reinstatement reason with no timestamp",
+			func(s *Service) { editLedger(s, func(h []Retirement) { h[0].ReinstatedAt = "" }) }},
+		// R23c is load-bearing: without it a second open entry loads, "the open
+		// one" silently resolves to the last, and the earlier entry stays open
+		// forever while reinstate only ever closes the newest.
+		{"more than one open entry", "retirement history has more than one open entry",
+			func(s *Service) {
+				editLedger(s, func(h []Retirement) { h[0].ReinstatedAt, h[0].ReinstatedReason = "", "" })
+			}},
+		// Two routes to one invariant, kept apart and labelled as such rather
+		// than passed off as two branches.
+		{"retired but the final entry is closed", "retired identity has no open retirement history entry",
+			func(s *Service) {
+				editLedger(s, func(h []Retirement) {
+					h[len(h)-1].ReinstatedAt = "2026-09-08T00:00:00Z"
+					h[len(h)-1].ReinstatedReason = "Closed while still retired."
+				})
+			}},
+		{"retired with no history at all", "retired identity has no open retirement history entry",
+			func(s *Service) { editLedger(s, func(h []Retirement) {}); clearLedger(s) }},
+		{"open entry timestamp does not match", "retirement history disagrees with the current retirement",
+			func(s *Service) { editLedger(s, func(h []Retirement) { h[len(h)-1].At = "2020-01-01T00:00:00Z" }) }},
+		{"open entry reason does not match", "retirement history disagrees with the current retirement",
+			func(s *Service) {
+				editLedger(s, func(h []Retirement) { h[len(h)-1].Reason = "A reason nobody gave." })
+			}},
+		{"live identity left with an open entry", "live identity has an open retirement history entry",
+			func(s *Service) {
+				v := s.data.Sessions["agent-alpha"]
+				v.RetiredAt, v.RetiredReason = "", ""
+				s.data.Sessions["agent-alpha"] = v
+				s.data.Tokens["agent-alpha"] = randomID()
+			}},
+		{"reason with no timestamp", "retirement reason recorded without a timestamp",
+			func(s *Service) {
+				v := s.data.Sessions["agent-alpha"]
+				v.RetiredAt = ""
+				s.data.Sessions["agent-alpha"] = v
+			}},
 	} {
 		t.Run(corruption.name, func(t *testing.T) {
 			s, dir, target := retireFixture(t)
 			enrollAgent(t, s, "agent-alpha", "exp-alpha", "builder", target)
 			rpc(t, s, "operator", "sessions.retire", retireArgs("agent-alpha"))
-			if message := reopenWithCorruptedState(t, s, dir, corruption.corrupt); message == "" {
+			rpc(t, s, "operator", "sessions.reinstate", reinstateArgs("agent-alpha", "Back once."))
+			rpc(t, s, "operator", "sessions.retire", retireArgs("agent-alpha"))
+			if got := len(s.data.Sessions["agent-alpha"].Retirements); got != 2 {
+				t.Fatalf("fixture ledger has %d entries, want 2", got)
+			}
+			message := reopenWithCorruptedState(t, s, dir, corruption.corrupt)
+			if message == "" {
 				t.Fatal("inconsistent retirement history loaded")
+			}
+			if !strings.Contains(message, corruption.want) {
+				t.Fatalf("refused by a different invariant than the one under test:\n got %q\nwant %q", message, corruption.want)
 			}
 		})
 	}
+}
+
+// editLedger applies a hand edit to the stored ledger. It takes the slice so a
+// corruption can address entries by position, which is how the open one and the
+// closed one are told apart.
+func editLedger(s *Service, edit func([]Retirement)) {
+	v := s.data.Sessions["agent-alpha"]
+	edit(v.Retirements)
+	s.data.Sessions["agent-alpha"] = v
+}
+
+func clearLedger(s *Service) {
+	v := s.data.Sessions["agent-alpha"]
+	v.Retirements = nil
+	s.data.Sessions["agent-alpha"] = v
 }
 
 // The explicit-id route to the adopt branch. The candidate scan matches on

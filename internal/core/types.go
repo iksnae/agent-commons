@@ -52,7 +52,7 @@ type Session struct {
 	// sessions.reinstate from being the sole exception.
 	//
 	// Operator evidence only. It is stripped from every session handed to
-	// anyone else -- see Service.sessionView.
+	// anyone else -- see the sessionView function in retirement.go.
 	Retirements []Retirement `json:"retirements,omitempty"`
 }
 
