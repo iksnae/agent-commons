@@ -27,7 +27,7 @@ type codexPreparationReport struct {
 func runCodexPrepareWith(ctx context.Context, args []string, out, errOut io.Writer, start codexStarter) error {
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	role, err := parseCodexRoleScope(ctx, "codex-prepare", args, errOut)
+	role, err := parseCodexRoleScope(ctx, "codex-prepare", args, out, errOut)
 	if err != nil {
 		return err
 	}

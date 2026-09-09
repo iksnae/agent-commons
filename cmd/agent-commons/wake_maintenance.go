@@ -26,7 +26,7 @@ func runWakeMaintenance(ctx context.Context, args []string, out, errOut io.Write
 	thread := flags.String("codex-thread", "", "exact thread UUID whose wake history is maintained")
 	apply := flags.Bool("apply", false, "apply pruning after saving a private backup; default previews")
 	risk := flags.Bool("acknowledge-replay-risk", false, "acknowledge that restoring older inbox state can repeat pruned notifications")
-	if err := parseFlags(flags, args); err != nil {
+	if err := parseFlags(flags, args, out); err != nil {
 		return err
 	}
 	if *thread == "" || flags.NArg() != 0 || *apply != *risk {

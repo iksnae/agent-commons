@@ -70,38 +70,66 @@ func TestFlagErrorsAreReportedOnceByTheBuiltBinary(t *testing.T) {
 		})
 	}
 
-	// flag.ErrHelp comes back from the same Parse call and is suppressed by the
-	// same marker. flag has already written the usage listing an operator asked
-	// for; "flag: help requested" underneath it is the boundary talking about
-	// its own control flow.
+	// flag.ErrHelp comes back from the same Parse call, and is the outcome the
+	// help screen actively sends operators to: help.go writes "Run
+	// 'agent-commons COMMAND --help' for flags and examples."
 	//
-	// "Alone" is the load-bearing word, and asserting the sentinel is absent
-	// does not say it. parseFlags returning nil for ErrHelp -- the obvious later
-	// "help is not an error" cleanup -- also removes the sentinel, and then the
-	// command runs on: doctor prints the listing and its own resolution failure
-	// underneath, and update would begin a self-update. So this asserts the
-	// shape of the whole stream instead. flag indents every line PrintDefaults
-	// writes; anything a command printed afterwards starts at column 0.
-	t.Run("help requested prints the usage listing alone", func(t *testing.T) {
-		stdout, stderr, code := runCommons(t, binary, "doctor", "-h")
-		lines := strings.Split(strings.TrimRight(stderr, "\n"), "\n")
-		if lines[0] != "Usage of doctor:" {
-			t.Fatalf("doctor -h did not open with the usage listing:\n%s", stderr)
-		}
-		for _, line := range lines[1:] {
-			if line == "" || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
-				continue
+	// It used to answer on stderr with exit 1, which made that instruction
+	// hostile in two ordinary settings -- `set -e; agent-commons doctor --help`
+	// aborted the script, and `agent-commons doctor --help | less` showed
+	// nothing, because the text was on the stream the pipe did not carry. A
+	// bare invocation already answers the same question on stdout with exit 0;
+	// this is the same gesture and now gets the same treatment.
+	//
+	// "Alone" is still the load-bearing word, and asserting the sentinel is
+	// absent does not say it. parseFlags returning nil for ErrHelp -- the
+	// obvious "help is not an error" cleanup -- also removes the sentinel, and
+	// then the command runs on: doctor would print the listing and its own
+	// resolution failure underneath, and update would begin a self-update. So
+	// this asserts the shape of the whole stream instead. flag indents every
+	// line PrintDefaults writes; anything a command printed afterwards starts
+	// at column 0.
+	//
+	// Every FlagSet is built by the same parseFlags, so every command answers
+	// -h the same way. Running the spelling the help screen prints (--help)
+	// alongside -h across several commands is what keeps that true.
+	for _, argv := range [][]string{
+		{"doctor", "--help"},
+		{"doctor", "-h"},
+		{"init", "--help"},
+		{"watch", "--help"},
+		{"enroll", "--help"},
+		{"update", "--help"},
+		{"bundle", "install", "--help"},
+		// The shared FlagSet in main.go, reached by every command that falls
+		// through dispatch.
+		{"serve", "--help"},
+	} {
+		name := strings.Join(argv, " ")
+		t.Run("help requested: "+name, func(t *testing.T) {
+			stdout, stderr, code := runCommons(t, binary, argv...)
+
+			// Exit 0 is the half nobody chose on purpose. It is what makes the
+			// instruction on the help screen safe to follow inside `set -e`.
+			if code != 0 {
+				t.Fatalf("%s exited %d, want 0:\nstdout:\n%s\nstderr:\n%s", name, code, stdout, stderr)
 			}
-			t.Fatalf("doctor -h printed %q after the usage listing:\n%s", line, stderr)
-		}
-		if stdout != "" {
-			t.Fatalf("doctor -h wrote to stdout: %q", stdout)
-		}
-		// Marking the error changes what is printed and nothing else. Both
-		// flag_parse.go and main.go state that the exit status is unchanged;
-		// this is the only assertion standing behind it.
-		if code != 1 {
-			t.Fatalf("doctor -h exited %d, want 1", code)
-		}
-	})
+			// Stdout is the half that makes `| less` and `| grep` work. A
+			// listing on stderr is invisible to both.
+			if stderr != "" {
+				t.Fatalf("%s wrote to stderr: %q", name, stderr)
+			}
+			listing := "Usage of " + strings.Join(argv[:len(argv)-1], " ") + ":"
+			lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+			if lines[0] != listing {
+				t.Fatalf("%s did not open with %q:\n%s", name, listing, stdout)
+			}
+			for _, line := range lines[1:] {
+				if line == "" || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+					continue
+				}
+				t.Fatalf("%s printed %q after the usage listing:\n%s", name, line, stdout)
+			}
+		})
+	}
 }

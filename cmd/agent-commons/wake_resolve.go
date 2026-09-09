@@ -20,7 +20,7 @@ type wakeResolutionReport struct {
 }
 
 func runWakeResolution(ctx context.Context, args []string, out, errOut io.Writer) error {
-	o, err := parseWakeResolution(args, errOut)
+	o, err := parseWakeResolution(args, out, errOut)
 	if err != nil {
 		return err
 	}

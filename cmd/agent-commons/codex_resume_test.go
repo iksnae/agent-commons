@@ -41,7 +41,7 @@ func TestCodexResumeCheckRetainsBindingAndClosesFailedProcess(t *testing.T) {
 	if err = json.Unmarshal(output.Bytes(), &report); err != nil || report.Verified || report.ThreadID != testThread {
 		t.Fatal("failure report lost saved identity", err)
 	}
-	role, err := parseCodexRoleScope(context.Background(), "test", args, io.Discard)
+	role, err := parseCodexRoleScope(context.Background(), "test", args, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestCodexResumeCheckRequiresSavedBindingBeforeStartup(t *testing.T) {
 	if bytes.Contains(output.Bytes(), []byte(connection.client.token)) {
 		t.Fatal("resume report leaked credential")
 	}
-	role, err := parseCodexRoleScope(context.Background(), "test", args, io.Discard)
+	role, err := parseCodexRoleScope(context.Background(), "test", args, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

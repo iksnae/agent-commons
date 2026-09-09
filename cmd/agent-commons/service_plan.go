@@ -20,7 +20,7 @@ func runServicePlan(args []string, out, errOut io.Writer) error {
 	fs.StringVar(&options.Binary, "binary", "", "absolute installed executable path")
 	fs.StringVar(&options.State, "state", "", "absolute private service state directory")
 	fs.StringVar(&options.SearchPath, "path", "", "explicit PATH for authenticated Claude/Codex CLIs")
-	if err := parseFlags(fs, args); err != nil {
+	if err := parseFlags(fs, args, out); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {

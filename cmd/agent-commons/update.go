@@ -28,7 +28,7 @@ type updateRequest struct {
 func runUpdate(ctx context.Context, args []string, out, errOut io.Writer) error {
 	set := flag.NewFlagSet("update", flag.ContinueOnError)
 	set.SetOutput(errOut)
-	if err := parseFlags(set, args); err != nil {
+	if err := parseFlags(set, args, out); err != nil {
 		return err
 	}
 	if set.NArg() != 0 {

@@ -34,7 +34,7 @@ type retirementOptions struct {
 }
 
 func runRetirement(ctx context.Context, args []string, out, errOut io.Writer) error {
-	options, err := parseRetirement(args, errOut)
+	options, err := parseRetirement(args, out, errOut)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func callRetirement(ctx context.Context, client rpcClient, options retirementOpt
 	return restored.Session, err
 }
 
-func parseRetirement(args []string, errOut io.Writer) (retirementOptions, error) {
+func parseRetirement(args []string, out, errOut io.Writer) (retirementOptions, error) {
 	options := retirementOptions{command: args[0]}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -86,7 +86,7 @@ func parseRetirement(args []string, errOut io.Writer) (retirementOptions, error)
 	flags.StringVar(&options.identity, "id", "", "identity to "+options.command)
 	flags.StringVar(&options.evidence, "evidence", "", "required reason, recorded with the identity")
 	flags.BoolVar(&options.asJSON, "json", false, jsonFlagUsage)
-	if err := parseFlags(flags, args[1:]); err != nil {
+	if err := parseFlags(flags, args[1:], out); err != nil {
 		return options, err
 	}
 	if flags.NArg() != 0 {

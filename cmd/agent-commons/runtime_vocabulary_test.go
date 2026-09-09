@@ -35,9 +35,15 @@ func TestRuntimeVocabularyListsEveryCatalogEntry(t *testing.T) {
 func TestInitRuntimeFlagHelpMatchesCatalog(t *testing.T) {
 	var out, errOut bytes.Buffer
 	_ = runInit(context.Background(), []string{"--help"}, &out, &errOut)
-	help := errOut.String()
+	// An asked-for listing is an answer, so it is on the OUTPUT stream. Reading
+	// it from there rather than from errOut is what keeps this test honest
+	// about where an operator actually receives it.
+	help := out.String()
 	if help == "" {
 		t.Fatal("no flag help text captured")
+	}
+	if errOut.String() != "" {
+		t.Fatalf("init --help wrote to the error stream: %q", errOut.String())
 	}
 	for _, allowed := range initRuntimeAllowlist {
 		if !strings.Contains(help, allowed) {
@@ -55,9 +61,12 @@ func TestInitRuntimeFlagHelpMatchesCatalog(t *testing.T) {
 }
 
 func TestOnboardingRuntimeFlagHelpMatchesCatalog(t *testing.T) {
-	var errOut bytes.Buffer
-	_, _ = parseOnboarding([]string{"enroll", "--help"}, &errOut)
-	assertHelpListsCatalog(t, errOut.String())
+	var out, errOut bytes.Buffer
+	_, _ = parseOnboarding([]string{"enroll", "--help"}, &out, &errOut)
+	if errOut.String() != "" {
+		t.Fatalf("enroll --help wrote to the error stream: %q", errOut.String())
+	}
+	assertHelpListsCatalog(t, out.String())
 }
 
 func assertHelpListsCatalog(t *testing.T, help string) {

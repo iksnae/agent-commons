@@ -27,7 +27,7 @@ type commandStreams struct {
 }
 
 func runOnboarding(ctx context.Context, args []string, out, errOut io.Writer) error {
-	options, err := parseOnboarding(args, errOut)
+	options, err := parseOnboarding(args, out, errOut)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func runOnboarding(ctx context.Context, args []string, out, errOut io.Writer) er
 	return checkInAgent(ctx, options, streams)
 }
 
-func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, error) {
+func parseOnboarding(args []string, out, errorsOut io.Writer) (onboardingOptions, error) {
 	options := onboardingOptions{Command: args[0]}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -71,7 +71,7 @@ func parseOnboarding(args []string, errorsOut io.Writer) (onboardingOptions, err
 	if options.Command == "enroll" {
 		flags.BoolVar(&options.JSON, "json", false, jsonFlagUsage)
 	}
-	if err := parseFlags(flags, args[1:]); err != nil {
+	if err := parseFlags(flags, args[1:], out); err != nil {
 		return options, err
 	}
 	if flags.NArg() != 0 {

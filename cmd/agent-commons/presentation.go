@@ -19,10 +19,36 @@ import (
 // Nothing here knows what any command does.
 
 // jsonFlagUsage is the one sentence every command carrying --json shows, so the
-// escape from the human default reads identically wherever it is registered.
-// The flag is always per-command, on that command's own FlagSet: there is no
+// choice of report form reads identically wherever it is registered. The flag
+// is always per-command, on that command's own FlagSet: there is no
 // process-wide output mode, and a command whose stdout is a machine contract
 // (check-in) deliberately does not have it at all.
+//
+// What it governs is exactly what it says: the REPORT, on stdout. It is not a
+// process-wide "machine mode", and one thing on the error stream does not
+// follow it -- the unreachable-service block.
+//
+// That block is rendered by run (main.go) after dispatch has returned, from
+// humanFacing(args[0]) alone. By then the command's FlagSet is gone and the
+// flag's value with it, so the boundary cannot consult it. The commands where
+// the two disagree are enroll, retire and reinstate with --json, and
+// console --once, whose machine contract is a positional mode rather than a
+// flag: each asks for machine output and still gets the styled block.
+//
+// init --json can reach it as well, but only through a race, which is why it
+// is not in that list: init gates on serviceReachable before enrolling and
+// answers a failed gate with unreachableAfterStart -- a plain error carrying
+// no block. Reaching the block needs the service to pass that gate and then
+// die before the enroll RPC, so no operator can produce it on demand.
+//
+// It is left that way deliberately. The block goes to stderr and stdout stays
+// byte-empty on that path, so nothing a caller parses is affected -- the cost
+// is box-aligned prose on an error stream instead of a single line.
+// integration/service_condition_report_test.go pins the byte-empty stdout that
+// makes this harmless. Honouring the flag would mean either threading a
+// presentation decision back out through the error or teaching the process
+// boundary each command's flags, and neither is worth buying a cosmetic
+// difference on a stream no parser reads.
 const jsonFlagUsage = "write the machine-readable JSON report instead of the human summary"
 
 // Colors are mid-tones so they stay legible against both light and dark
