@@ -82,3 +82,117 @@ RPC, so like `sessions.register`, `sessions.policy` and `messages.retry` it is
 deliberately absent from `methods.list` and the MCP tool surface. The first
 successful abandonment advances the durable schema; see
 [version-compatibility.md](version-compatibility.md).
+
+## Retiring an identity
+
+Operator-only `sessions.retire` takes `id` and required `evidence` (max 8KiB)
+and withdraws an identity that should no longer work — a role created by a test,
+an experiment that ended, a name that was wrong. The CLI wrappers are
+`agent-commons retire --id ID --evidence "..."` and its inverse
+`agent-commons reinstate`, both with `--json`.
+
+Retirement is a tombstone, not a delete. Nothing is erased and there is no
+purge, no force flag and no fast path for a "clean" identity. The `Session`
+record stays in the registry with its name, role and project, and only the
+credential is destroyed — which is the whole withdrawal, because every RPC is
+rejected for an actor with no credential. Deleting the record would buy nothing
+beyond that and would break reads: a delivery's project is resolved through the
+sender's and recipient's session records, so a deleted record would hide every
+team-scoped message that identity ever exchanged, including from the operator's
+own `inbox.list`. Board authors and review actors are stored as bare identity
+strings, and the record is what keeps them resolvable.
+
+What happens to the rest:
+
+- Inbox: preserved exactly, read and unread, with acknowledgement and handling
+  flags unchanged. Read it with `inbox.list {sessionId}`.
+- Undelivered messages addressed to it: marked `interrupted` with the reason
+  `recipient identity retired`. Never `completed` — delivered is not read, and
+  nobody read these. `messages.retry` will not re-queue them.
+- Board posts: immutable, author unchanged.
+- Shared context: no action. `context.put` records no author, so there is
+  nothing attributed to withdraw.
+- Review verdicts: kept verbatim in the task's `reviews`, retired actor and all.
+  The acceptance rule is untouched.
+- Team memberships: set to `revoked`, not removed from the team.
+- Attachment: zeroed, the same terminal value `sessions.detach` writes.
+
+Three things refuse the withdrawal outright. A busy identity is refused, as
+`sessions.policy` already refuses one. An identity holding a live attachment
+lease is refused; the lease runs 120 seconds, so wait for it or release it with
+`sessions.detach`. An identity taking part in a task that has reached neither
+`accepted` nor `abandoned` — as lead, author, reviewer or red team — is refused,
+and the error names the task IDs. That last one is the point: retiring a
+designated reviewer must never dissolve a review obligation, so a stuck task is
+resolved or abandoned first. There is no override.
+
+Only the operator can retire, and an agent cannot retire itself or a peer. An
+agent that wants out sends a message and the operator decides. Self-retirement
+would destroy the caller's own credential before it could read the answer, and
+it would let a reviewer who dislikes a result withdraw instead of recording a
+verdict.
+
+Afterwards the identity is gone from `sessions.list` by default and returned by
+operator-only `{includeRetired: true}`, so the tombstone stays visible to
+whoever looks for it. `messages.send` will not address it, `tasks.assign` will
+not name it as author, reviewer or red team, and a managed session gets no work.
+Re-running `enroll` or `init` for the same project, name and role fails rather
+than adopting it, naming the retired identity, when it was retired, the recorded
+reason, and the two ways forward: reinstate it, or use a different name or role.
+The server resolves enrollment itself, so this holds however the client derived
+its ID.
+
+`sessions.reinstate` takes the same `id` and required `evidence`. It returns the
+identity under its own ID with a **new** credential; the destroyed one never
+comes back. The inbox returns intact with its flags as they were, board posts
+and task history are untouched, and no onboarding message is re-sent. Team
+memberships stay `revoked` — re-invitation is a separate deliberate act.
+
+Retiring and reinstating are recorded permanently. Clearing `retiredAt` and
+`retiredReason` on reinstatement would erase the retirement, which is the one
+thing this feature promises not to do, so the session also carries an
+append-only `retirements` ledger: one entry per cycle, each with when and why it
+was withdrawn and when and why it came back. Current state is what every rule
+reads; the ledger decides nothing, exactly as a task's `reviews` sit beside its
+`status`. The ledger is operator evidence and never reaches an agent — a
+reinstated identity is listed to its peers again, and they receive it with the
+retirement fields stripped.
+
+### Getting the new credential
+
+Read this before you reinstate, because the order matters.
+
+Reinstatement issues a new credential and **writes no file**. The
+`credential-<stem>.token` the CLI wrote at enrollment still holds the destroyed
+one, so the identity cannot connect until that file is replaced by hand. The
+`reinstate` subcommand does not print the new credential either — a credential
+on stdout is a credential in the terminal's scrollback.
+
+So to reinstate an identity you intend to keep using, do it through `call`,
+whose stdout is the raw service response:
+
+```sh
+agent-commons call --state STATE sessions.reinstate \
+  '{"id":"agent-...","evidence":"why it is coming back"}'
+```
+
+That prints `{"session":{...},"token":"..."}`. Write the token into the identity's
+`credential-<stem>.token` yourself, at mode 0600. `enroll` will not do it for
+you: it refuses to overwrite a credential file whose contents differ, and that
+refusal is deliberate.
+
+If you have already run the `reinstate` subcommand, the credential is held only
+by the service and this CLI has no command that prints it. Retire and reinstate
+again through `call`, or replace the file from whatever the service reports.
+
+The `retire` and `reinstate` subcommands name the connection and credential
+files rather than touching them. When `enroll` adopted a pre-existing session,
+the identity no longer matches the target/name/role digest those paths are
+pinned to; in that case the commands say the files cannot be located instead of
+printing paths that do not exist. Credential lifecycle is deliberately outside
+this feature's scope; where that boundary belongs is still an open decision.
+
+Both methods are operator RPC, so like `sessions.register`, `sessions.policy`,
+`tasks.abandon` and `messages.retry` they are absent from `methods.list` and the
+MCP tool surface. The first successful retirement advances the durable schema;
+see [version-compatibility.md](version-compatibility.md).

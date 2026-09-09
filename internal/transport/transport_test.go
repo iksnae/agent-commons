@@ -127,8 +127,74 @@ func TestSocketRPCAndMCP(t *testing.T) {
 		t.Fatal("MCP hid authentication error")
 	}
 }
+
+// Operator evidence must not reach an agent through the DATA surface either.
+// Keeping the tool surface clean is only half of it: a reinstated identity is
+// listed to every peer scoped to its target, and it carries the ledger of why
+// it was withdrawn and why it came back. This asserts on the bytes the peer's
+// own credential retrieves over the wire.
+func TestRetirementEvidenceNeverCrossesTheAgentBoundary(t *testing.T) {
+	s, operator := testService(t)
+	target, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(token, body string) string {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/rpc", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handler(s).ServeHTTP(w, req)
+		if w.Code != 200 {
+			t.Fatalf("status %d: %s", w.Code, w.Body.String())
+		}
+		return w.Body.String()
+	}
+
+	const withdrawal = "OPERATOR-ONLY-WITHDRAWAL-PROSE"
+	const restoration = "OPERATOR-ONLY-RESTORATION-PROSE"
+	for _, id := range []string{"peer-one", "peer-two"} {
+		if _, err := s.Call("operator", "sessions.register", []byte(`{"id":"`+id+`","target":"`+target+`","runtime":"manual","mode":"manual","policy":"coordination"}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.Call("operator", "sessions.retire", []byte(`{"id":"peer-two","evidence":"`+withdrawal+`"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Call("operator", "sessions.reinstate", []byte(`{"id":"peer-two","evidence":"`+restoration+`"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	peer, err := s.Token("peer-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := call(peer, `{"method":"sessions.list","params":{}}`)
+	if !strings.Contains(seen, "peer-two") {
+		t.Fatalf("fixture is vacuous: the reinstated identity is not in the peer's listing: %s", seen)
+	}
+	for _, secret := range []string{withdrawal, restoration, "retirements", "retiredAt", "retiredReason"} {
+		if strings.Contains(seen, secret) {
+			t.Fatalf("peer-facing sessions.list carries %q: %s", secret, seen)
+		}
+	}
+	// The operator, who owns the evidence, still receives it over the same wire.
+	held := call(operator, `{"method":"sessions.list","params":{"includeRetired":true}}`)
+	if !strings.Contains(held, withdrawal) || !strings.Contains(held, restoration) {
+		t.Fatalf("operator lost the retirement ledger: %s", held)
+	}
+	// A peer cannot ask for it either.
+	req := httptest.NewRequest("POST", "/rpc", strings.NewReader(`{"method":"sessions.list","params":{"includeRetired":true}}`))
+	req.Header.Set("Authorization", "Bearer "+peer)
+	w := httptest.NewRecorder()
+	handler(s).ServeHTTP(w, req)
+	if w.Code == 200 {
+		t.Fatalf("a peer set includeRetired: %s", w.Body.String())
+	}
+}
+
 func TestToolSurfaceHasNoAdministrativeEscalation(t *testing.T) {
-	for _, name := range []string{"sessions.register", "messages.retry", "Token"} {
+	for _, name := range []string{"sessions.register", "messages.retry", "sessions.retire", "sessions.reinstate", "Token"} {
 		if isTool(name) {
 			t.Fatalf("admin tool exposed: %s", name)
 		}

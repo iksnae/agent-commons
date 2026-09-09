@@ -29,6 +29,41 @@ type Session struct {
 	RuntimeSessionID string     `json:"runtimeSessionId"`
 	Instructions     string     `json:"instructions"`
 	Busy             bool       `json:"busy"`
+	// RetiredAt is the RFC3339Nano moment the operator withdrew this identity,
+	// empty while it is active. It is a timestamp rather than a flag because
+	// the audit trail is the point of retiring instead of deleting: the record
+	// stays so that BoardPost.Author, Review.Actor and every delivery this
+	// identity sent or received keep resolving.
+	RetiredAt string `json:"retiredAt,omitempty"`
+	// RetiredReason is the operator's stated reason, required and bounded like
+	// the evidence tasks.abandon, tasks.review and inbox.handle demand. It is
+	// never a verdict on this identity's work.
+	RetiredReason string `json:"retiredReason,omitempty"`
+	// Retirements is the append-only ledger of every withdrawal and return this
+	// identity has been through. RetiredAt and RetiredReason above are current
+	// state; this is history, and it never decides anything -- the same split
+	// Task draws between Status/Output/Revision and Reviews.
+	//
+	// It exists because reinstatement clears the current-state fields, and a
+	// contract that reads "retirement, not deletion; nothing is erased" cannot
+	// have reinstatement erase the retirement. Every other evidence-bearing
+	// method here persists what it demanded (Review.Evidence,
+	// Delivery.HandlingEvidence, Task.AbandonEvidence); this is what keeps
+	// sessions.reinstate from being the sole exception.
+	//
+	// Operator evidence only. It is stripped from every session handed to
+	// anyone else -- see the sessionView function in retirement.go.
+	Retirements []Retirement `json:"retirements,omitempty"`
+}
+
+// Retirement is one completed or open withdrawal cycle. An entry with no
+// ReinstatedAt is the open one, and there is at most one, which is the
+// invariant validateRetirement enforces against RetiredAt.
+type Retirement struct {
+	At               string `json:"at"`
+	Reason           string `json:"reason"`
+	ReinstatedAt     string `json:"reinstatedAt,omitempty"`
+	ReinstatedReason string `json:"reinstatedReason,omitempty"`
 }
 
 type Attachment struct {
