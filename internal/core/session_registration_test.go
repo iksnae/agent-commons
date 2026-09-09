@@ -143,3 +143,75 @@ func TestRegistrationPersistsOnlyClientSettableSessionFields(t *testing.T) {
 		}
 	}
 }
+
+// The property is: registeredSession carries every client-settable Session
+// field through unchanged, and returns the zero value for every server-owned
+// one.
+//
+// Asserted on the function's return value, not on persisted state, and that is
+// the whole reason this test exists separately. Every server-owned field that
+// exists today is independently refused by the two guards in service.go before
+// anything is written, so those guards absorb any mutation to registeredSession:
+// the test above stays green with this function reverted to `return in`, the
+// wholesale copy the named-field list was written to eliminate. A persisted-state
+// assertion structurally cannot see the omission half. This one can, because
+// registeredSession is a pure Session -> Session in this package and can be
+// called with nothing in between.
+//
+// The allow/deny partition is shared with the test above rather than restated.
+// Two copies of the same decision are two places to update and one place to
+// forget, which is the defect this file exists to prevent. Only the lookup and
+// its message are local, so neither test's assertions depend on the other's.
+//
+// What this would still pass with: any implementation that produces the same
+// per-field result, including a subtractive one that copies wholesale and then
+// zeroes a hand-maintained list of server-owned fields. That polarity is not
+// pinned here and cannot be, from the outside -- what defends it is the
+// exhaustiveness trigger in sessionFieldSentinels, which forces a decision on
+// any field Session gains.
+func TestRegisteredSessionKeepsClientFieldsAndDropsServerOwnedOnes(t *testing.T) {
+	sessionType := reflect.TypeOf(Session{})
+	for i := 0; i < sessionType.NumField(); i++ {
+		field := sessionType.Field(i)
+		t.Run(field.Name, func(t *testing.T) {
+			allow, deny := sessionFieldSentinels(t)
+			sentinel, settable := allow[field.Name]
+			if !settable {
+				var known bool
+				if sentinel, known = deny[field.Name]; !known {
+					t.Fatalf("Session.%s is on neither the client-settable nor the server-owned list in this test. "+
+						"Decide which it is: add it to the named-field list in registeredSession and to `allow` in "+
+						"sessionFieldSentinels, or leave it out of that list and add it to `deny`. Until then nothing "+
+						"checks whether registeredSession carries it or drops it.", field.Name)
+				}
+			}
+			value := reflect.ValueOf(sentinel)
+			if value.Type() != field.Type {
+				t.Fatalf("sentinel for Session.%s is %s, want %s", field.Name, value.Type(), field.Type)
+			}
+			if value.IsZero() {
+				t.Fatalf("sentinel for Session.%s is the zero value, which would prove nothing", field.Name)
+			}
+
+			// One field at a time, on an otherwise zero Session: a field that
+			// survives did so on its own account and not because some other
+			// value carried it.
+			var in Session
+			reflect.ValueOf(&in).Elem().Field(i).Set(value)
+			got := reflect.ValueOf(registeredSession(in)).Field(i)
+
+			if !settable {
+				if !got.IsZero() {
+					t.Fatalf("Session.%s is server-owned, but registeredSession carried a client-supplied %#v through as %#v. "+
+						"A field this function does not drop is defended only by the guards in service.go, which is the "+
+						"hand-maintained list this construction exists to stop depending on.", field.Name, sentinel, got.Interface())
+				}
+				return
+			}
+			if !reflect.DeepEqual(got.Interface(), sentinel) {
+				t.Fatalf("Session.%s is client-settable, but registeredSession returned %#v for a supplied %#v",
+					field.Name, got.Interface(), sentinel)
+			}
+		})
+	}
+}
