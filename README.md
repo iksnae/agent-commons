@@ -29,9 +29,9 @@ notices and a source snapshot; the script installs only the binary, so keep the
 archive if you need those. [INSTALL.md](INSTALL.md) covers the bundle installer,
 which places the whole product directory.
 
-No release is published yet. Until one is, build an archive and pass it with
-`--archive PATH`; [INSTALL.md](INSTALL.md) covers that route, the bundle
-installer, verification and removal.
+`--archive PATH` installs an archive you already have — one you built, or one
+downloaded ahead of time — and skips the download; [INSTALL.md](INSTALL.md)
+covers that route, the bundle installer, verification and removal.
 
 Later, replace the binary in place:
 
@@ -65,7 +65,9 @@ agent-commons enroll --target /absolute/path/to/project \
 directory the way the commands below do.
 
 Enrolling a role that already exists adopts it, preserving its identity, its
-credential and its inbox. It never creates a second one.
+credential and its inbox. It never creates a second one. If the only match was
+retired, `enroll` and `init` refuse rather than adopt, and name the two ways
+forward: `reinstate` it, or use a different name or role.
 
 After that, role commands find their own connection. From the project root or
 any directory beneath it:

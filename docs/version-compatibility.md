@@ -58,10 +58,23 @@ one JSON document and nothing else, because harnesses parse it whole and
 `--hold` streams arrivals onto the same stream. It now writes a short human
 header to stderr, which callers that only read stdout never see.
 
-`update` gained no flag. It printed prose before and prints prose now. Every
-other command — `call`, `watch`, `methods`, `connect-mcp`, `harnesses`,
-`discover`, `inventory`, `launch-context`, `service`, `wake-*` and `codex-*` —
-is unchanged.
+`update` gained no flag. It printed prose before and prints prose now.
+
+`retire` and `reinstate` are newer than v0.0.3 and follow the same convention as
+the four above: a human summary by default, the machine-readable report under
+`--json`. There is no earlier output of theirs for a script to depend on.
+
+`call` and `watch` still emit what they emitted before on success, but their
+failure text changed. A dial that cannot reach the local service is now classified
+once, at the RPC seam, and returned as a typed error. Its message is a sentence for
+a person — the service never ran here, or it shut down cleanly, or it stopped
+without cleaning up its socket — plus the fix, on stderr, rather than a raw socket
+error. A script matching on the old error string will not match the new one. Match
+on the exit status, or read `doctor --json`'s `code` field, which carries the same
+three conditions as `service_absent`, `service_stopped` and `service_stale`.
+
+`methods`, `connect-mcp`, `harnesses`, `discover`, `inventory`, `launch-context`,
+`service`, `service-plan`, `wake-*` and `codex-*` are unchanged.
 
 Colour appears only on a terminal. A pipe, a redirect and `NO_COLOR` all get
 plain text. Label columns are padded either way.

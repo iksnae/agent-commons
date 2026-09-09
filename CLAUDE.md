@@ -64,12 +64,13 @@ Four-layer split; dependencies point inward toward `internal/core`.
 - `internal/console` — Bubble Tea read-only terminal UI. UI state must not own
   coordination state.
 - `cmd/agent-commons` — CLI orchestration and one-shot human rendering.
-  `main.go` dispatches subcommands (`serve`, `call`, `mcp`, `init`, `enroll`,
-  `check-in`, `doctor`, `console`, `service`, `bundle`, `wake-*`, `codex-*`,
-  `discover`, `inventory`, `watch`, `methods`, `harnesses`);
-  `presentation.go` owns the palette, the NO_COLOR/TTY policy and the report
-  block every command writes to a person. Keep orchestration out of the layers
-  above.
+  `main.go` dispatches the subcommands and is the authority on which ones exist.
+  `commands.go` is the narrower catalog the `help` screen renders from: `mcp`,
+  `service-plan`, `launch-context`, `wake-*` and `codex-*` are dispatched without
+  being catalogued, so absence from `agent-commons help` does not mean absence
+  from the binary. Copy neither list into this file. `presentation.go` owns the
+  palette, the NO_COLOR/TTY policy and the report block every command writes to a
+  person. Keep orchestration out of the layers above.
 
 Charm is confined to the terminal presentation layer, which spans two sites:
 `internal/console` (the interactive TUI) and the presentation files of

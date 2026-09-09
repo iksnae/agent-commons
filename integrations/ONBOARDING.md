@@ -9,7 +9,10 @@ agent-commons enroll --target /absolute/project --name lead --role workspace-lea
 
 The command prints a private connection-file path, never the token. Repeating
 the same enrollment reuses the identity/credential and does not duplicate the
-welcome messages. Existing IDs may be retained with --id and their existing
+welcome messages. If the only match for that project, name and role was retired,
+`enroll` and `init` refuse instead of adopting it, naming the retired identity,
+when and why it was retired, and the two ways forward: `reinstate` it, or use a
+different name or role. Existing IDs may be retained with --id and their existing
 --team/--role. Conflicts fail instead of overwriting identity/configuration.
 
 Give the agent only the connection path and this startup command:

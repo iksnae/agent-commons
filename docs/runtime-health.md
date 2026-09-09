@@ -56,11 +56,14 @@ while children are still being joined; `stopped` follows that join.
 ## Queue counts
 
 `ready` counts pending managed deliveries eligible under current team membership.
-`waitingTeam` counts pending deliveries blocked by that membership. `blockedPolicy`
-counts tasks whose author's current policy no longer permits workflow execution.
-Those need operator repair; they are not ready to run. `manualPending`
-counts pending manual deliveries. Other counters reflect durable delivery status:
-`running`, `interrupted`, `failed`, `completed` and `acknowledged`.
+`waitingTeam` counts pending deliveries blocked by that membership. `waitingAbandoned`
+counts pending deliveries whose task the operator abandoned; they are separated from
+`waitingTeam` because that name promises a membership change could release the work,
+and for an abandoned task none ever will. `blockedPolicy` counts tasks whose
+author's current policy no longer permits workflow execution. Those need operator
+repair; they are not ready to run. `manualPending` counts pending manual
+deliveries. Other counters reflect durable delivery status: `running`,
+`interrupted`, `failed`, `completed` and `acknowledged`.
 
 `canceled` is a subset of `failed`, recorded when the managed supervisor observes
 cancellation. It is not inferred from provider error text. Older failures lack
@@ -71,7 +74,8 @@ Counts include retained deliveries addressed to the selected identity, including
 team-scoped work that identity can no longer read. They reveal no team IDs or
 content. Interrupted work needs operator reconciliation because an earlier run
 may have acted. Failed work needs authorized inbox inspection; do not blindly
-retry it. A team wait requires membership coordination, not broader credentials.
+retry it. A team wait requires membership coordination, not broader credentials; an
+abandoned wait requires neither, because no membership change will release it.
 
 These are bounded snapshots, not a metrics history or a provider readiness probe.
 Full provider diagnostics and native operational acceptance remain open.
