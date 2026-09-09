@@ -166,12 +166,14 @@ peers again. `omitempty` keeps the `[]Session` wire shape unchanged for clients
 that never see it. Both retirement evidence bounds govern stored bytes.
 The service is the ledger's SOLE author: `sessions.register` and
 `sessions.enroll` refuse a client-supplied `RetiredAt`, `RetiredReason` or
-`Retirements` together, because `params` embeds `Session` and those handlers
-copy it wholesale. That refusal is what makes the ledger evidence rather than
-input, on the same footing as `Review.Evidence`, `Delivery.HandlingEvidence` and
-`Task.AbandonEvidence`, none of which is settable at registration. It also keeps
-a legal call from writing state `validateRetirement` would refuse at every later
-load, which no supported operation could then repair.
+`Retirements` together. That refusal is what makes the ledger evidence rather
+than input, on the same footing as `Review.Evidence`, `Delivery.HandlingEvidence`
+and `Task.AbandonEvidence`, none of which is settable at registration. It also
+keeps a legal call from writing state `validateRetirement` would refuse at every
+later load, which no supported operation could then repair. Underneath those
+refusals, and independent of them, both handlers build the stored `Session` from
+a named field list rather than copying `params` wholesale, so a field added to
+`Session` is not client-settable until it is deliberately added to that list.
 Delivery fields: ID, From, To, Text, Kind (`message`, `task`, `result`), TaskID,
 ContextID, ContextVersion int, Status, Attempts int, Output, Error, CreatedAt.
 Session and Delivery exported Go fields named exactly above.
