@@ -138,6 +138,43 @@ func TestRetireCommandRequiresIdentityAndEvidence(t *testing.T) {
 	retirementDocument(t, "retire", "--json", "--state", state, "--id", enrolled.config.Identity, "--evidence", "Now for real.")
 }
 
+// The table above proves the command REFUSES whitespace evidence, but not that
+// the CLI is what refused it: it runs against a live service holding a real
+// identity, so the server's own evidence check would satisfy every one of those
+// cases. That is the adjacent property, not the one the CLI check occupies.
+//
+// This names the property the parse-time check actually holds: the refusal
+// arrives without a service. Pointing the command at a state directory nothing
+// is serving removes the server's check entirely, so a refusal that names
+// --evidence can only have come from parseRetirement. Without the CLI check the
+// operator is told their socket is missing when what is wrong is their command
+// line.
+//
+// The control is the same command with real evidence: it must get past the
+// parse and fail on the absent service instead, or this test could not tell a
+// parse refusal from any other failure.
+func TestRetirementRefusesBlankEvidenceWithoutReachingAService(t *testing.T) {
+	for _, command := range []string{"retire", "reinstate"} {
+		unserved := t.TempDir()
+		blank := run(context.Background(), []string{command, "--state", unserved,
+			"--id", "agent-alpha", "--evidence", " \t "}, nil, io.Discard, io.Discard)
+		if blank == nil {
+			t.Fatalf("%s accepted whitespace evidence", command)
+		}
+		if !strings.Contains(blank.Error(), "--evidence") {
+			t.Fatalf("%s refused whitespace evidence for some other reason than the flag: %v", command, blank)
+		}
+		control := run(context.Background(), []string{command, "--state", unserved,
+			"--id", "agent-alpha", "--evidence", "Real evidence, no service to send it to."}, nil, io.Discard, io.Discard)
+		if control == nil {
+			t.Fatalf("%s succeeded against a state directory nothing is serving", command)
+		}
+		if strings.Contains(control.Error(), "--evidence") {
+			t.Fatalf("%s refuses at parse time even with real evidence, so the blank case above proves nothing: %v", command, control)
+		}
+	}
+}
+
 // Reinstatement is a separate operator act. Its report must not carry the new
 // credential: the service holds it, and a token in terminal scrollback is a
 // credential in terminal scrollback.

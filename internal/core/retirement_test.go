@@ -408,6 +408,40 @@ func TestRetireRefusesBusyAndLeasedIdentities(t *testing.T) {
 	}
 }
 
+// The lease refusal above leases far into the future and expires a second into
+// the past, so it never touches the boundary second the comparison is actually
+// made at. This walks the three seconds around it, through retirementRefusal
+// with an explicit `now` rather than through Call: the method reads the wall
+// clock, and a test that leases relative to time.Now() cannot say which second
+// the comparison saw.
+//
+// "Expires at N" means the lease is over at N, so N is not live. Off by one in
+// either direction is a real fault: too strict refuses a retirement the
+// operator is entitled to, too loose retires an identity whose holder still has
+// the lease for one more second.
+func TestLiveLeaseRefusalIsExactAtTheExpirySecond(t *testing.T) {
+	s, _, _ := retireFixture(t)
+	const now = int64(1_800_000_000)
+	for _, c := range []struct {
+		expiresAt int64
+		refused   bool
+	}{
+		{now - 1, false},
+		{now, false},
+		{now + 1, true},
+	} {
+		v := Session{ID: "agent-alpha", Attachment: Attachment{LeaseID: "lease-one", ExpiresAt: c.expiresAt}}
+		refusal := s.retirementRefusal(v, now)
+		if refused := refusal != ""; refused != c.refused {
+			t.Fatalf("lease expiring at now%+d: refused=%v, want %v (refusal %q)",
+				c.expiresAt-now, refused, c.refused, refusal)
+		}
+		if c.refused && !strings.Contains(refusal, "attachment") {
+			t.Fatalf("lease expiring at now%+d was refused for another reason: %q", c.expiresAt-now, refusal)
+		}
+	}
+}
+
 func mustJSON(t *testing.T, v any) []byte {
 	t.Helper()
 	raw, err := json.Marshal(v)

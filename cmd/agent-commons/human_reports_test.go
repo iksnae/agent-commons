@@ -335,3 +335,30 @@ func TestCheckInHasNoJSONFlag(t *testing.T) {
 		t.Fatal("check-in accepted --json; its stdout has no second form to select")
 	}
 }
+
+// retire and reinstate are opposites that share one renderer, and the headline
+// is the single line naming which of them just happened. Nothing else in the
+// report distinguishes them for a reinstatement: it clears RetiredAt, so the
+// "Retired at" and "Reason" fields are absent from both a successful return and
+// any report that never had them.
+//
+// Each case also forbids the other operation's word. A headline asserted only
+// by `Contains` would pass for a renderer that printed both.
+func TestRetirementSummaryHeadlineNamesTheOperationThatHappened(t *testing.T) {
+	state := onboardingService(t)
+	enrolled := enrolledRole(t, state, t.TempDir(), "exp-alpha", "builder")
+	for _, c := range []struct{ command, want, forbidden string }{
+		{"retire", "Identity retired.", "reinstated"},
+		{"reinstate", "Identity reinstated.", "Identity retired."},
+	} {
+		out, _ := humanCommand(t, c.command, "--state", state, "--id", enrolled.config.Identity,
+			"--evidence", "Recorded so the summary has a real operation to name.")
+		assertNotJSON(t, c.command, out)
+		if !strings.Contains(out, c.want) {
+			t.Fatalf("%s summary omits its headline %q:\n%s", c.command, c.want, out)
+		}
+		if strings.Contains(out, c.forbidden) {
+			t.Fatalf("%s summary reports the opposite operation (%q):\n%s", c.command, c.forbidden, out)
+		}
+	}
+}

@@ -103,6 +103,12 @@ func provokingParams(method, actor string, f fixture) params {
 		ExpectedVersion:  1,
 		Version:          1,
 		ExpectedRevision: 1,
+		// Retirement arrived after this fixture and its lever was missed, so
+		// sessions.list's retirement branch went unprovoked while the comment
+		// above claimed every lever was set. Operator-only: for the other two
+		// actors this provokes the refusal path instead, which must not write
+		// either.
+		IncludeRetired: true,
 	}
 	if actor == "operator" {
 		p.Target = f.target
@@ -149,5 +155,31 @@ func populate(t *testing.T, s *Service, target string) fixture {
 	rpc(t, s, "lead", "context.put", map[string]any{"id": f.contextID, "text": "context body", "expectedVersion": 0})
 	assigned := rpc(t, s, "lead", "tasks.assign", map[string]any{"to": "builder", "title": "Task One", "text": "inspect", "criteria": "evidence", "reviewer": "reviewer", "idempotencyKey": "populate-task"}).(Task)
 	f.taskID = assigned.ID
+	// A retired identity and an abandoned task, so the terminal shapes of both
+	// ledgers are present. Without them the retirement branch of sessions.list
+	// and every terminal-status branch a read-only handler walks are skipped
+	// entirely, and their unchanged-state result is about records that were
+	// never there.
+	//
+	// Both are extra records rather than edits to the ones above: f.taskID must
+	// stay a live task, or the task handlers stop reaching the code that runs
+	// for work still in flight.
+	enrollAgent(t, s, "agent-retired", "exp-retired", "builder", f.target)
+	rpc(t, s, "operator", "sessions.retire", map[string]any{"id": "agent-retired",
+		"evidence": "Withdrawn so the fixture carries a tombstone to walk."})
+	//
+	// The abandoned task is submitted and rejected first, which is the state
+	// abandonment exists for and leaves a record with an output and a verdict
+	// on it. A bare assign-then-abandon carries empty fields, and a write into
+	// an already-empty field is invisible to a byte comparison -- which a
+	// mutation writing to Output on this branch demonstrated by surviving.
+	// Submission goes through tasks.submit rather than Claim/Finish so the
+	// fixture's delivery queue and the builder's busy flag stay as the cases
+	// above found them.
+	abandoned := rpc(t, s, "lead", "tasks.assign", map[string]any{"to": "builder", "title": "Task Two", "text": "inspect", "criteria": "evidence", "reviewer": "reviewer", "idempotencyKey": "populate-abandoned"}).(Task)
+	abandoned = rpc(t, s, "builder", "tasks.submit", map[string]any{"id": abandoned.ID, "output": "Work that stopped here.", "expectedRevision": abandoned.Revision}).(Task)
+	rpc(t, s, "reviewer", "tasks.review", map[string]any{"id": abandoned.ID, "verdict": "rejected", "evidence": "Not adequate.", "expectedRevision": abandoned.Revision})
+	rpc(t, s, "operator", "tasks.abandon", map[string]any{"id": abandoned.ID,
+		"evidence": "Stopped so the fixture carries a terminal task that was never accepted."})
 	return f
 }

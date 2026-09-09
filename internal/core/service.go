@@ -117,6 +117,10 @@ func New(directory string) (*Service, error) {
 		s.Close()
 		return nil, err
 	}
+	if err = s.validateTaskAbandonment(); err != nil {
+		s.Close()
+		return nil, err
+	}
 	if err = s.validateRetirement(); err != nil {
 		s.Close()
 		return nil, err

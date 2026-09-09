@@ -384,3 +384,49 @@ func TestRetirementHistorySurvivesRestart(t *testing.T) {
 		t.Fatalf("ledger did not survive as written: %+v", decoded)
 	}
 }
+
+// reinstate's open-entry check cannot be reached through the API -- retire
+// always appends an open entry, and validateRetirement refuses to LOAD a
+// tombstone without one -- so it is defence in depth, and its failure mode is
+// what makes it worth pinning: without the n == 0 clause the method indexes
+// history[-1] and panics. A panic in a coordination service is not a refusal,
+// it takes the whole process down with the lock held.
+//
+// Both cases corrupt state in memory only. Saving them and reopening would be
+// refused by validateRetirement instead, and this test would then pass without
+// the branch it names existing.
+func TestReinstateRefusesRatherThanPanicsOnAnUnusableLedger(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		corrupt func(Session) Session
+	}{
+		{"no history at all", func(v Session) Session {
+			v.Retirements = nil
+			return v
+		}},
+		{"history whose last entry is already closed", func(v Session) Session {
+			v.Retirements[len(v.Retirements)-1].ReinstatedAt = "2026-09-08T00:00:00Z"
+			v.Retirements[len(v.Retirements)-1].ReinstatedReason = "Closed by something other than reinstate."
+			return v
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s, _, target := retireFixture(t)
+			enrollAgent(t, s, "agent-alpha", "exp-alpha", "builder", target)
+			rpc(t, s, "operator", "sessions.retire", retireArgs("agent-alpha"))
+			s.data.Sessions["agent-alpha"] = c.corrupt(s.data.Sessions["agent-alpha"])
+
+			deniedWith(t, s, "operator", "sessions.reinstate",
+				"retired identity has no open retirement history entry",
+				reinstateArgs("agent-alpha", "Attempting to return an identity whose ledger cannot carry it."))
+			// A refusal that quietly restored the credential would be worse
+			// than the panic it replaced.
+			if _, ok := s.data.Tokens["agent-alpha"]; ok {
+				t.Fatal("the refused reinstatement issued a credential")
+			}
+			if s.data.Sessions["agent-alpha"].RetiredAt == "" {
+				t.Fatal("the refused reinstatement cleared the tombstone")
+			}
+		})
+	}
+}
