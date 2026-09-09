@@ -52,12 +52,17 @@ pass counts as 1". At `severity: error, threshold: 0`, one failure anywhere fail
 all Go units at once. Only Go, because `test-pass` lives in `go.yml` and policy
 packs are language-gated.
 
-This is not hypothetical. `TestCancellationKillsDescendants` in `internal/runtime`
-is a known load-sensitive flake: it passes when run alone and fails intermittently
-under a full `go test ./...`. Measured against this configuration's 452 units, on
-one machine and one commit, with `go vet` clean in both runs — the failing case
-produced by injecting a deliberately failing test rather than by waiting for the
-flake:
+`TestCancellationKillsDescendants` in `internal/runtime` was the standing example
+of how a flake reaches this amplifier by accident: it gave the fixture's child a fixed
+150ms window to record its pid, so on a loaded machine it failed on a missing file
+rather than on a surviving descendant. `9d5f778` replaced that window with a poll on
+the pid file, and a reviewer stress-ran the pair 25 out of 25 clean under `-race`.
+**A failure in that test is now new and reportable.** Do not match it to a known
+flake and dismiss it.
+
+This is not hypothetical. Measured against this configuration's 452 units, on one
+machine and one commit, with `go vet` clean in both runs — the failing case produced
+by injecting a deliberately failing test:
 
 | Test run | Result | Report card |
 | --- | --- | --- |
