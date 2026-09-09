@@ -25,9 +25,21 @@ package core
 // Both existing guards stay exactly where they are. They read the client's
 // input, not this result, because they are the operator-facing refusals the
 // contract promises for state already known to be server-owned; this function
-// is what stops the NEXT field from needing them. Pinned by
-// TestRegistrationPersistsOnlyClientSettableSessionFields, which walks Session
-// by reflection and fails naming any field this list has not decided about.
+// is what stops the NEXT field from needing them.
+//
+// Two tests cover this, and they measure different things; be precise about
+// which. TestRegistrationPersistsOnlyClientSettableSessionFields walks Session
+// by reflection and asserts at PERSISTED state. What that pins is the guards,
+// plus the exhaustiveness trigger that fails naming any field the sentinel
+// lists have not decided about -- and, for a client-settable field, that this
+// list still carries it through. It does NOT pin the omission half. A
+// server-owned field silently left at its zero value here is invisible to it,
+// because every server-owned field that exists today is independently refused
+// by the two guards before anything is written, so persisted state stays
+// correct even with this function reverted to the wholesale copy it replaced.
+// TestRegisteredSessionKeepsClientFieldsAndDropsServerOwnedOnes closes that
+// half by calling this function directly and checking its result field by
+// field, where nothing downstream can absorb the difference.
 func registeredSession(in Session) Session {
 	return Session{
 		ID:     in.ID,
