@@ -456,19 +456,24 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if actor != "operator" {
 			return fail("operator required")
 		}
-		v := p.Session
-		if v.Policy == "" {
-			v.Policy = "coordination"
+		// in is what the client sent; v below is what may be stored. They are
+		// separate because the two guards in this branch must keep reading the
+		// client's own values -- a forged field zeroed by construction would
+		// otherwise pass a guard the operator is promised a refusal from.
+		in := p.Session
+		if in.Policy == "" {
+			in.Policy = "coordination"
 		}
-		if v.Policy != "coordination" && v.Policy != "workflow" {
+		if in.Policy != "coordination" && in.Policy != "workflow" {
 			return fail("invalid policy")
 		}
-		if !checkID(v.ID) || v.ID == "operator" {
+		if !checkID(in.ID) || in.ID == "operator" {
 			return fail("invalid session ID")
 		}
-		// Every field of the retirement tri-state, not two of three. params
-		// embeds Session and this branch copies it wholesale, so a field left
-		// out of this list binds straight from client JSON.
+		// Every field of the retirement tri-state, not two of three. This guard
+		// is the operator-facing refusal for state already known to be
+		// server-owned; registeredSession below is what keeps the NEXT field
+		// from depending on someone remembering to extend it.
 		//
 		// Retirements is the one that matters most. Accepting an OPEN entry
 		// writes state that validateRetirement then refuses at every later
@@ -480,9 +485,13 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		// is its sole author, exactly as Review.Evidence,
 		// Delivery.HandlingEvidence and Task.AbandonEvidence are written only
 		// by the methods that demanded them.
-		if v.RetiredAt != "" || v.RetiredReason != "" || len(v.Retirements) > 0 {
+		if in.RetiredAt != "" || in.RetiredReason != "" || len(in.Retirements) > 0 {
 			return fail("retirement state is operator owned")
 		}
+		// Built before the enroll scan below, which reads v.Target, v.Role and
+		// v.Name and then reassigns v.ID: the scan must see sanitized values,
+		// and its adoption result must survive into what is stored.
+		v := registeredSession(in)
 		if method == "sessions.enroll" {
 			// Resolve server-side, before ID equality is checked: a legacy
 			// operator-registered session (Name == "") or an already-named
@@ -575,7 +584,7 @@ func (s *Service) call(actor, method string, p params) (any, error) {
 		if v.Mode == "managed" && !harness.CanManage(v.Runtime) {
 			return fail("managed dispatch adapter unavailable for this runtime; use explicit manual coordination")
 		}
-		if v.RuntimeSessionID != "" || v.Busy || v.Attachment != (Attachment{}) {
+		if in.RuntimeSessionID != "" || in.Busy || in.Attachment != (Attachment{}) {
 			return fail("runtime state is supervisor owned")
 		}
 		t, err := canonicalTarget(v.Target)
